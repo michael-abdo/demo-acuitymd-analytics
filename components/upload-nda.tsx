@@ -21,10 +21,17 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      if (selectedFile.type !== 'application/pdf') {
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/msword', // .doc
+        'text/plain' // .txt
+      ]
+      
+      if (!allowedTypes.includes(selectedFile.type)) {
         toast({
           title: "Invalid file type",
-          description: "Please select a PDF file.",
+          description: "Please select a PDF, DOCX, DOC, or TXT file.",
           variant: "destructive"
         })
         return
@@ -48,7 +55,7 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('docType', docType)
+      formData.append('isStandard', docType === 'STANDARD' ? 'true' : 'false')
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -94,7 +101,7 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
           Upload NDA Document
         </CardTitle>
         <CardDescription>
-          Upload a PDF document to analyze and compare against your standard NDA
+          Upload a PDF or Word document to analyze and compare against your standard NDA
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,21 +119,21 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="file-upload">PDF Document</Label>
+          <Label htmlFor="file-upload">Document File</Label>
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <input
               id="file-upload"
               type="file"
-              accept=".pdf"
+              accept=".pdf,.docx,.doc,.txt"
               onChange={handleFileChange}
               className="hidden"
             />
             <label htmlFor="file-upload" className="cursor-pointer">
               <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
               <p className="text-sm text-gray-600">
-                {file ? file.name : 'Click to select a PDF file'}
+                {file ? file.name : 'Click to select a document'}
               </p>
-              <p className="text-xs text-gray-400">PDF files only, max 10MB</p>
+              <p className="text-xs text-gray-400">PDF, DOCX, DOC, or TXT files, max 10MB</p>
             </label>
           </div>
         </div>
