@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "tsx database/run-migrations.ts",
+    "db:test": "DB_CREATE_ACCESS=false npm run dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
