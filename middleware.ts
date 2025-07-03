@@ -20,8 +20,8 @@ export default withAuth(
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/api/:path*", 
+    "/(api/(?!auth|test-db|migrate-db|test-crud).*)", 
     // Exclude authentication-related routes from protection
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|sign-in|auth).*)"
+    "/((?!api/auth|api/test-db|api/migrate-db|api/test-crud|_next/static|_next/image|favicon.ico|sign-in|auth).*)"
   ],
 }; 

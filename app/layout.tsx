@@ -3,6 +3,7 @@ import './globals.css'
 import { Navbar } from '@/components/navbar'
 import { Providers } from './providers'
 import PendoScript from '@/components/PendoScript'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
   title: 'NDA Analyzer',
@@ -21,6 +22,7 @@ export default function RootLayout({
           <PendoScript />
           <Navbar />
           {children}
+          <Toaster />
         </Providers>
       </body>
     </html>
