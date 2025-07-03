@@ -1,88 +1,152 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import { createHash } from 'crypto'
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-})
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { createHash } from 'crypto';
+import { storage, ndaPaths } from '@/lib/storage';
+import { documentDb, DocumentStatus } from '@/lib/nda';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession();
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    const docType = formData.get('docType') as string || 'THIRD_PARTY'
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const docType = formData.get('docType') as string || 'THIRD_PARTY';
+    const isStandard = formData.get('isStandard') === 'true';
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     // Validate file type
     if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 })
+      return NextResponse.json({ 
+        error: 'Only PDF files are allowed',
+        allowedTypes: ['application/pdf']
+      }, { status: 400 });
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json({ 
+        error: 'File too large',
+        maxSize: maxSize,
+        actualSize: file.size
+      }, { status: 400 });
     }
 
     // Read file content
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
     
-    // Generate file hash
-    const fileHash = createHash('sha256').update(buffer).digest('hex')
+    // Generate file hash for deduplication
+    const fileHash = createHash('sha256').update(buffer).digest('hex');
     
-    // Generate S3 key
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const folderPrefix = process.env.S3_FOLDER_PREFIX || 'nda-analyzer/'
-    const s3Key = `${folderPrefix}users/${session.user.email}/documents/${fileHash}/${file.name}`
+    // Check if file already exists
+    const existingDocument = await documentDb.findByHash(fileHash);
+    if (existingDocument) {
+      return NextResponse.json({
+        status: 'duplicate',
+        message: 'Document already exists',
+        document: existingDocument,
+        duplicate: true
+      });
+    }
 
-    // Upload to S3
-    const uploadCommand = new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME || 'vvg-cloud-storage',
-      Key: s3Key,
-      Body: buffer,
-      ContentType: file.type,
-      Metadata: {
+    // Initialize storage
+    await storage.initialize();
+    
+    // Generate storage key
+    const storageKey = ndaPaths.document(session.user.email, fileHash, file.name);
+    
+    // Upload to storage (S3 or local)
+    const uploadResult = await storage.upload(storageKey, buffer, {
+      contentType: file.type,
+      metadata: {
         originalName: file.name,
         uploadedBy: session.user.email,
         docType: docType,
-        fileHash: fileHash
+        fileHash: fileHash,
+        isStandard: isStandard.toString(),
+        uploadDate: new Date().toISOString()
       }
-    })
+    });
 
-    await s3Client.send(uploadCommand)
-
-    // TODO: Store document metadata in database (pending schema creation)
-    const documentData = {
-      filename: s3Key,
-      originalName: file.name,
-      fileHash: fileHash,
-      s3Url: `s3://${process.env.S3_BUCKET_NAME || 'vvg-cloud-storage'}/${s3Key}`,
-      fileSize: file.size,
-      userId: session.user.email,
-      docType: docType,
-      status: 'uploaded'
-    }
+    // Store document metadata in database (memory or MySQL)
+    const document = await documentDb.create({
+      filename: storageKey,
+      original_name: file.name,
+      file_hash: fileHash,
+      s3_url: storage.isS3() ? `s3://${process.env.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
+      file_size: file.size,
+      upload_date: new Date(),
+      user_id: session.user.email,
+      status: DocumentStatus.UPLOADED,
+      extracted_text: null,
+      is_standard: isStandard,
+      metadata: {
+        docType,
+        contentType: file.type,
+        provider: storage.getProvider()
+      }
+    });
 
     return NextResponse.json({
       status: 'success',
       message: 'Document uploaded successfully',
-      document: documentData
-    })
+      document: {
+        id: document.id,
+        filename: document.filename,
+        originalName: document.original_name,
+        fileHash: document.file_hash,
+        fileSize: document.file_size,
+        uploadDate: document.upload_date,
+        isStandard: document.is_standard,
+        status: document.status,
+        storageProvider: storage.getProvider(),
+        storageKey: storageKey
+      },
+      storage: {
+        provider: storage.getProvider(),
+        key: uploadResult.key,
+        size: uploadResult.size,
+        etag: uploadResult.etag
+      }
+    });
 
-  } catch (error) {
-    console.error('Upload error:', error)
+  } catch (error: any) {
+    console.error('Upload error:', error);
+    
+    // Provide specific error messages based on error type
+    let errorMessage = 'Upload failed';
+    let errorCode = 'UPLOAD_ERROR';
+    
+    if (error.code === 'AccessDenied') {
+      errorMessage = 'Storage access denied. Please check permissions.';
+      errorCode = 'STORAGE_ACCESS_DENIED';
+    } else if (error.code === 'NoSuchBucket') {
+      errorMessage = 'Storage bucket not found. Please check configuration.';
+      errorCode = 'STORAGE_BUCKET_NOT_FOUND';
+    } else if (error.code === 'ENOSPC') {
+      errorMessage = 'Insufficient storage space.';
+      errorCode = 'STORAGE_QUOTA_EXCEEDED';
+    } else if (error.name === 'StorageError') {
+      errorMessage = error.message;
+      errorCode = error.code;
+    }
+    
     return NextResponse.json({
       status: 'error',
-      message: 'Upload failed',
-      error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+      message: errorMessage,
+      code: errorCode,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? {
+        storageProvider: storage.getProvider?.() || 'unknown',
+        stack: error.stack
+      } : undefined
+    }, { status: 500 });
   }
 }
