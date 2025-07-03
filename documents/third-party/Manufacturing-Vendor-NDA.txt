@@ -1,0 +1,96 @@
+VENDOR NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is made as of _____________, 20__ ("Effective Date")
+
+BETWEEN:
+
+Advanced Manufacturing Corp.
+123 Industrial Parkway
+Detroit, MI 48201
+("Company")
+
+AND:
+
+_________________________
+_________________________
+_________________________
+("Vendor")
+
+WHEREAS, Company and Vendor desire to explore a potential business relationship for the supply of manufacturing components and/or services;
+
+WHEREAS, in connection with such exploration, the parties may disclose certain confidential and proprietary information to each other;
+
+NOW, THEREFORE, the parties agree as follows:
+
+1. CONFIDENTIAL INFORMATION
+For purposes of this Agreement, "Confidential Information" means:
+• Manufacturing processes, techniques, and methodologies
+• Product specifications, drawings, and blueprints  
+• Quality control procedures and standards
+• Supplier lists and pricing information
+• Production schedules and capacity data
+• Cost structures and pricing models
+• Tooling and equipment specifications
+• Any information marked as confidential or proprietary
+
+2. OBLIGATIONS
+2.1 Each party agrees to:
+   a) Hold the other party's Confidential Information in strict confidence
+   b) Not disclose such Confidential Information to any third parties
+   c) Use the Confidential Information solely to evaluate the potential business relationship
+   d) Protect the Confidential Information using reasonable security measures
+   e) Limit access to employees with a legitimate need to know
+
+2.2 Vendor specifically agrees not to:
+   a) Reverse engineer any Company products or processes
+   b) Use Company's Confidential Information to compete with Company
+   c) Disclose pricing information to Company's competitors
+
+3. EXCEPTIONS
+The obligations above shall not apply to information that:
+   a) Was publicly known at the time of disclosure
+   b) Becomes publicly known through no fault of the receiving party
+   c) Was already known to the receiving party
+   d) Is independently developed without use of Confidential Information
+   e) Must be disclosed by law (with prompt notice to the disclosing party)
+
+4. INTELLECTUAL PROPERTY
+4.1 All Confidential Information remains the property of the disclosing party
+4.2 No license or rights are granted except to evaluate the potential relationship
+4.3 Any improvements or modifications to Company's designs remain Company's property
+
+5. TERM AND TERMINATION
+5.1 This Agreement shall remain in effect for two (2) years from the Effective Date
+5.2 Confidentiality obligations survive termination for three (3) years
+5.3 Either party may terminate with 30 days written notice
+
+6. RETURN OF MATERIALS
+Upon termination or request, each party shall:
+   a) Return all tangible Confidential Information
+   b) Destroy all copies and notes
+   c) Certify in writing the completion of such return/destruction
+
+7. REMEDIES
+The parties acknowledge that breach may cause irreparable harm and that the non-breaching party shall be entitled to seek injunctive relief in addition to other remedies.
+
+8. GENERAL PROVISIONS
+8.1 This Agreement shall be governed by Michigan law
+8.2 This Agreement may not be assigned without written consent
+8.3 This constitutes the entire agreement between the parties
+8.4 Any modifications must be in writing and signed by both parties
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the Effective Date.
+
+ADVANCED MANUFACTURING CORP.         VENDOR
+
+_________________________           _________________________
+Signature                           Signature
+
+_________________________           _________________________
+Print Name                          Print Name
+
+_________________________           _________________________
+Title                              Title
+
+_________________________           _________________________
+Date                               Date

@@ -1,0 +1,97 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+Financial Services Confidentiality Agreement
+
+Date: _________________
+
+This Mutual Non-Disclosure Agreement (this "Agreement") is entered into between:
+
+(1) Global Financial Partners Inc., a corporation incorporated under the laws of New York, with registered office at 100 Wall Street, New York, NY 10005 ("GFP"); and
+
+(2) ______________________, a _____________ incorporated under the laws of _____________, with registered office at ______________________ ("Counterparty").
+
+Each of GFP and Counterparty is referred to as a "Party" and together as the "Parties".
+
+RECITALS:
+(A) The Parties are considering entering into discussions relating to potential financial services collaboration, investment opportunities, and/or strategic partnerships (the "Project").
+(B) In connection with the Project, each Party may disclose Confidential Information to the other Party.
+(C) The Parties wish to ensure that all Confidential Information disclosed is kept confidential.
+
+THE PARTIES AGREE AS FOLLOWS:
+
+1. DEFINITIONS AND INTERPRETATION
+1.1 In this Agreement:
+    "Confidential Information" means all information relating to a Party or its Affiliates which is disclosed by that Party to the other Party in connection with the Project, including:
+    (a) Financial statements, projections, and analyses
+    (b) Investment strategies and portfolio information
+    (c) Client lists and account information
+    (d) Proprietary trading algorithms and models
+    (e) Risk management procedures
+    (f) Regulatory and compliance information
+    (g) Any analyses, compilations, studies or other documents prepared by the receiving Party containing or based on any of the above
+
+    "Affiliate" means any entity that directly or indirectly controls, is controlled by, or is under common control with a Party.
+
+2. CONFIDENTIALITY UNDERTAKINGS
+2.1 Each Party undertakes to the other that it will:
+    (a) keep all Confidential Information strictly confidential;
+    (b) not disclose Confidential Information to any person except as permitted by this Agreement;
+    (c) not use Confidential Information for any purpose other than the Project;
+    (d) protect Confidential Information with security measures no less stringent than those it uses for its own confidential financial information;
+    (e) comply with all applicable financial regulations regarding information security.
+
+3. EXCEPTIONS
+3.1 The obligations in Clause 2 do not apply to Confidential Information which:
+    (a) is or becomes publicly available other than by breach of this Agreement;
+    (b) the receiving Party can demonstrate was already known to it at the time of disclosure;
+    (c) is received from a third party who lawfully acquired it and who is under no obligation restricting its disclosure;
+    (d) is independently developed without access to or use of the Confidential Information; or
+    (e) is required to be disclosed by law, regulation, or regulatory authority.
+
+4. PERMITTED DISCLOSURE
+4.1 A Party may disclose Confidential Information to:
+    (a) its directors, officers, employees, and professional advisers who need to know for the Project;
+    (b) its Affiliates and their directors, officers, and employees who need to know for the Project;
+    (c) any regulatory authority or governmental body having jurisdiction over it.
+
+4.2 Before disclosure under Clause 4.1, the disclosing Party must ensure recipients are bound by confidentiality obligations no less onerous than those in this Agreement.
+
+5. SECURITIES LAW COMPLIANCE
+5.1 Each Party acknowledges that:
+    (a) Confidential Information may constitute material non-public information under securities laws;
+    (b) trading while in possession of such information may violate securities laws;
+    (c) it will comply with all applicable securities laws and regulations.
+
+6. TERM
+6.1 This Agreement commences on the date of last signature and continues for 2 years.
+6.2 The obligations under Clause 2 survive termination and continue for 5 years from disclosure of the relevant Confidential Information.
+
+7. RETURN OF INFORMATION
+7.1 On termination or on request, each Party must:
+    (a) return all documents and materials containing Confidential Information;
+    (b) permanently delete all electronic copies;
+    (c) certify in writing compliance with this Clause 7.
+
+8. NO OBLIGATION
+8.1 Nothing in this Agreement obligates either Party to:
+    (a) disclose any particular information;
+    (b) enter into any further agreement; or
+    (c) proceed with the Project.
+
+9. REMEDIES
+9.1 Each Party acknowledges that damages may not be an adequate remedy for breach of this Agreement and that the other Party may be entitled to seek injunctive relief.
+
+10. GENERAL
+10.1 Governing Law: This Agreement is governed by New York law.
+10.2 Jurisdiction: The courts of New York have exclusive jurisdiction.
+10.3 Entire Agreement: This Agreement constitutes the entire agreement between the Parties relating to its subject matter.
+10.4 Amendment: This Agreement may only be amended in writing signed by both Parties.
+10.5 No Assignment: Neither Party may assign its rights or obligations without the other Party's prior written consent.
+
+EXECUTED as an agreement:
+
+GLOBAL FINANCIAL PARTNERS INC.        COUNTERPARTY
+
+By: _______________________          By: _______________________
+Name: _____________________          Name: _____________________
+Title: ____________________          Title: ____________________
+Date: _____________________          Date: _____________________
