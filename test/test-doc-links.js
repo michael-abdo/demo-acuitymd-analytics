@@ -32,13 +32,6 @@ const docReferences = [
       '/docs/DEPLOYMENT_STATUS.md',
       '/app/api/migrate-db/route.ts'
     ]
-  },
-  {
-    source: 'docs/nda_analyzer_design.md',
-    references: [
-      '/docs/DEPLOYMENT_STATUS.md',
-      '/app/api/migrate-db/route.ts'
-    ]
   }
 ];
 
