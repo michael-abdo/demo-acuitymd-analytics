@@ -44,11 +44,17 @@ export function Navbar() {
       <div className="container flex h-full max-w-screen-2xl items-center justify-between px-4">
         {/* Left side - Anomaly Detector button */}
         <Link href="/" className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
-          {/* Globe icon */}
+          {/* Document icon */}
           <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-            <img src="/TruckTrailer.svg" alt="Globe" className="w-4 h-4" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
           </div>
-          <span className="text-[#152C5B] font-medium">Truck Hunter</span>
+          <span className="text-[#152C5B] font-medium">NDA Analyzer</span>
         </Link>
 
         {/* Center - Logo */}

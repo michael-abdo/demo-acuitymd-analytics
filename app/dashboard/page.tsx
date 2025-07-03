@@ -1,43 +1,100 @@
 "use client";
 
-import TruckFinder from "@/components/truck-finder";
 import { useSession } from "next-auth/react";
-import { useRef } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FileUp, FileText, GitCompare, Download } from "lucide-react";
 
 export default function Dashboard() {
   const { data: session } = useSession();
-  const truckFinderRef = useRef<any>(null);
-
-  // Handler to trigger reset in TruckFinder
-  const handleClearSearch = () => {
-    if (truckFinderRef.current && typeof truckFinderRef.current.handleReset === 'function') {
-      truckFinderRef.current.handleReset();
-    }
-  };
 
   return (
     <main className="container mx-auto py-8 px-4 mt-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Find Similar Trucks</h1>
-          <p className="text-gray-600">
-            Welcome, {session?.user?.name || "User"}!
-          </p>
-        </div>
-        <Button 
-          variant="outline" 
-          onClick={handleClearSearch} 
-          className="flex items-center gap-2 border-gray-300 font-semibold"
-        >
-          Clear search
-          <img src="/XCircle.svg" alt="Clear" className="h-5 w-5 ml-1" />
-        </Button>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">NDA Analyzer Dashboard</h1>
+        <p className="text-gray-600">
+          Welcome, {session?.user?.name || "User"}!
+        </p>
       </div>
 
-      <div className="dashboard-content">
-        <TruckFinder ref={truckFinderRef} />
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Documents analyzed</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Comparisons</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">NDAs compared</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Suggestions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">AI suggestions generated</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Exports</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Documents exported</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks for NDA analysis</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Button className="w-full justify-start" size="lg">
+              <FileUp className="mr-2 h-5 w-5" />
+              Upload NDA Document
+            </Button>
+            <Button className="w-full justify-start" size="lg" variant="outline">
+              <GitCompare className="mr-2 h-5 w-5" />
+              Compare NDAs
+            </Button>
+            <Button className="w-full justify-start" size="lg" variant="outline">
+              <FileText className="mr-2 h-5 w-5" />
+              View Documents
+            </Button>
+            <Button className="w-full justify-start" size="lg" variant="outline">
+              <Download className="mr-2 h-5 w-5" />
+              Export Results
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Your latest document analyses</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">No recent activity</p>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
-} 
+}

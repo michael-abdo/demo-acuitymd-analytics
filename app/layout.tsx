@@ -5,8 +5,8 @@ import { Providers } from './providers'
 import PendoScript from '@/components/PendoScript'
 
 export const metadata: Metadata = {
-  title: 'Truck Hunter',
-  description: 'Find trucks and pricing information',
+  title: 'NDA Analyzer',
+  description: 'AI-powered NDA document analysis and comparison tool',
 }
 
 export default function RootLayout({
