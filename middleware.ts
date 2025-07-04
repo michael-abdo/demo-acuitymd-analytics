@@ -8,7 +8,16 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token, req }) => {
+        // Allow test user in development mode
+        if (process.env.NODE_ENV === 'development') {
+          const testUser = req.headers.get('x-test-user');
+          if (testUser) {
+            return true;
+          }
+        }
+        return !!token;
+      },
     },
     pages: {
       signIn: "/sign-in",

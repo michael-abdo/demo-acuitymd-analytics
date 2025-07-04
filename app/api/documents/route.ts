@@ -8,8 +8,13 @@ import { storage } from '@/lib/storage';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const testUser = request.headers.get('x-test-user');
     
-    if (!session?.user?.email) {
+    // Allow test user in development mode
+    const userEmail = session?.user?.email || 
+      (process.env.NODE_ENV === 'development' && testUser ? testUser : null);
+    
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -26,7 +31,7 @@ export async function GET(request: NextRequest) {
     const offset = (validPage - 1) * validPageSize;
 
     // Get user's documents from database
-    const userDocuments = await documentDb.findByUser(session.user.email);
+    const userDocuments = await documentDb.findByUser(userEmail);
 
     // Filter documents based on query parameters
     let filteredDocuments = userDocuments;
