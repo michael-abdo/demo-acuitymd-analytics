@@ -82,12 +82,7 @@ export default function Dashboard() {
               className="w-full justify-start" 
               size="lg" 
               variant="outline"
-              onClick={() => {
-                toast({
-                  title: "Feature coming soon",
-                  description: "NDA comparison functionality is being developed."
-                })
-              }}
+              onClick={() => router.push('/compare')}
             >
               <GitCompare className="mr-2 h-5 w-5" />
               Compare NDAs
@@ -96,12 +91,7 @@ export default function Dashboard() {
               className="w-full justify-start" 
               size="lg" 
               variant="outline"
-              onClick={() => {
-                toast({
-                  title: "Feature coming soon",
-                  description: "Document viewer is being developed."
-                })
-              }}
+              onClick={() => router.push('/documents')}
             >
               <FileText className="mr-2 h-5 w-5" />
               View Documents

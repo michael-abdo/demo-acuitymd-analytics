@@ -1,0 +1,375 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
+
+interface Document {
+  id: number;
+  filename: string;
+  display_name?: string;
+  is_standard: boolean;
+  status: string;
+  uploaded_at: string;
+}
+
+interface ComparisonResult {
+  summary: string;
+  overallRisk: 'low' | 'medium' | 'high';
+  keyDifferences: string[];
+  sections: {
+    section: string;
+    differences: string[];
+    severity: 'low' | 'medium' | 'high';
+    suggestions: string[];
+  }[];
+  recommendedActions: string[];
+  confidence: number;
+}
+
+interface Comparison {
+  id: number;
+  standardDocument: Document;
+  thirdPartyDocument: Document;
+  result: ComparisonResult;
+  status: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export default function ComparePage() {
+  const { data: session } = useSession();
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [selectedStandard, setSelectedStandard] = useState<string>('');
+  const [selectedThirdParty, setSelectedThirdParty] = useState<string>('');
+  const [comparing, setComparing] = useState(false);
+  const [currentComparison, setCurrentComparison] = useState<Comparison | null>(null);
+  const [recentComparisons, setRecentComparisons] = useState<Comparison[]>([]);
+
+  // Load documents on page load
+  useEffect(() => {
+    if (session) {
+      loadDocuments();
+    }
+  }, [session]);
+
+  const loadDocuments = async () => {
+    try {
+      const response = await fetch('/api/documents');
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error);
+    }
+  };
+
+  const startComparison = async () => {
+    if (!selectedStandard || !selectedThirdParty) return;
+
+    try {
+      setComparing(true);
+      setCurrentComparison(null);
+
+      const response = await fetch('/api/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          standardDocId: selectedStandard,
+          thirdPartyDocId: selectedThirdParty
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentComparison(data.comparison);
+        // Add to recent comparisons
+        setRecentComparisons(prev => [data.comparison, ...prev.slice(0, 4)]);
+      } else {
+        const errorData = await response.json();
+        console.error('Comparison failed:', errorData);
+        alert(`Comparison failed: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error starting comparison:', error);
+      alert('Error starting comparison. Please try again.');
+    } finally {
+      setComparing(false);
+    }
+  };
+
+  const standardDocuments = documents.filter(doc => doc.is_standard);
+  const thirdPartyDocuments = documents.filter(doc => !doc.is_standard);
+
+  const getRiskColor = (risk: string) => {
+    switch (risk) {
+      case 'low': return 'text-green-600 bg-green-50 border-green-200';
+      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'high': return 'text-red-600 bg-red-50 border-red-200';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getRiskIcon = (risk: string) => {
+    switch (risk) {
+      case 'low': return <CheckCircle className="h-4 w-4" />;
+      case 'medium': return <Clock className="h-4 w-4" />;
+      case 'high': return <AlertCircle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  if (!session) {
+    return (
+      <div className="container mx-auto p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Document Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Please sign in to compare documents.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-8 space-y-8">
+      <h1 className="text-3xl font-bold">Compare NDAs</h1>
+
+      {/* Document Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Documents to Compare</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Standard Template
+              </label>
+              <Select value={selectedStandard} onValueChange={setSelectedStandard}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose your standard NDA template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {standardDocuments.map((doc) => (
+                    <SelectItem key={doc.id} value={doc.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <Star className="h-3 w-3 text-yellow-500" />
+                        {doc.display_name || doc.filename}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {standardDocuments.length === 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  No standard templates found. Upload an NDA and mark it as standard in the Documents page.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Third-Party NDA
+              </label>
+              <Select value={selectedThirdParty} onValueChange={setSelectedThirdParty}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose third-party NDA to analyze" />
+                </SelectTrigger>
+                <SelectContent>
+                  {thirdPartyDocuments.map((doc) => (
+                    <SelectItem key={doc.id} value={doc.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3 w-3" />
+                        {doc.display_name || doc.filename}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {thirdPartyDocuments.length === 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  No third-party documents found. Upload some NDAs to compare.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <Button
+              onClick={startComparison}
+              disabled={!selectedStandard || !selectedThirdParty || comparing}
+              size="lg"
+              className="px-8"
+            >
+              {comparing ? (
+                <>
+                  <Clock className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing Documents...
+                </>
+              ) : (
+                <>
+                  Compare Documents
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Current Comparison Results */}
+      {currentComparison && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Comparison Results
+              <Badge className={getRiskColor(currentComparison.result.overallRisk)}>
+                {getRiskIcon(currentComparison.result.overallRisk)}
+                {currentComparison.result.overallRisk.toUpperCase()} RISK
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Summary */}
+            <div>
+              <h3 className="font-semibold mb-2">Executive Summary</h3>
+              <p className="text-gray-700">{currentComparison.result.summary}</p>
+            </div>
+
+            {/* Key Differences */}
+            <div>
+              <h3 className="font-semibold mb-2">Key Differences</h3>
+              <ul className="space-y-1">
+                {currentComparison.result.keyDifferences.map((diff, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">{diff}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Section Analysis */}
+            <div>
+              <h3 className="font-semibold mb-3">Detailed Analysis by Section</h3>
+              <div className="space-y-4">
+                {currentComparison.result.sections.map((section, idx) => (
+                  <Card key={idx} className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">{section.section}</CardTitle>
+                        <Badge className={getRiskColor(section.severity)}>
+                          {section.severity.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {section.differences.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Differences:</h4>
+                          <ul className="space-y-1">
+                            {section.differences.map((diff, diffIdx) => (
+                              <li key={diffIdx} className="text-sm text-gray-600 ml-4">
+                                • {diff}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {section.suggestions.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-sm mb-2">Recommendations:</h4>
+                          <ul className="space-y-1">
+                            {section.suggestions.map((suggestion, suggIdx) => (
+                              <li key={suggIdx} className="text-sm text-blue-600 ml-4">
+                                • {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Recommended Actions */}
+            <div>
+              <h3 className="font-semibold mb-2">Recommended Actions</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <ul className="space-y-2">
+                  {currentComparison.result.recommendedActions.map((action, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-blue-800">{action}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Confidence Score */}
+            <div className="flex justify-between items-center pt-4 border-t">
+              <span className="text-sm text-gray-500">
+                Analysis Confidence: {Math.round(currentComparison.result.confidence * 100)}%
+              </span>
+              <span className="text-sm text-gray-500">
+                Completed: {new Date(currentComparison.completedAt || currentComparison.createdAt).toLocaleString()}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Comparisons */}
+      {recentComparisons.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Comparisons</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentComparisons.map((comparison, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setCurrentComparison(comparison)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm">
+                      <span className="font-medium">
+                        {comparison.standardDocument.display_name || comparison.standardDocument.filename}
+                      </span>
+                      <span className="text-gray-500 mx-2">vs</span>
+                      <span className="font-medium">
+                        {comparison.thirdPartyDocument.display_name || comparison.thirdPartyDocument.filename}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getRiskColor(comparison.result.overallRisk)}>
+                      {comparison.result.overallRisk.toUpperCase()}
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      {new Date(comparison.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
