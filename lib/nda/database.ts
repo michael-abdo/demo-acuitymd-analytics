@@ -33,18 +33,40 @@ import {
 const HAS_DB_ACCESS = process.env.DB_CREATE_ACCESS === 'true';
 
 // In-memory storage for development
-const memoryStore = {
-  documents: new Map<number, NDADocument>(),
-  comparisons: new Map<number, NDAComparison>(),
-  exports: new Map<number, NDAExport>(),
-  queue: new Map<number, ProcessingQueueItem>(),
-  nextId: {
-    documents: 1,
-    comparisons: 1,
-    exports: 1,
-    queue: 1
-  }
-};
+// Use global to persist across hot reloads in development
+declare global {
+  var _ndaMemoryStore: {
+    documents: Map<number, NDADocument>;
+    comparisons: Map<number, NDAComparison>;
+    exports: Map<number, NDAExport>;
+    queue: Map<number, ProcessingQueueItem>;
+    nextId: {
+      documents: number;
+      comparisons: number;
+      exports: number;
+      queue: number;
+    };
+  } | undefined;
+}
+
+// Initialize or reuse existing store
+if (!global._ndaMemoryStore) {
+  global._ndaMemoryStore = {
+    documents: new Map<number, NDADocument>(),
+    comparisons: new Map<number, NDAComparison>(),
+    exports: new Map<number, NDAExport>(),
+    queue: new Map<number, ProcessingQueueItem>(),
+    nextId: {
+      documents: 1,
+      comparisons: 1,
+      exports: 1,
+      queue: 1
+    }
+  };
+}
+
+// Always use the global store
+const memoryStore = global._ndaMemoryStore;
 
 /**
  * Convert database row to domain model

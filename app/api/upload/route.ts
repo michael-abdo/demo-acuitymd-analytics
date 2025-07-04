@@ -7,13 +7,7 @@ import { documentDb, DocumentStatus } from '@/lib/nda';
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession();
-    const testUser = request.headers.get('x-test-user');
-    
-    // Allow test user in development mode
-    const userEmail = session?.user?.email || 
-      (process.env.NODE_ENV === 'development' && testUser ? testUser : null);
-    
-    if (!userEmail) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -74,14 +68,14 @@ export async function POST(request: NextRequest) {
     await storage.initialize();
     
     // Generate storage key
-    const storageKey = ndaPaths.document(userEmail, fileHash, file.name);
+    const storageKey = ndaPaths.document(session.user.email, fileHash, file.name);
     
     // Upload to storage (S3 or local)
     const uploadResult = await storage.upload(storageKey, buffer, {
       contentType: file.type,
       metadata: {
         originalName: file.name,
-        uploadedBy: userEmail,
+        uploadedBy: session.user.email,
         docType: docType,
         fileHash: fileHash,
         isStandard: isStandard.toString(),
@@ -97,7 +91,7 @@ export async function POST(request: NextRequest) {
       s3_url: storage.isS3() ? `s3://${process.env.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
       file_size: file.size,
       upload_date: new Date(),
-      user_id: userEmail,
+      user_id: session.user.email,
       status: DocumentStatus.UPLOADED,
       extracted_text: null,
       is_standard: isStandard,
