@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuthDynamic } from '@/lib/auth-utils';
-import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
+import { withDocumentAccess } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 import { documentDb } from '@/lib/nda/database';
 
 // POST /api/documents/[id]/set-standard - Mark document as standard template
-export const POST = withAuthDynamic<{ id: string }>(async (
+export const POST = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Check if already standard
     if (document.is_standard) {
@@ -43,14 +28,14 @@ export const POST = withAuthDynamic<{ id: string }>(async (
     // }
 
     // Mark this document as standard
-    const updated = await documentDb.update(documentId, { is_standard: true });
+    const updated = await documentDb.update(document.id, { is_standard: true });
 
     if (!updated) {
       return ApiErrors.serverError('Failed to update document');
     }
 
     // Return updated document
-    const updatedDocument = await documentDb.findById(documentId);
+    const updatedDocument = await documentDb.findById(document.id);
     
     return NextResponse.json({
       success: true,

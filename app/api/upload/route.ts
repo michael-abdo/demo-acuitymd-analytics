@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuthAndStorage } from '@/lib/auth-utils';
 import { FileValidation, ApiErrors } from '@/lib/utils';
 import { createHash } from 'crypto';
 import { storage, ndaPaths } from '@/lib/storage';
 import { documentDb, DocumentStatus, queueDb, TaskType, QueueStatus } from '@/lib/nda';
 import { config } from '@/lib/config';
 
-export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
+export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: string) => {
   try {
 
     const formData = await request.formData();

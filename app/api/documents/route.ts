@@ -82,18 +82,9 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
     );
 
     // Return paginated response
-    return NextResponse.json({
-      documents: enhancedDocuments,
-      total: filteredDocuments.length,
+    return ApiResponse.list(enhancedDocuments, {
       page: validPage,
       pageSize: validPageSize,
-      hasNextPage: offset + validPageSize < filteredDocuments.length,
-      hasPreviousPage: validPage > 1,
-      totalPages: Math.ceil(filteredDocuments.length / validPageSize)
+      total: filteredDocuments.length
     });
-
-  } catch (error) {
-    console.error('Error fetching documents:', error);
-    return ApiErrors.serverError('Failed to fetch documents');
-  }
 });

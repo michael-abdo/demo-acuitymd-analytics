@@ -1,32 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuthDynamic } from '@/lib/auth-utils';
-import { ApiErrors, parseDocumentId, isDocumentOwner, FileValidation, getFilenameFromPath } from '@/lib/utils';
-import { documentDb } from '@/lib/nda/database';
+import { withDocumentAccess } from '@/lib/auth-utils';
+import { ApiErrors, FileValidation, getFilenameFromPath } from '@/lib/utils';
 import { storage } from '@/lib/storage';
 
 // GET /api/documents/[id]/download - Download document file
-export const GET = withAuthDynamic<{ id: string }>(async (
+export const GET = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Check if file exists in storage
     const exists = await storage.exists(document.filename);
@@ -43,7 +27,7 @@ export const GET = withAuthDynamic<{ id: string }>(async (
     // Extract original filename from storage path
     const originalFilename = document.display_name || 
       getFilenameFromPath(document.filename) || 
-      `document_${documentId}`;
+      `document_${document.id}`;
 
     // Return file as response
     return new NextResponse(fileData.data, {

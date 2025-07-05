@@ -79,6 +79,16 @@ export function getStorage(): IStorageProvider {
 }
 
 /**
+ * Ensure storage is initialized (idempotent)
+ */
+export async function ensureStorageInitialized(config?: Partial<StorageConfig>): Promise<IStorageProvider> {
+  if (!storageInstance) {
+    return await initializeStorage(config);
+  }
+  return storageInstance;
+}
+
+/**
  * Storage facade for easier use
  */
 export const storage = {

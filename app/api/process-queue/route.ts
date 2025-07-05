@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/utils';
-import { initializeStorage, getStorage } from '@/lib/storage';
+import { getStorage, ensureStorageInitialized } from '@/lib/storage';
 import { documentDb, queueDb, TaskType, QueueStatus, DocumentStatus } from '@/lib/nda';
 import { extractText } from '@/lib/text-extraction';
 import { config } from '@/lib/config';
@@ -11,8 +11,8 @@ import { config } from '@/lib/config';
  */
 export const POST = async (request: NextRequest) => {
   try {
-    // Initialize storage - always ensure it's initialized before processing
-    await initializeStorage();
+    // Ensure storage is initialized before processing
+    await ensureStorageInitialized();
     
     // Allow system calls with a simple token or in development
     const authHeader = request.headers.get('authorization');

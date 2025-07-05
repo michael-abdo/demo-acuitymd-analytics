@@ -1,32 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuthDynamic } from '@/lib/auth-utils';
-import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
+import { withDocumentAccess } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 
 // GET /api/documents/[id] - Get document details
-export const GET = withAuthDynamic<{ id: string }>(async (
+export const GET = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Get document metadata from storage
     let storageMetadata = null;
@@ -44,7 +29,7 @@ export const GET = withAuthDynamic<{ id: string }>(async (
           downloadUrl = await storage.getSignedUrl(document.filename, 'get', { expires: 3600 });
         } else {
           // For local storage, we'll create a download endpoint
-          downloadUrl = `/api/documents/${documentId}/download`;
+          downloadUrl = `/api/documents/${document.id}/download`;
         }
       }
     } catch (error) {
@@ -54,7 +39,7 @@ export const GET = withAuthDynamic<{ id: string }>(async (
     // Get related comparisons count
     const allComparisons = await comparisonDb.findByUser(userEmail);
     const relatedComparisons = allComparisons.filter(comp => 
-      comp.standard_doc_id === documentId || comp.compared_doc_id === documentId
+      comp.standard_doc_id === document.id || comp.compared_doc_id === document.id
     );
 
     // Return enhanced document data
@@ -76,33 +61,18 @@ export const GET = withAuthDynamic<{ id: string }>(async (
 });
 
 // DELETE /api/documents/[id] - Delete document
-export const DELETE = withAuthDynamic<{ id: string }>(async (
+export const DELETE = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Check if document is used in any comparisons
     const allComparisons = await comparisonDb.findByUser(userEmail);
     const relatedComparisons = allComparisons.filter(comp => 
-      comp.standard_doc_id === documentId || comp.compared_doc_id === documentId
+      comp.standard_doc_id === document.id || comp.compared_doc_id === document.id
     );
 
     if (relatedComparisons.length > 0) {
@@ -123,7 +93,7 @@ export const DELETE = withAuthDynamic<{ id: string }>(async (
     }
 
     // Delete from database
-    const deleted = await documentDb.delete(documentId);
+    const deleted = await documentDb.delete(document.id);
 
     if (!deleted) {
       return ApiErrors.serverError('Failed to delete document');
@@ -132,7 +102,7 @@ export const DELETE = withAuthDynamic<{ id: string }>(async (
     return NextResponse.json({
       success: true,
       message: 'Document deleted successfully',
-      deletedId: documentId
+      deletedId: document.id
     });
 
   } catch (error) {
@@ -142,28 +112,13 @@ export const DELETE = withAuthDynamic<{ id: string }>(async (
 });
 
 // PATCH /api/documents/[id] - Update document metadata
-export const PATCH = withAuthDynamic<{ id: string }>(async (
+export const PATCH = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Parse request body
     const body = await request.json();
@@ -182,14 +137,14 @@ export const PATCH = withAuthDynamic<{ id: string }>(async (
       return ApiErrors.badRequest('No valid updates provided');
     }
 
-    const updated = await documentDb.update(documentId, updates);
+    const updated = await documentDb.update(document.id, updates);
 
     if (!updated) {
       return ApiErrors.serverError('Failed to update document');
     }
 
     // Return updated document
-    const updatedDocument = await documentDb.findById(documentId);
+    const updatedDocument = await documentDb.findById(document.id);
     
     return NextResponse.json({
       success: true,

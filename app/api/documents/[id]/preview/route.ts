@@ -1,31 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuthDynamic } from '@/lib/auth-utils';
-import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
-import { documentDb } from '@/lib/nda';
+import { withDocumentAccess } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 
 // GET /api/documents/[id]/preview - Preview extracted text
-export const GET = withAuthDynamic<{ id: string }>(async (
+export const GET = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Check if text has been extracted
     if (!document.extracted_text) {

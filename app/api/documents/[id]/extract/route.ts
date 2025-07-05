@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuthDynamic } from '@/lib/auth-utils';
-import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
-import { documentDb, queueDb, TaskType, QueueStatus } from '@/lib/nda';
+import { withDocumentAccess } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
+import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
+import { config } from '@/lib/config';
 
 // POST /api/documents/[id]/extract - Manually trigger text extraction
-export const POST = withAuthDynamic<{ id: string }>(async (
+export const POST = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
 
     // Check if text is already extracted
     if (document.extracted_text) {
@@ -41,7 +27,7 @@ export const POST = withAuthDynamic<{ id: string }>(async (
     }
 
     // Check if there's already a pending task
-    const existingTasks = await queueDb.findByDocument?.(documentId) || [];
+    const existingTasks = await queueDb.findByDocument?.(document.id) || [];
     const pendingTask = existingTasks.find((task: any) => 
       task.task_type === TaskType.EXTRACT_TEXT && 
       (task.status === QueueStatus.QUEUED || task.status === QueueStatus.PROCESSING)
@@ -61,7 +47,7 @@ export const POST = withAuthDynamic<{ id: string }>(async (
 
     // Queue text extraction task
     const task = await queueDb.enqueue({
-      document_id: documentId,
+      document_id: document.id,
       task_type: TaskType.EXTRACT_TEXT,
       priority: 1, // High priority for manual triggers
       status: QueueStatus.QUEUED,
@@ -69,10 +55,10 @@ export const POST = withAuthDynamic<{ id: string }>(async (
       scheduled_at: new Date()
     });
 
-    console.log(`[Manual Extract] Queued text extraction for document ${documentId}`);
+    console.log(`[Manual Extract] Queued text extraction for document ${document.id}`);
 
     // Optionally, trigger immediate processing
-    if (process.env.NODE_ENV !== 'production') {
+    if (config.IS_DEVELOPMENT) {
       // In development, trigger processing immediately
       setTimeout(async () => {
         try {
@@ -94,7 +80,7 @@ export const POST = withAuthDynamic<{ id: string }>(async (
       message: 'Text extraction has been queued',
       task: {
         id: task.id,
-        document_id: documentId,
+        document_id: document.id,
         priority: task.priority,
         created_at: task.created_at
       }
@@ -107,31 +93,15 @@ export const POST = withAuthDynamic<{ id: string }>(async (
 });
 
 // GET /api/documents/[id]/extract - Check extraction status
-export const GET = withAuthDynamic<{ id: string }>(async (
+export const GET = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
+  document,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context.params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Get document from database
-    const document = await documentDb.findById(documentId);
-
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
-
     // Get extraction tasks for this document
-    const tasks = await queueDb.findByDocument?.(documentId) || [];
+    const tasks = await queueDb.findByDocument?.(document.id) || [];
     const extractionTasks = tasks.filter((task: any) => 
       task.task_type === TaskType.EXTRACT_TEXT
     );
