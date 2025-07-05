@@ -88,31 +88,79 @@ export async function extractTextFromDOCX(
   try {
     console.log('Extracting text from DOCX using mammoth, hash:', fileHash);
     
+    // Validate file buffer
+    if (!fileBuffer || fileBuffer.length === 0) {
+      throw new Error('Empty or invalid file buffer');
+    }
+    
+    // Check if file has ZIP signature (DOCX files are ZIP archives)
+    const zipHeader = fileBuffer.slice(0, 4);
+    const isZip = zipHeader[0] === 0x50 && zipHeader[1] === 0x4B;
+    if (!isZip) {
+      throw new Error('Invalid DOCX file format - not a ZIP archive');
+    }
+    
     // Use mammoth to extract text from DOCX
     const result = await mammoth.extractRawText({ buffer: fileBuffer });
+    
+    // Check for extraction warnings
+    if (result.messages && result.messages.length > 0) {
+      console.warn('DOCX extraction warnings:', result.messages.map(m => m.message));
+    }
+    
+    // Validate extracted text
+    if (!result.value || typeof result.value !== 'string') {
+      throw new Error('No text content extracted from DOCX file');
+    }
     
     // Clean up the extracted text
     const cleanedText = result.value
       .replace(/\r\n/g, '\n') // Normalize line endings
       .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
+      .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
+    
+    // Validate cleaned text length
+    if (cleanedText.length < 10) {
+      throw new Error('Extracted text too short - possible extraction failure');
+    }
     
     // Estimate page count (average 500 words per page, 5 characters per word)
     const estimatedPages = Math.max(1, Math.ceil(cleanedText.length / 2500));
     
+    // Calculate confidence based on extraction warnings
+    const confidence = result.messages && result.messages.length > 0 ? 0.85 : 0.98;
+    
+    console.log(`DOCX extraction successful: ${cleanedText.length} characters, ${estimatedPages} pages`);
+    
     return {
       text: cleanedText,
       pages: estimatedPages,
-      confidence: 0.98, // mammoth is very reliable for DOCX files
+      confidence,
       metadata: {
         extractedAt: new Date().toISOString(),
         method: 'mammoth',
-        fileHash
+        fileHash,
+        warnings: result.messages?.length || 0,
+        originalLength: result.value.length
       }
     };
   } catch (error) {
     console.error('Error extracting text from DOCX:', error);
-    throw new Error(`Failed to extract text from DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    
+    // Provide specific error messages for common issues
+    let errorMessage = 'Failed to extract text from DOCX';
+    if (error instanceof Error) {
+      if (error.message.includes('zip')) {
+        errorMessage += ': Invalid ZIP format - file may be corrupted';
+      } else if (error.message.includes('password')) {
+        errorMessage += ': Password-protected documents not supported';
+      } else {
+        errorMessage += `: ${error.message}`;
+      }
+    }
+    
+    throw new Error(errorMessage);
   }
 }
 

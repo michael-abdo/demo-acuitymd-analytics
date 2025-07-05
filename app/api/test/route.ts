@@ -401,6 +401,60 @@ All materials must be returned within 30 days of termination.`
 }
 
 /**
+ * Clear memory store of all fake/corrupted data
+ */
+async function clearMemoryStore(): Promise<any> {
+  try {
+    // Access the global memory store
+    if (!(global as any)._ndaMemoryStore) {
+      return {
+        success: true,
+        message: 'Memory store was already empty',
+        cleared: 0
+      };
+    }
+
+    const memoryStore = (global as any)._ndaMemoryStore;
+    
+    const beforeCounts = {
+      documents: memoryStore.documents.size,
+      comparisons: memoryStore.comparisons.size,
+      queue: memoryStore.queue.size
+    };
+    
+    // Clear all data
+    memoryStore.documents.clear();
+    memoryStore.comparisons.clear();
+    memoryStore.queue.clear();
+    
+    // Reset IDs
+    memoryStore.nextId = {
+      documents: 1,
+      comparisons: 1,
+      exports: 1,
+      queue: 1
+    };
+    
+    return {
+      success: true,
+      message: 'Memory store cleared successfully',
+      clearedCounts: beforeCounts,
+      newCounts: {
+        documents: 0,
+        comparisons: 0,
+        queue: 0
+      }
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to clear memory store'
+    };
+  }
+}
+
+/**
  * Compare documents
  */
 async function compareDocuments(): Promise<any> {
@@ -578,6 +632,10 @@ export const POST = requireDevelopment(async (request: NextRequest) => {
       case 'mock-text':
         const mockResult = await addMockExtractedText();
         return NextResponse.json(mockResult);
+        
+      case 'clear':
+        const clearResult = await clearMemoryStore();
+        return NextResponse.json(clearResult);
         
       default:
         return ApiErrors.badRequest(`Unknown operation: ${operation}`);
