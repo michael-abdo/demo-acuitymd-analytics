@@ -43,7 +43,7 @@ export function Navbar() {
     <nav className="fixed top-0 z-50 w-full bg-[#152C5B] h-14">
       <div className="container flex h-full max-w-screen-2xl items-center justify-between px-4">
         {/* Left side - Anomaly Detector button */}
-        <Link href="/" className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
+        <Link href="/dashboard" className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
           {/* Document icon */}
           <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,7 +90,7 @@ export function Navbar() {
               </Link>
               <button
                 onClick={() => {
-                  signOut({ callbackUrl: '/' });
+                  signOut({ callbackUrl: '/dashboard' });
                   setShowDropdown(false);
                 }}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"

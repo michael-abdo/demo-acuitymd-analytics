@@ -21,7 +21,9 @@ export default function RootLayout({
         <Providers>
           <PendoScript />
           <Navbar />
-          {children}
+          <div className="pt-14">
+            {children}
+          </div>
           <Toaster />
         </Providers>
       </body>
