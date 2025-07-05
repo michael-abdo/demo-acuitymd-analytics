@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
+import { getFilenameFromPath } from '@/lib/utils';
 
 interface Document {
   id: number;
@@ -164,7 +165,7 @@ export default function ComparePage() {
                     <SelectItem key={doc.id} value={doc.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Star className="h-3 w-3 text-yellow-500" />
-                        {doc.display_name || doc.filename}
+                        {doc.display_name || getFilenameFromPath(doc.filename)}
                       </div>
                     </SelectItem>
                   ))}
@@ -190,7 +191,7 @@ export default function ComparePage() {
                     <SelectItem key={doc.id} value={doc.id.toString()}>
                       <div className="flex items-center gap-2">
                         <FileText className="h-3 w-3" />
-                        {doc.display_name || doc.filename}
+                        {doc.display_name || getFilenameFromPath(doc.filename)}
                       </div>
                     </SelectItem>
                   ))}
@@ -349,11 +350,11 @@ export default function ComparePage() {
                   <div className="flex items-center gap-3">
                     <div className="text-sm">
                       <span className="font-medium">
-                        {comparison.standardDocument.display_name || comparison.standardDocument.filename}
+                        {comparison.standardDocument.display_name || getFilenameFromPath(comparison.standardDocument.filename)}
                       </span>
                       <span className="text-gray-500 mx-2">vs</span>
                       <span className="font-medium">
-                        {comparison.thirdPartyDocument.display_name || comparison.thirdPartyDocument.filename}
+                        {comparison.thirdPartyDocument.display_name || getFilenameFromPath(comparison.thirdPartyDocument.filename)}
                       </span>
                     </div>
                   </div>

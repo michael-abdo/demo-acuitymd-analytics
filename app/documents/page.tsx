@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Upload, FileText, Trash2, Star, Download } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
+import { getFilenameFromPath } from '@/lib/utils';
 
 interface Document {
   id: number;
@@ -261,7 +262,7 @@ function DocumentCard({ document, onToggleStandard, onDelete }: DocumentCardProp
         <FileText className="h-8 w-8 text-blue-500" />
         <div>
           <h3 className="font-medium">
-            {document.display_name || document.filename}
+            {document.display_name || getFilenameFromPath(document.filename)}
           </h3>
           <p className="text-sm text-gray-500">
             {formatFileSize(document.file_size)} • {formatDate(document.uploaded_at)}

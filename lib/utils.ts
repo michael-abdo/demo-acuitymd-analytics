@@ -33,6 +33,15 @@ export function requireDevelopment() {
 }
 
 /**
+ * Extract just the filename from a full storage path
+ * @param fullPath - Full storage path like "users/email/documents/hash/filename.pdf"
+ * @returns Just the filename like "filename.pdf"
+ */
+export function getFilenameFromPath(fullPath: string): string {
+  return fullPath.split('/').pop() || fullPath;
+}
+
+/**
  * Centralized file validation utilities for consistent file upload handling
  */
 export const FileValidation = {
