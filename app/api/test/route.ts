@@ -314,6 +314,93 @@ async function triggerExtraction(documentId?: number): Promise<any> {
 }
 
 /**
+ * Add mock extracted text to seeded documents
+ */
+async function addMockExtractedText(): Promise<any> {
+  const testUser = config.TEST_USER_EMAIL;
+  
+  // Mock NDA text content
+  const mockTexts = {
+    1: `MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is entered into by and between Company A and Company B.
+
+1. CONFIDENTIAL INFORMATION
+Each party may disclose confidential information to the other party.
+
+2. OBLIGATIONS
+Each party agrees to:
+- Keep confidential information secret
+- Not disclose to third parties
+- Use only for evaluation purposes
+
+3. TERM
+This agreement shall remain in effect for 2 years.
+
+4. RETURN OF INFORMATION
+Upon termination, all confidential information shall be returned.`,
+
+    2: `NON-DISCLOSURE AGREEMENT
+
+This Agreement is between Velocity Truck Group and Third Party.
+
+1. PURPOSE
+This agreement covers the disclosure of confidential information.
+
+2. CONFIDENTIAL INFORMATION DEFINITION
+Confidential information includes:
+- Technical data
+- Business plans
+- Financial information
+- Customer lists
+
+3. OBLIGATIONS OF RECEIVING PARTY
+The receiving party agrees to:
+- Maintain confidentiality
+- Not reverse engineer
+- Limit access to need-to-know basis
+
+4. TERM AND TERMINATION
+This agreement is effective for 3 years.
+
+5. RETURN OF MATERIALS
+All materials must be returned within 30 days of termination.`
+  };
+
+  const updated = [];
+  
+  try {
+    // Update documents with mock extracted text
+    for (const [docId, text] of Object.entries(mockTexts)) {
+      const success = await documentDb.update(parseInt(docId), {
+        extracted_text: text,
+        status: DocumentStatus.PROCESSED
+      });
+      
+      if (success) {
+        updated.push({ documentId: parseInt(docId), status: 'updated' });
+      } else {
+        updated.push({ documentId: parseInt(docId), status: 'failed' });
+      }
+    }
+    
+    return {
+      success: true,
+      message: `Added mock extracted text to ${updated.filter(u => u.status === 'updated').length} documents`,
+      updated,
+      testUser
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add mock text',
+      updated
+    };
+  }
+}
+
+/**
  * Compare documents
  */
 async function compareDocuments(): Promise<any> {
@@ -487,6 +574,10 @@ export const POST = requireDevelopment(async (request: NextRequest) => {
       case 'compare':
         const compareResult = await compareDocuments();
         return NextResponse.json(compareResult);
+        
+      case 'mock-text':
+        const mockResult = await addMockExtractedText();
+        return NextResponse.json(mockResult);
         
       default:
         return ApiErrors.badRequest(`Unknown operation: ${operation}`);

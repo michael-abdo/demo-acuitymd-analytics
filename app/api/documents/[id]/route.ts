@@ -39,7 +39,7 @@ export const GET = withDocumentAccess(async (
     // Get related comparisons count
     const allComparisons = await comparisonDb.findByUser(userEmail);
     const relatedComparisons = allComparisons.filter(comp => 
-      comp.standard_doc_id === document.id || comp.compared_doc_id === document.id
+      comp.document1_id === document.id || comp.document2_id === document.id
     );
 
     // Return enhanced document data
@@ -72,7 +72,7 @@ export const DELETE = withDocumentAccess(async (
     // Check if document is used in any comparisons
     const allComparisons = await comparisonDb.findByUser(userEmail);
     const relatedComparisons = allComparisons.filter(comp => 
-      comp.standard_doc_id === document.id || comp.compared_doc_id === document.id
+      comp.document1_id === document.id || comp.document2_id === document.id
     );
 
     if (relatedComparisons.length > 0) {

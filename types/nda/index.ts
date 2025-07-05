@@ -188,8 +188,8 @@ export interface DocumentUploadResponse {
  * Comparison request type
  */
 export interface ComparisonRequest {
-  standard_document_id: number;
-  compare_document_id: number;
+  document1_id: number;
+  document2_id: number;
   options?: ComparisonOptions;
 }
 

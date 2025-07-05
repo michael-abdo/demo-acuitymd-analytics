@@ -44,7 +44,7 @@ export default function DocumentsPage() {
       const response = await fetch('/api/documents');
       if (response.ok) {
         const data = await response.json();
-        setDocuments(data.documents || []);
+        setDocuments(data.data || []);
       }
     } catch (error) {
       console.error('Error loading documents:', error);
