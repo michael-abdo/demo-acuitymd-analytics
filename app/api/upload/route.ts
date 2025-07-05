@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withAuth } from '@/lib/auth-utils';
 import { createHash } from 'crypto';
 import { storage, ndaPaths } from '@/lib/storage';
 import { documentDb, DocumentStatus } from '@/lib/nda';
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -68,14 +64,14 @@ export async function POST(request: NextRequest) {
     await storage.initialize();
     
     // Generate storage key
-    const storageKey = ndaPaths.document(session.user.email, fileHash, file.name);
+    const storageKey = ndaPaths.document(userEmail, fileHash, file.name);
     
     // Upload to storage (S3 or local)
     const uploadResult = await storage.upload(storageKey, buffer, {
       contentType: file.type,
       metadata: {
         originalName: file.name,
-        uploadedBy: session.user.email,
+        uploadedBy: userEmail,
         docType: docType,
         fileHash: fileHash,
         isStandard: isStandard.toString(),
@@ -91,7 +87,7 @@ export async function POST(request: NextRequest) {
       s3_url: storage.isS3() ? `s3://${process.env.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
       file_size: file.size,
       upload_date: new Date(),
-      user_id: session.user.email,
+      user_id: userEmail,
       status: DocumentStatus.UPLOADED,
       extracted_text: null,
       is_standard: isStandard,
@@ -157,4 +153,4 @@ export async function POST(request: NextRequest) {
       } : undefined
     }, { status: 500 });
   }
-}
+});

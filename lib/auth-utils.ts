@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth-options";
 import { redirect } from "next/navigation";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Server-side authentication check for server components.
@@ -38,4 +39,18 @@ export async function checkPermission(requiredPermission: string) {
   // This is a placeholder for more complex permission checks
   // You would typically check against user roles or permissions stored in the session or a database
   return true;
+}
+
+/**
+ * Higher-order function that wraps API route handlers with authentication.
+ * Returns 401 if user is not authenticated, otherwise calls the handler with the user email.
+ */
+export function withAuth(handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>) {
+  return async (request: NextRequest) => {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return handler(request, session.user.email);
+  };
 } 

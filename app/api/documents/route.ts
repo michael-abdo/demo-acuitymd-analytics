@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { withAuth } from '@/lib/auth-utils';
 import { documentDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 
 // GET /api/documents - List user's documents
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -26,7 +19,7 @@ export async function GET(request: NextRequest) {
     const offset = (validPage - 1) * validPageSize;
 
     // Get user's documents from database
-    const userDocuments = await documentDb.findByUser(session.user.email);
+    const userDocuments = await documentDb.findByUser(userEmail);
 
     // Filter documents based on query parameters
     let filteredDocuments = userDocuments;
@@ -99,4 +92,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
