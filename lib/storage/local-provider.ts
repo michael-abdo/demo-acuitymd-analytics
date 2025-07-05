@@ -75,7 +75,14 @@ export class LocalStorageProvider implements IStorageProvider {
     await fs.mkdir(dirPath, { recursive: true });
     
     // Convert data to Buffer
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    let buffer: Buffer;
+    if (Buffer.isBuffer(data)) {
+      buffer = data;
+    } else if (typeof data === 'string') {
+      buffer = Buffer.from(data);
+    } else {
+      buffer = Buffer.from(data as Uint8Array);
+    }
     
     // Write file
     await fs.writeFile(filePath, buffer);
@@ -244,7 +251,7 @@ export class LocalStorageProvider implements IStorageProvider {
         lastModified: stats.mtime,
         contentType: metadata?.contentType,
         etag: metadata?.hash,
-        metadata
+        metadata: metadata || undefined
       });
       
       count++;
@@ -282,7 +289,7 @@ export class LocalStorageProvider implements IStorageProvider {
         lastModified: stats.mtime,
         contentType: metadata?.contentType,
         etag: metadata?.hash,
-        metadata
+        metadata: metadata || undefined
       };
     } catch (error: any) {
       if (error.code === 'ENOENT') {
@@ -329,7 +336,7 @@ export class LocalStorageProvider implements IStorageProvider {
         lastModified: new Date(),
         contentType: sourceMetadata?.contentType,
         etag: sourceMetadata?.hash,
-        metadata: sourceMetadata
+        metadata: sourceMetadata || undefined
       };
     } catch (error: any) {
       if (error.code === 'ENOENT') {

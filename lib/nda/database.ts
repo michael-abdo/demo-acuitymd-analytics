@@ -145,7 +145,11 @@ export const documentDb = {
         ]
       });
       
-      return this.findById(result.insertId);
+      const created = await this.findById(result.insertId);
+      if (!created) {
+        throw new Error('Failed to retrieve created record');
+      }
+      return created;
     } else {
       // In-memory implementation
       const id = memoryStore.nextId.documents++;
@@ -319,7 +323,11 @@ export const comparisonDb = {
         ]
       });
       
-      return this.findById(result.insertId);
+      const created = await this.findById(result.insertId);
+      if (!created) {
+        throw new Error('Failed to retrieve created record');
+      }
+      return created;
     } else {
       const id = memoryStore.nextId.comparisons++;
       const now = new Date();
@@ -441,7 +449,11 @@ export const queueDb = {
         ]
       });
       
-      return this.findById(result.insertId);
+      const created = await this.findById(result.insertId);
+      if (!created) {
+        throw new Error('Failed to retrieve created record');
+      }
+      return created;
     } else {
       const id = memoryStore.nextId.queue++;
       const now = new Date();

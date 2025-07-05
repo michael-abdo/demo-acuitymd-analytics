@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuthDynamic } from '@/lib/auth-utils';
 import { ApiErrors, parseDocumentId, isDocumentOwner, FileValidation, getFilenameFromPath } from '@/lib/utils';
 import { documentDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 
 // GET /api/documents/[id]/download - Download document file
-export const GET = withAuth<{ id: string }>(async (
+export const GET = withAuthDynamic<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context!.params.id);
+    const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }

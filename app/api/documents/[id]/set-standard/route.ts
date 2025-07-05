@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuthDynamic } from '@/lib/auth-utils';
 import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
 import { documentDb } from '@/lib/nda/database';
 
 // POST /api/documents/[id]/set-standard - Mark document as standard template
-export const POST = withAuth<{ id: string }>(async (
+export const POST = withAuthDynamic<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context!.params.id);
+    const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }

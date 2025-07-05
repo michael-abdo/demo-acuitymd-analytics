@@ -44,11 +44,29 @@ export async function checkPermission(requiredPermission: string) {
 /**
  * Higher-order function that wraps API route handlers with authentication.
  * Returns 401 if user is not authenticated, otherwise calls the handler with the user email.
+ * Use this for routes WITHOUT dynamic segments.
  */
-export function withAuth<T extends Record<string, any> = {}>(
-  handler: (request: NextRequest, userEmail: string, context?: { params: T }) => Promise<NextResponse>
+export function withAuth(
+  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest, context?: { params: T }) => {
+  return async (request: NextRequest) => {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return handler(request, session.user.email);
+  };
+}
+
+/**
+ * Higher-order function that wraps API route handlers with authentication for dynamic routes.
+ * Returns 401 if user is not authenticated, otherwise calls the handler with the user email.
+ * Use this for routes WITH dynamic segments like [id].
+ */
+export function withAuthDynamic<T extends Record<string, any>>(
+  handler: (request: NextRequest, userEmail: string, context: { params: T }) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context: { params: T }) => {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

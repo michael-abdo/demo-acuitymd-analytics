@@ -76,7 +76,14 @@ export class S3StorageProvider implements IStorageProvider {
 
   async upload(key: string, data: Buffer | Uint8Array | string, options?: UploadOptions): Promise<StorageFile> {
     try {
-      const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+      let buffer: Buffer;
+      if (Buffer.isBuffer(data)) {
+        buffer = data;
+      } else if (typeof data === 'string') {
+        buffer = Buffer.from(data);
+      } else {
+        buffer = Buffer.from(data as Uint8Array);
+      }
       
       const command = new PutObjectCommand({
         Bucket: this.bucket,

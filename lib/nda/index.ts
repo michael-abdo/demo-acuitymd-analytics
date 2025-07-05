@@ -16,17 +16,12 @@ export {
   initializeDatabase 
 } from './database';
 
-// Re-export for convenience
+// Re-export types for convenience (excluding enums which are values)
 export type {
   NDADocument,
   NDAComparison,
   NDAExport,
   ProcessingQueueItem,
-  DocumentStatus,
-  ComparisonStatus,
-  ExportType,
-  TaskType,
-  QueueStatus,
   KeyDifference,
   AISuggestion,
   DocumentUploadRequest,

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuthDynamic } from '@/lib/auth-utils';
 import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 
 // GET /api/documents/[id] - Get document details
-export const GET = withAuth<{ id: string }>(async (
+export const GET = withAuthDynamic<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context!.params.id);
+    const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }
@@ -76,13 +76,13 @@ export const GET = withAuth<{ id: string }>(async (
 });
 
 // DELETE /api/documents/[id] - Delete document
-export const DELETE = withAuth<{ id: string }>(async (
+export const DELETE = withAuthDynamic<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context!.params.id);
+    const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }
@@ -142,13 +142,13 @@ export const DELETE = withAuth<{ id: string }>(async (
 });
 
 // PATCH /api/documents/[id] - Update document metadata
-export const PATCH = withAuth<{ id: string }>(async (
+export const PATCH = withAuthDynamic<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   context
 ) => {
   try {
-    const documentId = parseDocumentId(context!.params.id);
+    const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }
