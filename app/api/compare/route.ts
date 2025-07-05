@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/auth-utils'
+import { ApiErrors } from '@/lib/utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 
@@ -10,18 +11,12 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     const { standardDocId, thirdPartyDocId } = body
 
     if (!standardDocId || !thirdPartyDocId) {
-      return NextResponse.json({ 
-        error: 'Both standard and third-party document IDs are required' 
-      }, { status: 400 })
+      return ApiErrors.badRequest('Both standard and third-party document IDs are required')
     }
 
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({
-        status: 'error',
-        message: 'OpenAI API key not configured',
-        error: 'OPENAI_API_KEY environment variable is not set'
-      }, { status: 500 })
+      return ApiErrors.serverError('OpenAI API key not configured')
     }
 
     // Fetch documents from database
@@ -31,9 +26,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     ])
 
     if (!standardDoc || !thirdPartyDoc) {
-      return NextResponse.json({ 
-        error: 'One or both documents not found' 
-      }, { status: 404 })
+      return ApiErrors.notFound('One or both documents')
     }
 
     // Check if text has been extracted for both documents
@@ -42,11 +35,10 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       if (!standardDoc.extracted_text) missingExtraction.push(`Standard document (ID: ${standardDocId})`)
       if (!thirdPartyDoc.extracted_text) missingExtraction.push(`Third-party document (ID: ${thirdPartyDocId})`)
       
-      return NextResponse.json({ 
-        error: 'Text extraction not completed',
+      return ApiErrors.validation('Text extraction not completed', {
         details: `Text extraction is pending for: ${missingExtraction.join(', ')}`,
         suggestion: 'Please wait for text extraction to complete or trigger it via /api/process-queue'
-      }, { status: 400 })
+      })
     }
 
     // Create comparison record
@@ -127,10 +119,6 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
 
   } catch (error) {
     console.error('Comparison error:', error)
-    return NextResponse.json({
-      status: 'error',
-      message: 'Comparison failed',
-      error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+    return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed')
   }
 })

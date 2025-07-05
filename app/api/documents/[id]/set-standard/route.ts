@@ -1,47 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { withAuth } from '@/lib/auth-utils';
+import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
 import { documentDb } from '@/lib/nda/database';
 
 // POST /api/documents/[id]/set-standard - Mark document as standard template
-export async function POST(
+export const POST = withAuth<{ id: string }>(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  userEmail: string,
+  context
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const documentId = parseInt(params.id, 10);
-    if (isNaN(documentId)) {
-      return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
+    const documentId = parseDocumentId(context!.params.id);
+    if (!documentId) {
+      return ApiErrors.badRequest('Invalid document ID');
     }
 
     // Get document from database
     const document = await documentDb.findById(documentId);
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      return ApiErrors.notFound('Document');
     }
 
     // Check ownership
-    if (document.user_id !== session.user.email) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!isDocumentOwner(document, userEmail)) {
+      return ApiErrors.forbidden();
     }
 
     // Check if already standard
     if (document.is_standard) {
-      return NextResponse.json({ 
-        error: 'Document is already marked as standard' 
-      }, { status: 400 });
+      return ApiErrors.badRequest('Document is already marked as standard');
     }
 
     // Optional: Unmark other standard documents for this user
     // This ensures only one standard document per user
-    const userDocuments = await documentDb.findByUser(session.user.email);
+    const userDocuments = await documentDb.findByUser(userEmail);
     const currentStandardDocs = userDocuments.filter(doc => doc.is_standard);
     
     // If user wants only one standard doc, uncomment this:
@@ -53,7 +46,7 @@ export async function POST(
     const updated = await documentDb.update(documentId, { is_standard: true });
 
     if (!updated) {
-      return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
+      return ApiErrors.serverError('Failed to update document');
     }
 
     // Return updated document
@@ -68,9 +61,6 @@ export async function POST(
 
   } catch (error) {
     console.error('Error setting document as standard:', error);
-    return NextResponse.json(
-      { error: 'Failed to set document as standard' },
-      { status: 500 }
-    );
+    return ApiErrors.serverError('Failed to set document as standard');
   }
-}
+});

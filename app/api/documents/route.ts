@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 import { documentDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 
@@ -87,9 +88,6 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
 
   } catch (error) {
     console.error('Error fetching documents:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch documents' },
-      { status: 500 }
-    );
+    return ApiErrors.serverError('Failed to fetch documents');
   }
 });

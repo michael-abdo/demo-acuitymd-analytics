@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-utils';
-import { FileValidation } from '@/lib/utils';
+import { FileValidation, ApiErrors } from '@/lib/utils';
 import { createHash } from 'crypto';
 import { storage, ndaPaths } from '@/lib/storage';
 import { documentDb, DocumentStatus, queueDb, TaskType, QueueStatus } from '@/lib/nda';
@@ -14,7 +14,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     const isStandard = formData.get('isStandard') === 'true';
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return ApiErrors.badRequest('No file provided');
     }
 
     // Validate file using centralized utilities
@@ -136,15 +136,13 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       errorCode = error.code;
     }
     
-    return NextResponse.json({
-      status: 'error',
-      message: errorMessage,
-      code: errorCode,
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      details: process.env.NODE_ENV === 'development' ? {
-        storageProvider: storage.getProvider?.() || 'unknown',
-        stack: error.stack
-      } : undefined
-    }, { status: 500 });
+    return process.env.NODE_ENV === 'development' 
+      ? ApiErrors.validation(errorMessage, {
+          code: errorCode,
+          error: error.message,
+          storageProvider: storage.getProvider?.() || 'unknown',
+          stack: error.stack
+        })
+      : ApiErrors.serverError(errorMessage);
   }
 });

@@ -52,7 +52,7 @@ export const GET = withAuth<{ id: string }>(async (
     }
 
     // Get related comparisons count
-    const allComparisons = await comparisonDb.findByUser(session.user.email);
+    const allComparisons = await comparisonDb.findByUser(userEmail);
     const relatedComparisons = allComparisons.filter(comp => 
       comp.standard_doc_id === documentId || comp.compared_doc_id === documentId
     );
@@ -106,10 +106,9 @@ export const DELETE = withAuth<{ id: string }>(async (
     );
 
     if (relatedComparisons.length > 0) {
-      return NextResponse.json({
-        error: 'Cannot delete document that has been used in comparisons',
+      return ApiErrors.validation('Cannot delete document that has been used in comparisons', {
         comparisonsCount: relatedComparisons.length
-      }, { status: 400 });
+      });
     }
 
     // Delete from storage
@@ -127,7 +126,7 @@ export const DELETE = withAuth<{ id: string }>(async (
     const deleted = await documentDb.delete(documentId);
 
     if (!deleted) {
-      return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });
+      return ApiErrors.serverError('Failed to delete document');
     }
 
     return NextResponse.json({
@@ -180,7 +179,7 @@ export const PATCH = withAuth<{ id: string }>(async (
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: 'No valid updates provided' }, { status: 400 });
+      return ApiErrors.badRequest('No valid updates provided');
     }
 
     const updated = await documentDb.update(documentId, updates);

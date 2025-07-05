@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 import { storage } from '@/lib/storage';
 import { documentDb, queueDb, TaskType, QueueStatus, DocumentStatus } from '@/lib/nda';
 import { extractText } from '@/lib/text-extraction';
@@ -72,10 +73,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
 
   } catch (error) {
     console.error('Queue processing error:', error);
-    return NextResponse.json({
-      status: 'error',
-      message: error instanceof Error ? error.message : 'Queue processing failed'
-    }, { status: 500 });
+    return ApiErrors.serverError(error instanceof Error ? error.message : 'Queue processing failed');
   }
 });
 
@@ -144,9 +142,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Queue stats error:', error);
-    return NextResponse.json({
-      status: 'error',
-      message: 'Failed to get queue stats'
-    }, { status: 500 });
+    return ApiErrors.serverError('Failed to get queue stats');
   }
 }

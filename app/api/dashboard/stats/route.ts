@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { withAuth } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { DocumentStatus, ComparisonStatus } from '@/types/nda';
 import { DashboardStats, DashboardStatsResponse } from '@/types/dashboard';
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    // Check authentication
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' } as DashboardStatsResponse,
-        { status: 401 }
-      );
-    }
-
-    const userEmail = session.user.email;
     const errors: Array<{ metric: string; error: string }> = [];
 
     // Initialize stats with defaults
@@ -76,12 +65,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Dashboard stats error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch dashboard statistics'
-      } as DashboardStatsResponse,
-      { status: 500 }
-    );
+    return ApiErrors.serverError('Failed to fetch dashboard statistics');
   }
-}
+});
