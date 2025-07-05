@@ -2,23 +2,71 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileUp, FileText, GitCompare, Download } from "lucide-react";
+import { FileUp, FileText, GitCompare, Download, Loader2, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
+import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
 
 export default function Dashboard() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { toast } = useToast();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchStats();
+    }
+  }, [status]);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/dashboard/stats');
+      const data: DashboardStatsResponse = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to fetch statistics');
+      }
+      
+      setStats(data.data || null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard statistics';
+      setError(errorMessage);
+      toast({
+        title: "Error loading statistics",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <PageContainer>
-      <PageTitle description={`Welcome, ${session?.user?.name || "User"}!`}>
-        NDA Analyzer Dashboard
-      </PageTitle>
+      <div className="flex items-center justify-between mb-6">
+        <PageTitle description={`Welcome, ${session?.user?.name || "User"}!`}>
+          NDA Analyzer Dashboard
+        </PageTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchStats}
+          disabled={loading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
@@ -26,8 +74,17 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Documents analyzed</p>
+            {loading ? (
+              <div className="space-y-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.documents || 0}</div>
+                <p className="text-xs text-muted-foreground">Documents analyzed</p>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -36,8 +93,17 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Comparisons</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">NDAs compared</p>
+            {loading ? (
+              <div className="space-y-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.comparisons || 0}</div>
+                <p className="text-xs text-muted-foreground">NDAs compared</p>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -46,8 +112,17 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Suggestions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">AI suggestions generated</p>
+            {loading ? (
+              <div className="space-y-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.suggestions || 0}</div>
+                <p className="text-xs text-muted-foreground">AI suggestions generated</p>
+              </>
+            )}
           </CardContent>
         </Card>
         
@@ -56,8 +131,17 @@ export default function Dashboard() {
             <CardTitle className="text-sm font-medium">Exports</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Documents exported</p>
+            {loading ? (
+              <div className="space-y-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.exports || 0}</div>
+                <p className="text-xs text-muted-foreground">Documents exported</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
