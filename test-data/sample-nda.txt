@@ -1,0 +1,51 @@
+NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is entered into as of the date last signed below ("Effective Date") between:
+
+Party A: Tech Innovations Inc.
+Address: 123 Silicon Valley Way, San Jose, CA 95110
+
+Party B: Business Solutions LLC  
+Address: 456 Enterprise Blvd, Austin, TX 78701
+
+WHEREAS, the parties wish to explore a business opportunity of mutual interest and in connection with this opportunity, each party may disclose to the other certain confidential technical and business information that the disclosing party desires the receiving party to treat as confidential.
+
+NOW, THEREFORE, in consideration of the mutual promises and covenants contained herein, the parties agree as follows:
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION
+"Confidential Information" means any information disclosed by one party to the other party, directly or indirectly, in writing, orally, or by inspection of tangible objects, which is designated as "Confidential," "Proprietary," or some similar designation, or which the receiving party knows or reasonably should understand to be confidential.
+
+2. OBLIGATIONS OF RECEIVING PARTY
+The receiving party agrees to:
+(a) Hold the Confidential Information in strict confidence;
+(b) Not disclose the Confidential Information to third parties;
+(c) Protect the Confidential Information with the same degree of care as it uses for its own confidential information, but in no event less than reasonable care;
+(d) Use the Confidential Information solely for the purpose of evaluating the proposed business relationship.
+
+3. EXCEPTIONS
+The obligations set forth in Section 2 shall not apply to any Confidential Information that:
+(a) Was rightfully known by the receiving party prior to disclosure;
+(b) Is or becomes publicly available through no breach of this Agreement;
+(c) Is rightfully received from a third party without breach of any confidentiality obligation;
+(d) Is independently developed without use of or reference to the Confidential Information.
+
+4. TERM
+This Agreement shall remain in effect for a period of three (3) years from the Effective Date, unless earlier terminated by either party upon thirty (30) days written notice.
+
+5. RETURN OF INFORMATION
+Upon termination of this Agreement or upon request, the receiving party shall promptly return or destroy all Confidential Information and any copies thereof.
+
+6. NO LICENSE
+Nothing in this Agreement grants any rights under any patent, copyright, or other intellectual property rights of the disclosing party.
+
+7. GOVERNING LAW
+This Agreement shall be governed by the laws of the State of California, without regard to its conflict of laws principles.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date last written below.
+
+TECH INNOVATIONS INC.                    BUSINESS SOLUTIONS LLC
+
+By: _______________________             By: _______________________
+Name:                                    Name:
+Title:                                   Title:
+Date:                                    Date:

@@ -71,6 +71,12 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
           // Add computed properties
           fileType: doc.filename.split('.').pop()?.toLowerCase() || 'unknown',
           sizeMB: doc.file_size ? (doc.file_size / 1024 / 1024).toFixed(2) : null,
+          // Add extraction status
+          extractionStatus: doc.extracted_text ? 'completed' : 
+                          doc.status === 'processing' ? 'processing' : 
+                          doc.status === 'error' ? 'failed' : 'pending',
+          hasExtractedText: !!doc.extracted_text,
+          extractedTextLength: doc.extracted_text ? doc.extracted_text.length : 0
         };
       })
     );

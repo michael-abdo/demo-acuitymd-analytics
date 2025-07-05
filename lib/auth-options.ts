@@ -1,16 +1,17 @@
 import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
+import { config } from './config';
 
 export const authOptions: NextAuthOptions = {
   providers: [
     AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID,
+      clientId: config.AZURE_AD_CLIENT_ID!,
+      clientSecret: config.AZURE_AD_CLIENT_SECRET!,
+      tenantId: config.AZURE_AD_TENANT_ID,
       authorization: {
         params: {
           scope: "openid profile email",
-          redirect_uri: process.env.NEXTAUTH_URL + "/api/auth/callback/azure-ad"
+          redirect_uri: config.NEXTAUTH_URL + "/api/auth/callback/azure-ad"
         }
       }
     }),
@@ -46,10 +47,10 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: config.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: config.IS_DEVELOPMENT,
 }; 

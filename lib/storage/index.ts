@@ -8,6 +8,7 @@
 import path from 'path';
 import { LocalStorageProvider } from './local-provider';
 import { S3StorageProvider } from './s3-provider';
+import { config } from '@/lib/config';
 import { 
   IStorageProvider, 
   StorageProvider, 
@@ -34,28 +35,28 @@ let storageInstance: IStorageProvider | null = null;
 /**
  * Initialize storage with configuration
  */
-export async function initializeStorage(config?: Partial<StorageConfig>): Promise<IStorageProvider> {
-  // Determine provider from environment or config
-  const provider = config?.provider || 
-    (process.env.STORAGE_PROVIDER as StorageProvider) || 
-    (process.env.S3_ACCESS === 'true' ? StorageProvider.S3 : StorageProvider.LOCAL);
+export async function initializeStorage(storageConfig?: Partial<StorageConfig>): Promise<IStorageProvider> {
+  // Determine provider from passed config or centralized config
+  const provider = storageConfig?.provider || 
+    (config.STORAGE_PROVIDER as StorageProvider) || 
+    (config.S3_ACCESS ? StorageProvider.S3 : StorageProvider.LOCAL);
   
   if (provider === StorageProvider.S3) {
-    // Use S3 provider
+    // Use S3 provider with centralized config as defaults
     const s3Config = {
-      bucket: config?.s3?.bucket || process.env.S3_BUCKET_NAME || 'vvg-cloud-storage',
-      region: config?.s3?.region || process.env.AWS_REGION || 'us-west-2',
-      accessKeyId: config?.s3?.accessKeyId || process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: config?.s3?.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY,
-      endpoint: config?.s3?.endpoint || process.env.S3_ENDPOINT
+      bucket: storageConfig?.s3?.bucket || config.S3_BUCKET_NAME || 'vvg-cloud-storage',
+      region: storageConfig?.s3?.region || config.AWS_REGION || 'us-west-2',
+      accessKeyId: storageConfig?.s3?.accessKeyId || config.AWS_ACCESS_KEY_ID,
+      secretAccessKey: storageConfig?.s3?.secretAccessKey || config.AWS_SECRET_ACCESS_KEY,
+      endpoint: storageConfig?.s3?.endpoint || config.S3_ENDPOINT
     };
     
     console.log('Initializing S3 storage provider');
     storageInstance = new S3StorageProvider(s3Config);
   } else {
-    // Use local provider
-    const basePath = config?.local?.basePath || 
-      process.env.LOCAL_STORAGE_PATH || 
+    // Use local provider with centralized config as default
+    const basePath = storageConfig?.local?.basePath || 
+      config.LOCAL_STORAGE_PATH || 
       path.join(process.cwd(), '.storage');
     
     console.log(`Initializing local storage provider at: ${basePath}`);
@@ -174,7 +175,7 @@ export const ndaPaths = {
    * Get the path for an uploaded document
    */
   document(userId: string, fileHash: string, filename: string): string {
-    const prefix = process.env.S3_FOLDER_PREFIX || 'nda-analyzer/';
+    const prefix = config.S3_FOLDER_PREFIX;
     return `${prefix}users/${userId}/documents/${fileHash}/${filename}`;
   },
   
@@ -182,7 +183,7 @@ export const ndaPaths = {
    * Get the path for a comparison result
    */
   comparison(userId: string, comparisonId: string | number): string {
-    const prefix = process.env.S3_FOLDER_PREFIX || 'nda-analyzer/';
+    const prefix = config.S3_FOLDER_PREFIX;
     return `${prefix}users/${userId}/comparisons/${comparisonId}/result.json`;
   },
   
@@ -190,7 +191,7 @@ export const ndaPaths = {
    * Get the path for an export
    */
   export(userId: string, exportId: string | number, format: 'pdf' | 'docx'): string {
-    const prefix = process.env.S3_FOLDER_PREFIX || 'nda-analyzer/';
+    const prefix = config.S3_FOLDER_PREFIX;
     return `${prefix}users/${userId}/exports/${exportId}/report.${format}`;
   },
   
@@ -198,12 +199,12 @@ export const ndaPaths = {
    * Get the path for temporary files
    */
   temp(filename: string): string {
-    const prefix = process.env.S3_FOLDER_PREFIX || 'nda-analyzer/';
+    const prefix = config.S3_FOLDER_PREFIX;
     return `${prefix}temp/${Date.now()}-${filename}`;
   }
 };
 
 // Auto-initialize in development
-if (process.env.NODE_ENV === 'development' && !storageInstance) {
+if (config.IS_DEVELOPMENT && !storageInstance) {
   initializeStorage().catch(console.error);
 }

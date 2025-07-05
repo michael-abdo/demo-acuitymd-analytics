@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { documentDb, DocumentStatus } from '@/lib/nda';
+import { config } from '@/lib/config';
 
 export async function GET() {
   try {
@@ -30,7 +31,7 @@ export async function GET() {
     // All tests passed
     return NextResponse.json({
       status: 'healthy',
-      mode: process.env.DB_CREATE_ACCESS === 'true' ? 'mysql' : 'memory',
+      mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
       timestamp: new Date().toISOString(),
       tests: {
         create: testDoc.id > 0,
@@ -50,10 +51,10 @@ export async function GET() {
     
     return NextResponse.json({
       status: 'error',
-      mode: process.env.DB_CREATE_ACCESS === 'true' ? 'mysql' : 'memory',
+      mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
       timestamp: new Date().toISOString(),
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: config.IS_DEVELOPMENT ? error.stack : undefined
     }, { status: 500 });
   }
 }

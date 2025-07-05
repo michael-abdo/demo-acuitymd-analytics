@@ -1,23 +1,24 @@
 import mysql from 'mysql2/promise'
+import { config } from './config'
 
-// Create a connection pool
+// Create a connection pool using centralized config
 const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST,
-  port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : 3306,
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE,
+  host: config.MYSQL_HOST,
+  port: config.MYSQL_PORT,
+  user: config.MYSQL_USER,
+  password: config.MYSQL_PASSWORD,
+  database: config.MYSQL_DATABASE,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 })
 
-// Log connection pool creation
+// Log connection pool creation (non-sensitive values only)
 console.log('MySQL connection pool created with config:', {
-  host: process.env.MYSQL_HOST,
-  port: process.env.MYSQL_PORT || 3306,
-  user: process.env.MYSQL_USER,
-  database: process.env.MYSQL_DATABASE,
+  host: config.MYSQL_HOST,
+  port: config.MYSQL_PORT,
+  user: config.MYSQL_USER,
+  database: config.MYSQL_DATABASE,
   connectionLimit: 10
 });
 

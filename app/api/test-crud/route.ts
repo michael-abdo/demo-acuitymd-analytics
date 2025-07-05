@@ -1,9 +1,10 @@
 import { queryItems } from '@/lib/mysql'
 import { NextResponse } from 'next/server'
+import { config } from '@/lib/config'
 
 export async function GET() {
   // Only available in development
-  if (process.env.NODE_ENV !== 'development') {
+  if (!config.IS_DEVELOPMENT) {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
   }
 

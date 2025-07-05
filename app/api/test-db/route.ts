@@ -1,20 +1,21 @@
 import mysql from 'mysql2/promise'
 import { NextResponse } from 'next/server'
+import { config } from '@/lib/config'
 
 export async function GET() {
   // Only available in development
-  if (process.env.NODE_ENV !== 'development') {
+  if (!config.IS_DEVELOPMENT) {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
   }
 
   try {
     // Log current environment variables for debugging
     const envInfo = {
-      MYSQL_HOST: process.env.MYSQL_HOST,
-      MYSQL_PORT: process.env.MYSQL_PORT,
-      MYSQL_USER: process.env.MYSQL_USER,
-      MYSQL_DATABASE: process.env.MYSQL_DATABASE,
-      NODE_ENV: process.env.NODE_ENV
+      MYSQL_HOST: config.MYSQL_HOST,
+      MYSQL_PORT: config.MYSQL_PORT,
+      MYSQL_USER: config.MYSQL_USER,
+      MYSQL_DATABASE: config.MYSQL_DATABASE,
+      NODE_ENV: config.NODE_ENV
     }
     
     // Direct connection test to bypass any connection pool issues
@@ -38,11 +39,11 @@ export async function GET() {
 async function testDirectConnection() {
   try {
     const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST,
-      port: process.env.MYSQL_PORT ? parseInt(process.env.MYSQL_PORT) : 3306,
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD,
-      database: process.env.MYSQL_DATABASE,
+      host: config.MYSQL_HOST,
+      port: config.MYSQL_PORT,
+      user: config.MYSQL_USER,
+      password: config.MYSQL_PASSWORD,
+      database: config.MYSQL_DATABASE,
       connectTimeout: 10000
     })
     

@@ -7,6 +7,7 @@
  */
 
 import { executeQuery } from '@/lib/db';
+import { config } from '@/lib/config';
 import { 
   NDADocument, 
   NDAComparison, 
@@ -29,8 +30,8 @@ import {
   QueryOptions
 } from './types';
 
-// Check if we have database access
-const HAS_DB_ACCESS = process.env.DB_CREATE_ACCESS === 'true';
+// Check if we have database access using centralized config
+const HAS_DB_ACCESS = config.DB_CREATE_ACCESS;
 
 // In-memory storage for development
 // Use global to persist across hot reloads in development
@@ -290,6 +291,10 @@ export const documentDb = {
       }
       return null;
     }
+  },
+
+  async updateStatus(id: number, status: DocumentStatus): Promise<boolean> {
+    return this.update(id, { status });
   }
 };
 
@@ -510,6 +515,98 @@ export const queueDb = {
       }
       
       return nextItem;
+    }
+  },
+
+  async updateStatus(id: number, status: QueueStatus): Promise<boolean> {
+    if (HAS_DB_ACCESS) {
+      const result = await executeQuery<UpdateResult>({
+        query: 'UPDATE nda_processing_queue SET status = ?, updated_at = NOW() WHERE id = ?',
+        values: [status, id]
+      });
+      return result.affectedRows > 0;
+    } else {
+      const item = memoryStore.queue.get(id);
+      if (!item) return false;
+      item.status = status;
+      item.updated_at = new Date();
+      return true;
+    }
+  },
+
+  async updateError(id: number, errorMessage: string): Promise<boolean> {
+    if (HAS_DB_ACCESS) {
+      const result = await executeQuery<UpdateResult>({
+        query: `
+          UPDATE nda_processing_queue 
+          SET error_message = ?, 
+              attempts = attempts + 1,
+              updated_at = NOW() 
+          WHERE id = ?
+        `,
+        values: [errorMessage, id]
+      });
+      return result.affectedRows > 0;
+    } else {
+      const item = memoryStore.queue.get(id);
+      if (!item) return false;
+      item.error_message = errorMessage;
+      item.attempts = (item.attempts || 0) + 1;
+      item.updated_at = new Date();
+      return true;
+    }
+  },
+
+  async retry(id: number): Promise<boolean> {
+    if (HAS_DB_ACCESS) {
+      const result = await executeQuery<UpdateResult>({
+        query: `
+          UPDATE nda_processing_queue 
+          SET status = ?, 
+              scheduled_at = DATE_ADD(NOW(), INTERVAL 1 MINUTE),
+              updated_at = NOW() 
+          WHERE id = ?
+        `,
+        values: [QueueStatus.QUEUED, id]
+      });
+      return result.affectedRows > 0;
+    } else {
+      const item = memoryStore.queue.get(id);
+      if (!item) return false;
+      item.status = QueueStatus.QUEUED;
+      item.scheduled_at = new Date(Date.now() + 60000); // 1 minute from now
+      item.updated_at = new Date();
+      return true;
+    }
+  },
+
+  async findByDocument(documentId: number): Promise<ProcessingQueueItem[]> {
+    if (HAS_DB_ACCESS) {
+      const rows = await executeQuery<ProcessingQueueRow[]>({
+        query: 'SELECT * FROM nda_processing_queue WHERE document_id = ? ORDER BY created_at DESC',
+        values: [documentId]
+      });
+      return rows.map(rowToQueueItem);
+    } else {
+      const items: ProcessingQueueItem[] = [];
+      for (const item of memoryStore.queue.values()) {
+        if (item.document_id === documentId) {
+          items.push(item);
+        }
+      }
+      return items.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    }
+  },
+
+  async findAll(): Promise<ProcessingQueueItem[]> {
+    if (HAS_DB_ACCESS) {
+      const rows = await executeQuery<ProcessingQueueRow[]>({
+        query: 'SELECT * FROM nda_processing_queue ORDER BY created_at DESC'
+      });
+      return rows.map(rowToQueueItem);
+    } else {
+      return Array.from(memoryStore.queue.values())
+        .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
     }
   }
 };

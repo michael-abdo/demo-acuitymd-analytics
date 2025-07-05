@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
+import { config } from '@/lib/config';
 
 export async function GET() {
   try {
@@ -77,7 +78,7 @@ export async function GET() {
         metadata: headResult?.metadata,
         listCount: listResult.files.length,
         signedUrlSupported: !isLocal,
-        basePath: isLocal ? process.env.LOCAL_STORAGE_PATH || '.storage' : undefined
+        basePath: isLocal ? config.LOCAL_STORAGE_PATH || '.storage' : undefined
       },
       operations: ['upload', 'exists', 'head', 'download', 'list', 'signedUrl', 'delete']
     });

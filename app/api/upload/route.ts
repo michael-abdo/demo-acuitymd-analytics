@@ -4,6 +4,7 @@ import { FileValidation, ApiErrors } from '@/lib/utils';
 import { createHash } from 'crypto';
 import { storage, ndaPaths } from '@/lib/storage';
 import { documentDb, DocumentStatus, queueDb, TaskType, QueueStatus } from '@/lib/nda';
+import { config } from '@/lib/config';
 
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
@@ -65,7 +66,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       filename: storageKey,
       original_name: file.name,
       file_hash: fileHash,
-      s3_url: storage.isS3() ? `s3://${process.env.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
+      s3_url: storage.isS3() ? `s3://${config.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
       file_size: file.size,
       upload_date: new Date(),
       user_id: userEmail,
