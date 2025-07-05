@@ -15,9 +15,8 @@ export default function UploadPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4 mt-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
+    <main className="container mx-auto py-8 px-4">
+      <div className="mb-6">
           <Button 
             variant="ghost" 
             onClick={() => router.back()}
@@ -82,7 +81,6 @@ export default function UploadPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
     </main>
   )
 }
