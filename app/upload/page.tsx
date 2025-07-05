@@ -2,6 +2,8 @@
 
 import { UploadNDA } from '@/components/upload-nda'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageContainer } from '@/components/page-container'
+import { PageTitle } from '@/components/page-title'
 
 export default function UploadPage() {
 
@@ -11,13 +13,10 @@ export default function UploadPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Upload NDA Document</h1>
-          <p className="text-gray-600">
-            Upload your NDA documents for analysis and comparison
-          </p>
-        </div>
+    <PageContainer>
+      <PageTitle description="Upload your NDA documents for analysis and comparison">
+        Upload NDA Document
+      </PageTitle>
 
         <div className="space-y-6">
           <UploadNDA onUploadComplete={handleUploadComplete} />
@@ -68,6 +67,6 @@ export default function UploadPage() {
             </CardContent>
           </Card>
         </div>
-    </main>
+    </PageContainer>
   )
 }

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Upload, FileText, Trash2, Star, Download } from 'lucide-react';
+import { PageContainer } from '@/components/page-container';
 
 interface Document {
   id: number;
@@ -123,7 +124,7 @@ export default function DocumentsPage() {
 
   if (!session) {
     return (
-      <div className="container mx-auto p-8">
+      <PageContainer>
         <Card>
           <CardHeader>
             <CardTitle>Document Library</CardTitle>
@@ -132,12 +133,12 @@ export default function DocumentsPage() {
             <p>Please sign in to manage your documents.</p>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container mx-auto p-8">
+    <PageContainer>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Document Library</h1>
         <div className="flex gap-4">
@@ -231,7 +232,7 @@ export default function DocumentsPage() {
           </Card>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

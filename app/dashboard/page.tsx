@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FileUp, FileText, GitCompare, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { PageContainer } from "@/components/page-container";
+import { PageTitle } from "@/components/page-title";
 
 export default function Dashboard() {
   const { data: session } = useSession();
@@ -13,13 +15,10 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">NDA Analyzer Dashboard</h1>
-        <p className="text-gray-600">
-          Welcome, {session?.user?.name || "User"}!
-        </p>
-      </div>
+    <PageContainer>
+      <PageTitle description={`Welcome, ${session?.user?.name || "User"}!`}>
+        NDA Analyzer Dashboard
+      </PageTitle>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
@@ -123,6 +122,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </PageContainer>
   );
 }

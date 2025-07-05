@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
+import { PageContainer } from '@/components/page-container';
 
 interface Document {
   id: number;
@@ -126,7 +127,7 @@ export default function ComparePage() {
 
   if (!session) {
     return (
-      <div className="container mx-auto p-8">
+      <PageContainer>
         <Card>
           <CardHeader>
             <CardTitle>Document Comparison</CardTitle>
@@ -135,12 +136,12 @@ export default function ComparePage() {
             <p>Please sign in to compare documents.</p>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container mx-auto p-8 space-y-8">
+    <PageContainer className="space-y-8">
       <h1 className="text-3xl font-bold">Compare NDAs</h1>
 
       {/* Document Selection */}
@@ -370,6 +371,6 @@ export default function ComparePage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

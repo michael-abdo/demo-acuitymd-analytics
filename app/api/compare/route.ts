@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { withAuth } from '@/lib/auth-utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    const session = await getServerSession()
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     const body = await request.json()
     const { standardDocId, thirdPartyDocId } = body
@@ -58,7 +54,7 @@ export async function POST(request: NextRequest) {
       document1_id: standardDocId,
       document2_id: thirdPartyDocId,
       created_date: new Date(),
-      user_id: session.user.email,
+      user_id: userEmail,
       status: ComparisonStatus.PROCESSING
     })
 
@@ -137,4 +133,4 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
-}
+})
