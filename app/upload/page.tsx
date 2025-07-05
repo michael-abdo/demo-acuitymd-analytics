@@ -3,11 +3,8 @@
 import { UploadNDA } from '@/components/upload-nda'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 
 export default function UploadPage() {
-  const router = useRouter()
 
   const handleUploadComplete = (document: any) => {
     // Document uploaded successfully
@@ -17,15 +14,6 @@ export default function UploadPage() {
   return (
     <main className="container mx-auto py-8 px-4">
       <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => router.back()}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          
           <h1 className="text-3xl font-bold mb-2">Upload NDA Document</h1>
           <p className="text-gray-600">
             Upload your NDA documents for analysis and comparison
