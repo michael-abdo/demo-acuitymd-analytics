@@ -104,6 +104,21 @@ function rowToQueueItem(row: ProcessingQueueRow): ProcessingQueueItem {
 }
 
 /**
+ * Wraps database operations with consistent error handling
+ */
+async function withDbErrorHandling<T>(
+  operation: () => Promise<T>,
+  errorMessage: string
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(errorMessage, error);
+    throw new Error(errorMessage);
+  }
+}
+
+/**
  * Database operations for NDA Documents
  */
 export const documentDb = {

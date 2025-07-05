@@ -42,6 +42,26 @@ export function getFilenameFromPath(fullPath: string): string {
 }
 
 /**
+ * Validates and parses a document ID from route parameters
+ * @param id - The ID string from route params
+ * @returns The parsed document ID or null if invalid
+ */
+export function parseDocumentId(id: string): number | null {
+  const documentId = parseInt(id, 10);
+  return isNaN(documentId) ? null : documentId;
+}
+
+/**
+ * Checks if a user owns a document
+ * @param document - The document to check
+ * @param userEmail - The user's email
+ * @returns Boolean indicating ownership
+ */
+export function isDocumentOwner(document: { user_id: string }, userEmail: string): boolean {
+  return document.user_id === userEmail;
+}
+
+/**
  * Centralized file validation utilities for consistent file upload handling
  */
 export const FileValidation = {

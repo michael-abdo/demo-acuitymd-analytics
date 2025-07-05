@@ -45,12 +45,14 @@ export async function checkPermission(requiredPermission: string) {
  * Higher-order function that wraps API route handlers with authentication.
  * Returns 401 if user is not authenticated, otherwise calls the handler with the user email.
  */
-export function withAuth(handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>) {
-  return async (request: NextRequest) => {
+export function withAuth<T extends Record<string, any> = {}>(
+  handler: (request: NextRequest, userEmail: string, context?: { params: T }) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context?: { params: T }) => {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    return handler(request, session.user.email);
+    return handler(request, session.user.email, context);
   };
 } 

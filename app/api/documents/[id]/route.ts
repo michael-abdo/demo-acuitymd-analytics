@@ -1,36 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { withAuth } from '@/lib/auth-utils';
+import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 
 // GET /api/documents/[id] - Get document details
-export async function GET(
+export const GET = withAuth<{ id: string }>(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  userEmail: string,
+  context
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const documentId = parseInt(params.id, 10);
-    if (isNaN(documentId)) {
-      return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
+    const documentId = parseDocumentId(context!.params.id);
+    if (!documentId) {
+      return ApiErrors.badRequest('Invalid document ID');
     }
 
     // Get document from database
     const document = await documentDb.findById(documentId);
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      return ApiErrors.notFound('Document');
     }
 
     // Check ownership
-    if (document.user_id !== session.user.email) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!isDocumentOwner(document, userEmail)) {
+      return ApiErrors.forbidden();
     }
 
     // Get document metadata from storage
@@ -76,44 +71,36 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching document:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch document' },
-      { status: 500 }
-    );
+    return ApiErrors.serverError('Failed to fetch document');
   }
-}
+});
 
 // DELETE /api/documents/[id] - Delete document
-export async function DELETE(
+export const DELETE = withAuth<{ id: string }>(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  userEmail: string,
+  context
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const documentId = parseInt(params.id, 10);
-    if (isNaN(documentId)) {
-      return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
+    const documentId = parseDocumentId(context!.params.id);
+    if (!documentId) {
+      return ApiErrors.badRequest('Invalid document ID');
     }
 
     // Get document from database
     const document = await documentDb.findById(documentId);
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      return ApiErrors.notFound('Document');
     }
 
     // Check ownership
-    if (document.user_id !== session.user.email) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!isDocumentOwner(document, userEmail)) {
+      return ApiErrors.forbidden();
     }
 
     // Check if document is used in any comparisons
-    const allComparisons = await comparisonDb.findByUser(session.user.email);
+    const allComparisons = await comparisonDb.findByUser(userEmail);
     const relatedComparisons = allComparisons.filter(comp => 
       comp.standard_doc_id === documentId || comp.compared_doc_id === documentId
     );
@@ -151,40 +138,32 @@ export async function DELETE(
 
   } catch (error) {
     console.error('Error deleting document:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete document' },
-      { status: 500 }
-    );
+    return ApiErrors.serverError('Failed to delete document');
   }
-}
+});
 
 // PATCH /api/documents/[id] - Update document metadata
-export async function PATCH(
+export const PATCH = withAuth<{ id: string }>(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  userEmail: string,
+  context
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const documentId = parseInt(params.id, 10);
-    if (isNaN(documentId)) {
-      return NextResponse.json({ error: 'Invalid document ID' }, { status: 400 });
+    const documentId = parseDocumentId(context!.params.id);
+    if (!documentId) {
+      return ApiErrors.badRequest('Invalid document ID');
     }
 
     // Get document from database
     const document = await documentDb.findById(documentId);
 
     if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      return ApiErrors.notFound('Document');
     }
 
     // Check ownership
-    if (document.user_id !== session.user.email) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    if (!isDocumentOwner(document, userEmail)) {
+      return ApiErrors.forbidden();
     }
 
     // Parse request body
@@ -207,7 +186,7 @@ export async function PATCH(
     const updated = await documentDb.update(documentId, updates);
 
     if (!updated) {
-      return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
+      return ApiErrors.serverError('Failed to update document');
     }
 
     // Return updated document
@@ -220,9 +199,6 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Error updating document:', error);
-    return NextResponse.json(
-      { error: 'Failed to update document' },
-      { status: 500 }
-    );
+    return ApiErrors.serverError('Failed to update document');
   }
-}
+});
