@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/auth-utils';
 import { FileValidation } from '@/lib/utils';
 import { createHash } from 'crypto';
 import { storage, ndaPaths } from '@/lib/storage';
-import { documentDb, DocumentStatus } from '@/lib/nda';
+import { documentDb, DocumentStatus, queueDb, TaskType, QueueStatus } from '@/lib/nda';
 
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
@@ -78,6 +78,19 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
         provider: storage.getProvider()
       }
     });
+
+    // Queue text extraction task using existing queue system
+    await queueDb.enqueue({
+      document_id: document.id,
+      task_type: TaskType.EXTRACT_TEXT,
+      priority: 5, // Medium priority
+      status: QueueStatus.QUEUED,
+      attempts: 0,
+      max_attempts: 3,
+      scheduled_at: new Date()
+    });
+
+    console.log(`Queued text extraction for document ${document.id}, hash: ${fileHash}`);
 
     return NextResponse.json({
       status: 'success',

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
+import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,44 +28,106 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // TODO: Implement actual comparison logic
-    // 1. Fetch documents from S3
-    // 2. Extract text content (Tesseract/LayoutParser)
-    // 3. Send to OpenAI for comparison
-    // 4. Store results in S3
-    // 5. Save comparison metadata to database
+    // Fetch documents from database
+    const [standardDoc, thirdPartyDoc] = await Promise.all([
+      documentDb.findById(standardDocId),
+      documentDb.findById(thirdPartyDocId)
+    ])
 
-    // For now, return a mock response
-    const mockComparison = {
-      id: `comp_${Date.now()}`,
-      standardDocId,
-      thirdPartyDocId,
-      status: 'completed',
-      differences: [
-        {
-          section: 'Confidentiality Definition',
-          standardText: 'Information shall remain confidential for 5 years',
-          thirdPartyText: 'Information shall remain confidential for 3 years',
-          severity: 'high',
-          suggestion: 'Request extension to 5-year confidentiality period'
-        },
-        {
-          section: 'Governing Law',
-          standardText: 'Delaware law shall govern',
-          thirdPartyText: 'California law shall govern',
-          severity: 'medium',
-          suggestion: 'Negotiate for Delaware law or acceptable alternative'
-        }
-      ],
-      summary: 'Found 2 significant differences requiring attention',
-      createdAt: new Date().toISOString()
+    if (!standardDoc || !thirdPartyDoc) {
+      return NextResponse.json({ 
+        error: 'One or both documents not found' 
+      }, { status: 404 })
     }
 
-    return NextResponse.json({
-      status: 'success',
-      message: 'NDA comparison completed',
-      comparison: mockComparison
+    // Check if text has been extracted for both documents
+    if (!standardDoc.extracted_text || !thirdPartyDoc.extracted_text) {
+      const missingExtraction = []
+      if (!standardDoc.extracted_text) missingExtraction.push(`Standard document (ID: ${standardDocId})`)
+      if (!thirdPartyDoc.extracted_text) missingExtraction.push(`Third-party document (ID: ${thirdPartyDocId})`)
+      
+      return NextResponse.json({ 
+        error: 'Text extraction not completed',
+        details: `Text extraction is pending for: ${missingExtraction.join(', ')}`,
+        suggestion: 'Please wait for text extraction to complete or trigger it via /api/process-queue'
+      }, { status: 400 })
+    }
+
+    // Create comparison record
+    const comparison = await comparisonDb.create({
+      document1_id: standardDocId,
+      document2_id: thirdPartyDocId,
+      created_date: new Date(),
+      user_id: session.user.email,
+      status: ComparisonStatus.PROCESSING
     })
+
+    try {
+      // Prepare document content for comparison
+      const standardContent: DocumentContent = {
+        text: standardDoc.extracted_text,
+        pages: standardDoc.metadata?.extraction?.pages || 1,
+        confidence: standardDoc.metadata?.extraction?.confidence || 0.95,
+        metadata: {
+          extractedAt: standardDoc.metadata?.extraction?.extractedAt || new Date().toISOString(),
+          method: standardDoc.metadata?.extraction?.method || 'pdf-parse',
+          fileHash: standardDoc.file_hash
+        }
+      }
+
+      const thirdPartyContent: DocumentContent = {
+        text: thirdPartyDoc.extracted_text,
+        pages: thirdPartyDoc.metadata?.extraction?.pages || 1,
+        confidence: thirdPartyDoc.metadata?.extraction?.confidence || 0.95,
+        metadata: {
+          extractedAt: thirdPartyDoc.metadata?.extraction?.extractedAt || new Date().toISOString(),
+          method: thirdPartyDoc.metadata?.extraction?.method || 'pdf-parse',
+          fileHash: thirdPartyDoc.file_hash
+        }
+      }
+
+      // Perform comparison (currently using mock implementation)
+      // TODO: Replace with actual OpenAI implementation
+      const comparisonResult = await compareDocuments(standardContent, thirdPartyContent)
+      
+      // Update comparison with results
+      await comparisonDb.update(comparison.id, {
+        status: ComparisonStatus.COMPLETED,
+        comparison_summary: comparisonResult.summary,
+        key_differences: comparisonResult.differences.map(diff => ({
+          section: diff.section,
+          type: diff.severity === 'high' ? 'different' : 'missing',
+          importance: diff.severity,
+          standard_text: diff.standardText,
+          compared_text: diff.thirdPartyText,
+          explanation: diff.suggestion
+        })),
+        similarity_score: 0.85, // TODO: Calculate actual similarity
+        processing_time_ms: 2000 // TODO: Track actual processing time
+      })
+
+      return NextResponse.json({
+        status: 'success',
+        message: 'NDA comparison completed',
+        comparison: {
+          id: comparison.id,
+          standardDocId,
+          thirdPartyDocId,
+          status: 'completed',
+          differences: comparisonResult.differences,
+          summary: comparisonResult.summary,
+          createdAt: comparison.created_date
+        }
+      })
+
+    } catch (comparisonError) {
+      // Update comparison status to error
+      await comparisonDb.update(comparison.id, {
+        status: ComparisonStatus.ERROR,
+        error_message: comparisonError instanceof Error ? comparisonError.message : 'Unknown error'
+      })
+      throw comparisonError
+    }
 
   } catch (error) {
     console.error('Comparison error:', error)

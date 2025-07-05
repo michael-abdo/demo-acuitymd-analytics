@@ -1,5 +1,7 @@
 // Text extraction utilities for NDA documents
-// TODO: Integrate actual Tesseract/LayoutParser implementation
+import pdfParse from './pdf-parse-wrapper';
+import mammoth from 'mammoth';
+import { TextExtractionResult, DocumentMetadata } from '@/lib/nda/types';
 
 export interface DocumentContent {
   text: string
@@ -7,7 +9,7 @@ export interface DocumentContent {
   confidence: number
   metadata: {
     extractedAt: string
-    method: 'tesseract' | 'layoutparser' | 'textract'
+    method: 'pdf-parse' | 'mammoth' | 'text'
     fileHash: string
   }
 }
@@ -16,45 +18,127 @@ export async function extractTextFromPDF(
   fileBuffer: Buffer, 
   fileHash: string
 ): Promise<DocumentContent> {
-  // Mock implementation - replace with actual Tesseract/LayoutParser
-  console.log('Extracting text from PDF buffer, hash:', fileHash)
-  
-  // Simulate processing time
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  // Mock extracted content
-  const mockContent: DocumentContent = {
-    text: `
-    NON-DISCLOSURE AGREEMENT
+  try {
+    console.log('Extracting text from PDF using pdf-parse, hash:', fileHash);
     
-    This Non-Disclosure Agreement ("Agreement") is entered into on [DATE] between [PARTY1] and [PARTY2].
+    // Use pdf-parse to extract text from PDF
+    const data = await pdfParse(fileBuffer);
     
-    1. CONFIDENTIAL INFORMATION
-    For purposes of this Agreement, "Confidential Information" shall mean all technical data, trade secrets, 
-    know-how, research, product plans, products, services, customers, customer lists, markets, software, 
-    developments, inventions, processes, formulas, technology, designs, drawings, engineering, hardware 
-    configuration information, marketing, finances or other business information.
+    // Clean up the extracted text
+    const cleanedText = data.text
+      .replace(/\r\n/g, '\n') // Normalize line endings
+      .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
+      .trim();
     
-    2. CONFIDENTIALITY OBLIGATIONS
-    The receiving party agrees to hold and maintain the Confidential Information in strict confidence for 
-    a period of five (5) years from the date of disclosure.
-    
-    3. GOVERNING LAW
-    This Agreement shall be governed by and construed in accordance with the laws of Delaware.
-    
-    4. TERM
-    This Agreement shall remain in effect for a period of five (5) years from the date first written above.
-    `,
-    pages: 3,
-    confidence: 0.94,
-    metadata: {
-      extractedAt: new Date().toISOString(),
-      method: 'tesseract',
-      fileHash
-    }
+    return {
+      text: cleanedText,
+      pages: data.numpages,
+      confidence: 0.95, // pdf-parse is reliable for text-based PDFs
+      metadata: {
+        extractedAt: new Date().toISOString(),
+        method: 'pdf-parse',
+        fileHash
+      }
+    };
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+export async function extractTextFromDOCX(
+  fileBuffer: Buffer,
+  fileHash: string
+): Promise<DocumentContent> {
+  try {
+    console.log('Extracting text from DOCX using mammoth, hash:', fileHash);
+    
+    // Use mammoth to extract text from DOCX
+    const result = await mammoth.extractRawText({ buffer: fileBuffer });
+    
+    // Clean up the extracted text
+    const cleanedText = result.value
+      .replace(/\r\n/g, '\n') // Normalize line endings
+      .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
+      .trim();
+    
+    // Estimate page count (average 500 words per page, 5 characters per word)
+    const estimatedPages = Math.max(1, Math.ceil(cleanedText.length / 2500));
+    
+    return {
+      text: cleanedText,
+      pages: estimatedPages,
+      confidence: 0.98, // mammoth is very reliable for DOCX files
+      metadata: {
+        extractedAt: new Date().toISOString(),
+        method: 'mammoth',
+        fileHash
+      }
+    };
+  } catch (error) {
+    console.error('Error extracting text from DOCX:', error);
+    throw new Error(`Failed to extract text from DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function extractTextFromTXT(
+  fileBuffer: Buffer,
+  fileHash: string
+): Promise<DocumentContent> {
+  try {
+    console.log('Extracting text from TXT file, hash:', fileHash);
+    
+    // Convert buffer to string
+    const text = fileBuffer.toString('utf-8');
+    
+    // Estimate page count
+    const estimatedPages = Math.max(1, Math.ceil(text.length / 2500));
+    
+    return {
+      text: text.trim(),
+      pages: estimatedPages,
+      confidence: 1.0, // TXT files are already text
+      metadata: {
+        extractedAt: new Date().toISOString(),
+        method: 'text',
+        fileHash
+      }
+    };
+  } catch (error) {
+    console.error('Error extracting text from TXT:', error);
+    throw new Error(`Failed to extract text from TXT: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Unified text extraction function that handles all supported file types
+ * Following DRY principle by routing to appropriate extractor based on file extension
+ */
+export async function extractText(
+  fileBuffer: Buffer,
+  filename: string,
+  fileHash: string
+): Promise<DocumentContent> {
+  // Get file extension
+  const extension = filename.toLowerCase().split('.').pop();
   
-  return mockContent
+  switch (extension) {
+    case 'pdf':
+      return extractTextFromPDF(fileBuffer, fileHash);
+    
+    case 'docx':
+      return extractTextFromDOCX(fileBuffer, fileHash);
+    
+    case 'doc':
+      // DOC files can be handled by mammoth as well
+      return extractTextFromDOCX(fileBuffer, fileHash);
+    
+    case 'txt':
+      return extractTextFromTXT(fileBuffer, fileHash);
+    
+    default:
+      throw new Error(`Unsupported file type: ${extension}. Supported types: PDF, DOCX, DOC, TXT`);
+  }
 }
 
 export async function compareDocuments(
