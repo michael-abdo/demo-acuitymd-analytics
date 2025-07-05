@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth-utils';
+import { FileValidation } from '@/lib/utils';
 import { createHash } from 'crypto';
 import { storage, ndaPaths } from '@/lib/storage';
 import { documentDb, DocumentStatus } from '@/lib/nda';
@@ -16,30 +17,10 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/msword', // .doc
-      'text/plain' // .txt
-    ];
-    
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Only PDF, DOCX, DOC, and TXT files are allowed',
-        allowedTypes: ['pdf', 'docx', 'doc', 'txt'],
-        receivedType: file.type
-      }, { status: 400 });
-    }
-
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      return NextResponse.json({ 
-        error: 'File too large',
-        maxSize: maxSize,
-        actualSize: file.size
-      }, { status: 400 });
+    // Validate file using centralized utilities
+    const validationError = FileValidation.getValidationError(file);
+    if (validationError) {
+      return validationError;
     }
 
     // Read file content

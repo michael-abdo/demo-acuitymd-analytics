@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { FileValidation } from '@/lib/utils';
 import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -73,10 +74,10 @@ export async function POST(request: NextRequest) {
         status: 'UPLOADED',
         extracted_text: null,
         is_standard: doc.isStandard,
-        content_type: getContentType(fileName),
+        content_type: FileValidation.getContentType(fileName),
         metadata: {
           docType: doc.isStandard ? 'STANDARD' : 'THIRD_PARTY',
-          contentType: getContentType(fileName),
+          contentType: FileValidation.getContentType(fileName),
           provider: 'local'
         }
       };
@@ -99,15 +100,4 @@ export async function POST(request: NextRequest) {
       message: error.message
     }, { status: 500 });
   }
-}
-
-function getContentType(filename: string) {
-  const ext = path.extname(filename).toLowerCase();
-  const types: Record<string, string> = {
-    '.pdf': 'application/pdf',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.doc': 'application/msword',
-    '.txt': 'text/plain'
-  };
-  return types[ext] || 'application/octet-stream';
 }
