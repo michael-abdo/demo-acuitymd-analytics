@@ -37,7 +37,7 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
       const searchLower = search.toLowerCase();
       filteredDocuments = filteredDocuments.filter(doc => 
         doc.filename.toLowerCase().includes(searchLower) ||
-        (doc.display_name && doc.display_name.toLowerCase().includes(searchLower))
+        doc.original_name.toLowerCase().includes(searchLower)
       );
     }
 

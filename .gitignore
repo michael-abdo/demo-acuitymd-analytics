@@ -79,3 +79,5 @@ logs
 
 # Local storage (development only)
 .storage/ 
+# TypeScript
+tsconfig.tsbuildinfo

@@ -13,13 +13,15 @@ import { getFilenameFromPath } from '@/lib/utils';
 interface Document {
   id: number;
   filename: string;
-  display_name?: string;
+  original_name: string;
   file_size: number;
-  content_type: string;
   is_standard: boolean;
   status: string;
-  uploaded_at: string;
+  created_at: string;
+  updated_at: string;
   downloadUrl?: string;
+  fileType?: string;
+  sizeMB?: string;
 }
 
 export default function DocumentsPage() {
@@ -117,7 +119,7 @@ export default function DocumentsPage() {
 
   const filteredDocuments = documents.filter(doc =>
     doc.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.display_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    doc.original_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const standardDocuments = filteredDocuments.filter(doc => doc.is_standard);
@@ -262,10 +264,10 @@ function DocumentCard({ document, onToggleStandard, onDelete }: DocumentCardProp
         <FileText className="h-8 w-8 text-blue-500" />
         <div>
           <h3 className="font-medium">
-            {document.display_name || getFilenameFromPath(document.filename)}
+            {document.original_name || getFilenameFromPath(document.filename)}
           </h3>
           <p className="text-sm text-gray-500">
-            {formatFileSize(document.file_size)} • {formatDate(document.uploaded_at)}
+            {formatFileSize(document.file_size)} • {formatDate(document.created_at)}
           </p>
           <div className="flex gap-2 mt-1">
             {document.is_standard && (
