@@ -2,6 +2,11 @@ import { executeQuery } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
 export async function POST() {
+  // Only available in development
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+  }
+
   try {
     // Create NDA documents table
     await executeQuery({

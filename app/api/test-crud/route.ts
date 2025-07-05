@@ -2,6 +2,11 @@ import { queryItems } from '@/lib/mysql'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+  // Only available in development
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+  }
+
   try {
     // Test reading from existing table
     const listings = await queryItems('vvg_trucklistings', {}, 5)

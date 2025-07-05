@@ -10,7 +10,7 @@ export default function UploadPage() {
   const router = useRouter()
 
   const handleUploadComplete = (document: any) => {
-    console.log('Document uploaded:', document)
+    // Document uploaded successfully
     // Could redirect to comparison page or show success state
   }
 

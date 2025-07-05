@@ -91,7 +91,7 @@ export default function DocumentsPage() {
         }
       } else {
         // Removing standard status - would need to implement this endpoint
-        console.log('Remove standard status not implemented yet');
+        // TODO: Implement remove standard status endpoint
       }
     } catch (error) {
       console.error('Error updating standard status:', error);

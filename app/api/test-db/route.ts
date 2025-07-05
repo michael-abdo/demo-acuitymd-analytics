@@ -2,6 +2,11 @@ import mysql from 'mysql2/promise'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
+  // Only available in development
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+  }
+
   try {
     // Log current environment variables for debugging
     const envInfo = {
