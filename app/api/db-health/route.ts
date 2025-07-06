@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { documentDb, DocumentStatus } from '@/lib/nda';
 import { config } from '@/lib/config';
 import { Logger } from '@/lib/services/logger';
+import { ApiResponse } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -30,32 +32,34 @@ export async function GET() {
     const deleted = await documentDb.delete(testDoc.id);
     
     // All tests passed
-    return NextResponse.json({
-      status: 'healthy',
-      mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
-      timestamp: new Date().toISOString(),
-      tests: {
-        create: testDoc.id > 0,
-        read: found?.id === testDoc.id,
-        findByHash: foundByHash?.id === testDoc.id,
-        delete: deleted === true
+    return ApiResponse.operation('db.health', {
+      result: {
+        status: 'healthy',
+        mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
+        timestamp: new Date().toISOString(),
+        tests: {
+          create: testDoc.id > 0,
+          read: found?.id === testDoc.id,
+          findByHash: foundByHash?.id === testDoc.id,
+          delete: deleted === true
+        },
+        details: {
+          created_id: testDoc.id,
+          file_hash: testDoc.file_hash,
+          operations: ['create', 'read', 'findByHash', 'delete']
+        }
       },
-      details: {
-        created_id: testDoc.id,
-        file_hash: testDoc.file_hash,
-        operations: ['create', 'read', 'findByHash', 'delete']
-      }
+      status: 'success'
     });
     
   } catch (error: any) {
     Logger.db.error('Health check failed', error);
     
-    return NextResponse.json({
-      status: 'error',
+    return ApiErrors.serverError('Database health check failed', {
       mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
       timestamp: new Date().toISOString(),
       error: error.message,
       stack: config.IS_DEVELOPMENT ? error.stack : undefined
-    }, { status: 500 });
+    });
   }
 }

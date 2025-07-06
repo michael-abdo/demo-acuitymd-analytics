@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess } from '@/lib/auth-utils';
+import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
 import { config, APP_CONSTANTS } from '@/lib/config';
+import { Logger } from '@/lib/services/logger';
 
 // POST /api/documents/[id]/extract - Manually trigger text extraction
 export const POST = withDocumentAccess<{ id: string }>(async (
@@ -15,14 +16,17 @@ export const POST = withDocumentAccess<{ id: string }>(async (
 
     // Check if text is already extracted
     if (document.extracted_text) {
-      return NextResponse.json({
-        status: 'already_extracted',
-        message: 'Text has already been extracted from this document',
-        document: {
-          id: document.id,
-          filename: document.original_name,
-          extractedTextLength: document.extracted_text.length
-        }
+      return ApiResponse.operation('extraction.status', {
+        result: {
+          status: 'already_extracted',
+          message: 'Text has already been extracted from this document',
+          document: {
+            id: document.id,
+            filename: document.original_name,
+            extractedTextLength: document.extracted_text.length
+          }
+        },
+        status: 'success'
       });
     }
 
@@ -34,14 +38,17 @@ export const POST = withDocumentAccess<{ id: string }>(async (
     );
 
     if (pendingTask) {
-      return NextResponse.json({
-        status: 'already_queued',
-        message: 'Text extraction is already queued for this document',
-        task: {
-          id: pendingTask.id,
-          status: pendingTask.status,
-          created_at: pendingTask.created_at
-        }
+      return ApiResponse.operation('extraction.status', {
+        result: {
+          status: 'already_queued',
+          message: 'Text extraction is already queued for this document',
+          task: {
+            id: pendingTask.id,
+            status: pendingTask.status,
+            created_at: pendingTask.created_at
+          }
+        },
+        status: 'success'
       });
     }
 
@@ -54,7 +61,7 @@ export const POST = withDocumentAccess<{ id: string }>(async (
       scheduled_at: new Date()
     });
 
-    console.log(`[Manual Extract] Queued text extraction for document ${document.id}`);
+    Logger.api.step('EXTRACT', `Queued text extraction for document ${document.id}`);
 
     // Optionally, trigger immediate processing
     if (config.IS_DEVELOPMENT) {
@@ -67,26 +74,29 @@ export const POST = withDocumentAccess<{ id: string }>(async (
               'Content-Type': 'application/json'
             }
           });
-          console.log('[Manual Extract] Triggered queue processing:', await response.json());
+          Logger.api.step('EXTRACT', 'Triggered queue processing', await response.json());
         } catch (error) {
-          console.error('[Manual Extract] Failed to trigger queue:', error);
+          Logger.api.error('EXTRACT', 'Failed to trigger queue', error as Error);
         }
       }, 1000); // Small delay to ensure task is saved
     }
 
-    return NextResponse.json({
-      status: 'queued',
-      message: 'Text extraction has been queued',
-      task: {
-        id: task.id,
-        document_id: document.id,
-        priority: task.priority,
-        created_at: task.created_at
-      }
+    return ApiResponse.operation('extraction.queue', {
+      result: {
+        status: 'queued',
+        message: 'Text extraction has been queued',
+        task: {
+          id: task.id,
+          document_id: document.id,
+          priority: task.priority,
+          created_at: task.created_at
+        }
+      },
+      status: 'created'
     });
 
   } catch (error) {
-    console.error('Manual extraction error:', error);
+    Logger.api.error('EXTRACT', 'Manual extraction error', error as Error);
     return ApiErrors.serverError('Failed to queue text extraction');
   }
 });
@@ -105,25 +115,28 @@ export const GET = withDocumentAccess(async (
       task.task_type === TaskType.EXTRACT_TEXT
     );
 
-    return NextResponse.json({
-      document: {
-        id: document.id,
-        filename: document.original_name,
-        status: document.status,
-        hasExtractedText: !!document.extracted_text,
-        extractedTextLength: document.extracted_text ? document.extracted_text.length : 0
+    return ApiResponse.operation('extraction.status', {
+      result: {
+        document: {
+          id: document.id,
+          filename: document.original_name,
+          status: document.status,
+          hasExtractedText: !!document.extracted_text,
+          extractedTextLength: document.extracted_text ? document.extracted_text.length : 0
+        },
+        extractionTasks: extractionTasks.map((task: any) => ({
+          id: task.id,
+          status: task.status,
+          attempts: task.attempts,
+          created_at: task.created_at,
+          error_message: task.error_message
+        }))
       },
-      extractionTasks: extractionTasks.map((task: any) => ({
-        id: task.id,
-        status: task.status,
-        attempts: task.attempts,
-        created_at: task.created_at,
-        error_message: task.error_message
-      }))
+      status: 'success'
     });
 
   } catch (error) {
-    console.error('Extraction status error:', error);
+    Logger.api.error('EXTRACT', 'Extraction status error', error as Error);
     return ApiErrors.serverError('Failed to get extraction status');
   }
 });

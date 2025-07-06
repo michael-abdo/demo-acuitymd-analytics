@@ -1,16 +1,12 @@
 import { NextRequest } from 'next/server';
 import { withAuth, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
-import { storage } from '@/lib/storage';
 import { Logger } from '@/lib/services/logger';
 import { RequestParser } from '@/lib/services/request-parser';
 import { DocumentService } from '@/lib/services/document-service';
 
 // GET /api/documents - List user's documents
 export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
-  const startTime = Date.now();
-  const timingOperations: Record<string, number> = {};
-  
   Logger.api.start('DOCUMENTS', userEmail, {
     method: request.method,
     url: request.url
@@ -28,7 +24,6 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
     });
 
     // Get paginated documents using DRY service
-    const dbStart = Date.now();
     const { documents: paginatedDocuments, total, pages } = await DocumentService.getUserDocumentsPaginated(
       userEmail,
       {
@@ -38,25 +33,14 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
         search: filters.search
       }
     );
-    timingOperations.databaseQuery = Date.now() - dbStart;
 
     // Enhance documents with signed URLs if using S3
     Logger.api.step('DOCUMENTS', 'Enhancing documents with storage URLs');
     
-    const enhanceStart = Date.now();
     const enhancedDocuments = await Promise.all(
       paginatedDocuments.map(async (doc) => {
-        let downloadUrl = null;
-        
-        try {
-          // Try to generate a signed URL for download
-          if (storage.isS3?.()) {
-            downloadUrl = await storage.getSignedUrl(doc.filename, 'get', { expires: 3600 });
-          }
-        } catch (error) {
-          // If signed URL fails, we'll handle downloads differently
-          Logger.storage.operation(`Failed to generate signed URL for ${doc.filename}`, error);
-        }
+        // Use centralized URL generation
+        const { downloadUrl } = await DocumentService.getDocumentUrls(doc);
 
         return {
           ...doc,
@@ -71,7 +55,6 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
         };
       })
     );
-    timingOperations.documentEnhancement = Date.now() - enhanceStart;
 
     // Return paginated response
     Logger.api.success('DOCUMENTS', `Retrieved ${enhancedDocuments.length} documents`, {
@@ -95,9 +78,8 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
           search: filters.search || null
         },
         count: enhancedDocuments.length,
-        hasSignedUrls: storage.isS3?.() || false
-      },
-      timing: { start: startTime, operations: timingOperations }
+        hasSignedUrls: enhancedDocuments.some(doc => doc.downloadUrl?.startsWith('https://'))
+      }
     });
 
   } catch (error) {

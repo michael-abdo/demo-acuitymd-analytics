@@ -1,41 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
-import { RequestParser } from '@/lib/services/request-parser';
-import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
-import { documentDb, comparisonDb, ComparisonStatus } from '@/lib/nda';
+import { withComparisonAccess, ApiResponse } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
+import { comparisonDb, ComparisonStatus } from '@/lib/nda';
+import { Logger } from '@/lib/services/logger';
 
 // POST /api/compare/simple - Create a simple text comparison
-export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
+export const POST = withComparisonAccess(async (request: NextRequest, userEmail: string, doc1, doc2) => {
   try {
-    const { doc1Id: validDoc1Id, doc2Id: validDoc2Id } = await RequestParser.parseComparisonRequest(request);
-    
-    if (validDoc1Id === validDoc2Id) {
-      return ApiErrors.badRequest('Cannot compare a document with itself');
-    }
-    
-    // Get documents
-    const [doc1, doc2] = await Promise.all([
-      documentDb.findById(validDoc1Id),
-      documentDb.findById(validDoc2Id)
-    ]);
-    
-    if (!doc1 || !doc2) {
-      return ApiErrors.notFound('One or both documents not found');
-    }
-    
-    // Check ownership
-    if (!isDocumentOwner(doc1, userEmail) || !isDocumentOwner(doc2, userEmail)) {
-      return ApiErrors.forbidden();
-    }
     
     // Check if text has been extracted
     if (!doc1.extracted_text || !doc2.extracted_text) {
-      return NextResponse.json({
-        error: 'Text extraction required',
-        message: 'Both documents must have extracted text before comparison',
+      return ApiErrors.validation('Both documents must have extracted text before comparison', {
         doc1HasText: !!doc1.extracted_text,
         doc2HasText: !!doc2.extracted_text
-      }, { status: 400 });
+      });
     }
     
     // Perform simple comparison
@@ -64,8 +42,8 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     
     // Create comparison record
     const comparison = await comparisonDb.create({
-      document1_id: validDoc1Id,
-      document2_id: validDoc2Id,
+      document1_id: doc1.id,
+      document2_id: doc2.id,
       comparison_summary: `Simple text comparison between "${doc1.original_name}" and "${doc2.original_name}"`,
       similarity_score: Math.round(similarityScore * 100) / 100,
       key_differences: [
@@ -92,40 +70,47 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       created_date: new Date()
     });
     
-    return NextResponse.json({
-      comparisonId: comparison.id,
-      documents: {
-        doc1: {
-          id: doc1.id,
-          name: doc1.original_name,
-          stats: stats1
+    return ApiResponse.operation('comparison.simple', {
+      result: {
+        comparisonId: comparison.id,
+        documents: {
+          doc1: {
+            id: doc1.id,
+            name: doc1.original_name,
+            stats: stats1
+          },
+          doc2: {
+            id: doc2.id,
+            name: doc2.original_name,
+            stats: stats2
+          }
         },
-        doc2: {
-          id: doc2.id,
-          name: doc2.original_name,
-          stats: stats2
-        }
+        similarity: {
+          score: similarityScore,
+          commonWords: commonWords.size,
+          uniqueToDoc1: uniqueToDoc1.size,
+          uniqueToDoc2: uniqueToDoc2.size,
+          interpretation: similarityScore > 80 ? 'Very Similar' :
+                         similarityScore > 60 ? 'Similar' :
+                         similarityScore > 40 ? 'Somewhat Similar' :
+                         similarityScore > 20 ? 'Different' : 'Very Different'
+        },
+        sections: {
+          doc1Sections: sections1,
+          doc2Sections: sections2,
+          commonSections: sections1.filter(s => sections2.includes(s))
+        },
+        differences: comparison.key_differences
       },
-      similarity: {
-        score: similarityScore,
-        commonWords: commonWords.size,
-        uniqueToDoc1: uniqueToDoc1.size,
-        uniqueToDoc2: uniqueToDoc2.size,
-        interpretation: similarityScore > 80 ? 'Very Similar' :
-                       similarityScore > 60 ? 'Similar' :
-                       similarityScore > 40 ? 'Somewhat Similar' :
-                       similarityScore > 20 ? 'Different' : 'Very Different'
+      metadata: {
+        similarityScore: Math.round(similarityScore * 100) / 100,
+        analysisType: 'simple'
       },
-      sections: {
-        doc1Sections: sections1,
-        doc2Sections: sections2,
-        commonSections: sections1.filter(s => sections2.includes(s))
-      },
-      differences: comparison.key_differences
+      status: 'created'
     });
     
   } catch (error) {
-    console.error('Simple comparison error:', error);
+    Logger.api.error('COMPARE_SIMPLE', 'Simple comparison failed', error as Error);
     return ApiErrors.serverError('Failed to perform comparison');
   }
 });

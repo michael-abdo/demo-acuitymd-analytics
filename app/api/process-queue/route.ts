@@ -22,7 +22,7 @@ export const POST = async (request: NextRequest) => {
     
     // In development, allow without auth. In production, require system token
     if (config.IS_PRODUCTION && authHeader !== `Bearer ${systemToken}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return ApiErrors.unauthorized('Invalid system token');
     }
     
     Logger.api.start('QUEUE', 'system', { method: request.method, url: request.url });
@@ -31,9 +31,12 @@ export const POST = async (request: NextRequest) => {
     
     if (!task) {
       Logger.api.step('QUEUE', 'No tasks in queue - idle');
-      return NextResponse.json({
-        status: 'idle',
-        message: 'No tasks in queue'
+      return ApiResponse.operation('queue.process', {
+        result: {
+          status: 'idle',
+          message: 'No tasks in queue'
+        },
+        status: 'success'
       });
     }
     
@@ -168,17 +171,22 @@ export async function GET(request: NextRequest) {
     Logger.api.error('QUEUE', 'Queue stats error', error as Error);
     
     // If findAll doesn't exist, return minimal stats
-    return NextResponse.json({
-      status: 'ok',
-      stats: {
-        queued: 0,
-        processing: 0,
-        completed: 0,
-        failed: 0,
-        total: 0
+    return ApiResponse.operation('queue.status', {
+      result: {
+        status: 'ok',
+        stats: {
+          queued: 0,
+          processing: 0,
+          completed: 0,
+          failed: 0,
+          total: 0
+        },
+        message: 'Queue stats not fully implemented'
       },
-      message: 'Queue stats not fully implemented',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
+      status: 'success'
     });
   }
 }

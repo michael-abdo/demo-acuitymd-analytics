@@ -3,14 +3,13 @@ import { withDocumentAccess } from '@/lib/auth-utils';
 import { ApiErrors, FileValidation, getFilenameFromPath } from '@/lib/utils';
 import { storage } from '@/lib/storage';
 import { Logger } from '@/lib/services/logger';
-import type { NDADocument } from '@/types/nda';
 
 // GET /api/documents/[id]/download - Download document file
-export const GET = withDocumentAccess<{ id: string }>(async (
+export const GET = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
-  document: NDADocument,
-  context: { params: { id: string } }
+  document,
+  context
 ) => {
   try {
     Logger.api.start('DOWNLOAD', userEmail, {

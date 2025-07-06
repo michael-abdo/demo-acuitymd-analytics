@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Logger } from '@/lib/services/logger';
 import { DocumentService } from '@/lib/services/document-service';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuth, ApiResponse } from '@/lib/auth-utils';
 import { config } from '@/lib/config';
-import { FileValidation } from '@/lib/utils';
+import { FileValidation, ApiErrors } from '@/lib/utils';
 import fs from 'fs';
 import path from 'path';
 
@@ -15,7 +15,7 @@ import path from 'path';
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   // Production guard - FAIL FAST
   if (!config.IS_DEVELOPMENT) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return ApiErrors.notFound('Not found');
   }
 
   const seedUser = userEmail; // Use authenticated user instead of hardcoded
@@ -52,11 +52,9 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     if (missingFiles.length > 0) {
       const error = new Error(`Missing seed files: ${missingFiles.join(', ')}`);
       Logger.api.error('SEED-DEV', 'Seed files missing - FAILING FAST', error);
-      return NextResponse.json({
-        error: 'Seed files missing',
-        missingFiles,
-        message: 'All seed files must exist. No partial seeding allowed.'
-      }, { status: 400 });
+      return ApiErrors.validation('All seed files must exist. No partial seeding allowed.', {
+        missingFiles
+      });
     }
 
     Logger.api.step('SEED-DEV', 'All seed files verified - starting real upload processing');
@@ -128,12 +126,10 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       } catch (fileError) {
         // FAIL FAST: Any file processing error stops entire seeding
         Logger.api.error('SEED-DEV', `File processing failed: ${fileName}`, fileError as Error);
-        return NextResponse.json({
-          error: 'File processing failed',
-          fileName,
-          message: (fileError as Error).message,
+        return ApiErrors.serverError(`File processing failed: ${fileName}`, {
+          error: (fileError as Error).message,
           processedCount
-        }, { status: 500 });
+        });
       }
     }
 
@@ -144,23 +140,31 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       extractionQueued: uploadResults.filter(r => r.queued).length
     });
 
-    return NextResponse.json({
-      success: true,
-      message: `Successfully seeded ${processedCount} documents using REAL upload processing`,
-      seedUser,
-      processedCount,
-      uploadResults,
-      realDataUsed: true,
-      mockDataUsed: false
+    return ApiResponse.operation('seed.dev', {
+      result: {
+        success: true,
+        message: `Successfully seeded ${processedCount} documents using REAL upload processing`,
+        seedUser,
+        processedCount,
+        uploadResults,
+        realDataUsed: true,
+        mockDataUsed: false
+      },
+      metadata: {
+        processedCount,
+        duplicates: uploadResults.filter(r => r.duplicate).length,
+        newUploads: uploadResults.filter(r => !r.duplicate).length,
+        extractionQueued: uploadResults.filter(r => r.queued).length
+      },
+      status: 'created'
     });
 
   } catch (error: any) {
     Logger.api.error('SEED-DEV', 'Seeding failed', error);
-    return NextResponse.json({
-      error: 'Seeding failed',
+    return ApiErrors.serverError('Seeding failed', {
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    });
   }
 }, { allowDevBypass: true }); // Enable dev bypass for seeding
 

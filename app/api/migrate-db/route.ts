@@ -1,5 +1,7 @@
 import { executeQuery } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { ApiResponse } from '@/lib/auth-utils'
+import { ApiErrors } from '@/lib/utils'
 
 export async function POST() {
   // Production guard - FAIL FAST
@@ -68,17 +70,18 @@ export async function POST() {
       `
     })
 
-    return NextResponse.json({
-      status: 'success',
-      message: 'Database schema created successfully',
-      tables: ['nda_documents', 'nda_comparisons', 'nda_exports']
+    return ApiResponse.operation('db.migrate', {
+      result: {
+        status: 'success',
+        message: 'Database schema created successfully',
+        tables: ['nda_documents', 'nda_comparisons', 'nda_exports']
+      },
+      status: 'created'
     })
 
   } catch (error) {
-    return NextResponse.json({
-      status: 'error',
-      message: 'Failed to create database schema',
+    return ApiErrors.serverError('Failed to create database schema', {
       error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 })
+    })
   }
 }

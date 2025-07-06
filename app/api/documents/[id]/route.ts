@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
-import { storage } from '@/lib/storage';
 import { Logger } from '@/lib/services/logger';
+import { DocumentService } from '@/lib/services/document-service';
 
 // GET /api/documents/[id] - Get document details
 export const GET = withDocumentAccess<{ id: string }>(async (
@@ -14,28 +14,8 @@ export const GET = withDocumentAccess<{ id: string }>(async (
 ) => {
   try {
 
-    // Get document metadata from storage
-    let storageMetadata = null;
-    let downloadUrl = null;
-    
-    try {
-      const exists = await storage.exists(document.filename);
-      
-      if (exists) {
-        // Get metadata
-        storageMetadata = await storage.head(document.filename);
-        
-        // Generate signed URL for download
-        if (storage.isS3?.()) {
-          downloadUrl = await storage.getSignedUrl(document.filename, 'get', { expires: 3600 });
-        } else {
-          // For local storage, we'll create a download endpoint
-          downloadUrl = `/api/documents/${document.id}/download`;
-        }
-      }
-    } catch (error) {
-      Logger.storage.error(`Failed to get storage metadata for ${document.filename}`, error as Error);
-    }
+    // Use centralized URL generation
+    const { downloadUrl, storageMetadata } = await DocumentService.getDocumentUrls(document);
 
     // Get related comparisons count
     const allComparisons = await comparisonDb.findByUser(userEmail);

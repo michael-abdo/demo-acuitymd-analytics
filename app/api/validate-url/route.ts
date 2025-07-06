@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiResponse } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
+import { Logger } from '@/lib/services/logger';
 
 /**
  * API endpoint that checks if a URL is valid or if it redirects
@@ -11,14 +14,17 @@ export async function POST(request: NextRequest) {
     const { url } = body;
 
     if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+      return ApiErrors.badRequest('URL is required');
     }
 
     // Ensure URL is valid before proceeding
     try {
       new URL(url);
     } catch (e) {
-      return NextResponse.json({ isValid: false }, { status: 200 });
+      return ApiResponse.operation('url.validate', {
+        result: { isValid: false },
+        status: 'success'
+      });
     }
 
     try {
@@ -47,13 +53,19 @@ export async function POST(request: NextRequest) {
       // Check if page exists and doesn't redirect
       const isValid = response.status === 200 && !response.redirected;
       
-      return NextResponse.json({ isValid });
+      return ApiResponse.operation('url.validate', {
+        result: { isValid },
+        status: 'success'
+      });
     } catch (error) {
-      console.error(`Failed to validate URL ${url}:`, error);
-      return NextResponse.json({ isValid: false });
+      Logger.api.error('VALIDATE_URL', `Failed to validate URL ${url}`, error as Error);
+      return ApiResponse.operation('url.validate', {
+        result: { isValid: false },
+        status: 'success'
+      });
     }
   } catch (error) {
-    console.error('Error in validate-url API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    Logger.api.error('VALIDATE_URL', 'Error in validate-url API', error as Error);
+    return ApiErrors.serverError('Internal server error');
   }
 } 

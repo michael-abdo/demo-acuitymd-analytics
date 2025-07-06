@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { documentDb, DocumentService } from '@/lib/constants';
+import { Logger } from '@/lib/services/logger';
 
 // POST /api/documents/[id]/set-standard - Mark document as standard template
 export const POST = withDocumentAccess<{ id: string }>(async (
@@ -44,7 +45,7 @@ export const POST = withDocumentAccess<{ id: string }>(async (
     );
 
   } catch (error) {
-    console.error('Error setting document as standard:', error);
+    Logger.api.error('SET_STANDARD', 'Error setting document as standard', error as Error);
     return ApiErrors.serverError('Failed to set document as standard');
   }
 });

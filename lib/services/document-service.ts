@@ -427,5 +427,42 @@ export const DocumentService = {
       Logger.api.error('DOCUMENT', `Failed to queue extraction for document ${documentId}`, error as Error);
       throw error;
     }
+  },
+
+  /**
+   * Get document URLs including signed URL for download (DRY: centralize URL generation)
+   */
+  async getDocumentUrls(
+    document: NDADocument
+  ): Promise<{ downloadUrl: string | null; storageMetadata: any }> {
+    let downloadUrl = null;
+    let storageMetadata = null;
+    
+    Logger.api.step('DOCUMENT', `Getting URLs for document ${document.id}`);
+    
+    try {
+      const exists = await storage.exists(document.filename);
+      
+      if (exists) {
+        // Get metadata
+        storageMetadata = await storage.head(document.filename);
+        
+        // Generate signed URL for download
+        if (storage.isS3?.()) {
+          downloadUrl = await storage.getSignedUrl(document.filename, 'get', { expires: 3600 });
+          Logger.api.step('DOCUMENT', 'Generated S3 signed URL');
+        } else {
+          // For local storage, use download endpoint
+          downloadUrl = `/api/documents/${document.id}/download`;
+          Logger.api.step('DOCUMENT', 'Generated local download URL');
+        }
+      } else {
+        Logger.api.warn('DOCUMENT', `Storage file not found: ${document.filename}`);
+      }
+    } catch (error) {
+      Logger.storage.error(`Failed to get URLs for ${document.filename}`, error as Error);
+    }
+    
+    return { downloadUrl, storageMetadata };
   }
 };

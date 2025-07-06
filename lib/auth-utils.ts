@@ -8,6 +8,8 @@ import type { NDADocument } from '@/types/nda';
 import { ensureStorageInitialized } from './storage';
 import { ErrorLogger, ApiError } from './error-logger';
 import { APP_CONSTANTS, config } from './config';
+import { RequestParser } from './services/request-parser';
+import type { RateLimiter } from './rate-limiter';
 
 /**
  * Server-side authentication check for server components.
@@ -54,22 +56,39 @@ export async function checkPermission(requiredPermission: string) {
  */
 export function withAuth(
   handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
-  options?: { allowDevBypass?: boolean }
+  options?: { allowDevBypass?: boolean; trackTiming?: boolean }
 ) {
   return async (request: NextRequest) => {
+    const startTime = Date.now();
+    
     // Development bypass for testing (when explicitly allowed)
     if (options?.allowDevBypass && 
         config.IS_DEVELOPMENT && 
         request.headers.get(APP_CONSTANTS.HEADERS.DEV_BYPASS) === 'true') {
       const testEmail = config.TEST_USER_EMAIL;
-      return handler(request, testEmail);
+      const response = await handler(request, testEmail);
+      
+      // Add timing header if tracking is enabled (default: true)
+      if (options?.trackTiming !== false) {
+        response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+      }
+      
+      return response;
     }
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
     }
-    return handler(request, session.user.email);
+    
+    const response = await handler(request, session.user.email);
+    
+    // Add timing header if tracking is enabled (default: true)
+    if (options?.trackTiming !== false) {
+      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+    }
+    
+    return response;
   };
 }
 
@@ -79,14 +98,25 @@ export function withAuth(
  * Use this for routes WITH dynamic segments like [id].
  */
 export function withAuthDynamic<T extends Record<string, any>>(
-  handler: (request: NextRequest, userEmail: string, context: { params: T }) => Promise<NextResponse>
+  handler: (request: NextRequest, userEmail: string, context: { params: T }) => Promise<NextResponse>,
+  options?: { trackTiming?: boolean }
 ) {
   return async (request: NextRequest, context: { params: T }) => {
+    const startTime = Date.now();
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
     }
-    return handler(request, session.user.email, context);
+    
+    const response = await handler(request, session.user.email, context);
+    
+    // Add timing header if tracking is enabled (default: true)
+    if (options?.trackTiming !== false) {
+      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+    }
+    
+    return response;
   };
 }
 
@@ -106,9 +136,12 @@ export function withDocumentAccess<T extends { id: string }>(
     userEmail: string,
     document: NDADocument,
     context: { params: T }
-  ) => Promise<NextResponse>
+  ) => Promise<NextResponse>,
+  options?: { trackTiming?: boolean }
 ) {
   return async (request: NextRequest, context: { params: T }) => {
+    const startTime = Date.now();
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
@@ -133,7 +166,14 @@ export function withDocumentAccess<T extends { id: string }>(
     }
 
     // Call the actual handler with the document
-    return handler(request, userEmail, document, context);
+    const response = await handler(request, userEmail, document, context);
+    
+    // Add timing header if tracking is enabled (default: true)
+    if (options?.trackTiming !== false) {
+      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+    }
+    
+    return response;
   };
 }
 
@@ -458,5 +498,105 @@ export function withAuthDynamicAndStorage<T extends Record<string, any>>(
   handler: (request: NextRequest, userEmail: string, context: { params: T }) => Promise<NextResponse>
 ) {
   return withAuthDynamic<T>(withStorage(handler));
+}
+
+/**
+ * Wrapper for comparison routes that validates ownership of two documents
+ * Consolidates ownership validation logic for DRY compliance
+ */
+export function withComparisonAccess(
+  handler: (
+    request: NextRequest,
+    userEmail: string,
+    doc1: NDADocument,
+    doc2: NDADocument
+  ) => Promise<NextResponse>,
+  options?: { trackTiming?: boolean }
+) {
+  return withAuth(async (request: NextRequest, userEmail: string) => {
+    const startTime = Date.now();
+    
+    try {
+      // Parse comparison request
+      const { doc1Id, doc2Id } = await RequestParser.parseComparisonRequest(request);
+      
+      // Validate not comparing document with itself
+      if (doc1Id === doc2Id) {
+        return ApiErrors.badRequest('Cannot compare a document with itself');
+      }
+      
+      // Fetch both documents in parallel
+      const [doc1, doc2] = await Promise.all([
+        documentDb.findById(doc1Id),
+        documentDb.findById(doc2Id)
+      ]);
+      
+      // Check existence
+      if (!doc1 || !doc2) {
+        return ApiErrors.notFound('One or both documents not found');
+      }
+      
+      // Check ownership of both documents
+      if (!isDocumentOwner(doc1, userEmail) || !isDocumentOwner(doc2, userEmail)) {
+        return ApiErrors.forbidden();
+      }
+      
+      // Call the actual handler with both documents
+      const response = await handler(request, userEmail, doc1, doc2);
+      
+      // Add timing header if tracking is enabled (default: true)
+      if (options?.trackTiming !== false) {
+        response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+      }
+      
+      return response;
+      
+    } catch (error) {
+      // If it's already an API error response, return it
+      if (error instanceof NextResponse) {
+        return error;
+      }
+      throw error;
+    }
+  }, options);
+}
+
+/**
+ * Wrapper that adds rate limiting to routes
+ * Consolidates rate limiting logic for DRY compliance
+ */
+export function withRateLimit(
+  rateLimiter: RateLimiter,
+  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
+  options?: { 
+    allowDevBypass?: boolean;
+    trackTiming?: boolean;
+    includeHeaders?: boolean;
+  }
+) {
+  return withAuth(async (request: NextRequest, userEmail: string) => {
+    // Check rate limit
+    if (!rateLimiter.checkLimit(userEmail)) {
+      const resetTime = rateLimiter.getResetTime(userEmail);
+      return ApiErrors.rateLimitExceeded(resetTime ? new Date(resetTime) : undefined);
+    }
+    
+    // Call the handler
+    const response = await handler(request, userEmail);
+    
+    // Add rate limit headers if requested (default: true)
+    if (options?.includeHeaders !== false) {
+      const remaining = rateLimiter.getRemainingRequests(userEmail);
+      const resetTime = rateLimiter.getResetTime(userEmail);
+      
+      response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.LIMIT, rateLimiter['maxRequests'].toString());
+      response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.REMAINING, remaining.toString());
+      if (resetTime) {
+        response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.RESET, new Date(resetTime).toISOString());
+      }
+    }
+    
+    return response;
+  }, options);
 }
 

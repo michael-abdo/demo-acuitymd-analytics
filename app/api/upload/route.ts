@@ -7,9 +7,6 @@ import { Logger } from '@/lib/services/logger';
 import { APP_CONSTANTS } from '@/lib/config';
 
 export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: string) => {
-  const startTime = Date.now();
-  const timingOperations: Record<string, number> = {};
-  
   Logger.api.start('UPLOAD', userEmail, {
     method: request.method,
     url: request.url
@@ -44,7 +41,6 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
     Logger.api.step('UPLOAD', 'File validation passed');
 
     // Use DocumentService for DRY processing
-    const processingStart = Date.now();
     const result = await DocumentService.processDocument({
       file,
       filename: file.name,
@@ -53,7 +49,6 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       isStandard,
       contentType: file.type
     });
-    timingOperations.documentProcessing = Date.now() - processingStart;
 
     // Handle duplicate file case
     if (result.duplicate) {
@@ -112,8 +107,7 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
         docType,
         isStandard
       },
-      status: 'created',
-      timing: { start: startTime, operations: timingOperations }
+      status: 'created'
     });
 
   } catch (error: any) {

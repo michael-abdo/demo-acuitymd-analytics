@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { ApiResponse } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   // Production guard - FAIL FAST
@@ -12,17 +14,17 @@ export async function GET(request: NextRequest) {
   
   // If no token exists, the request is not authenticated
   if (!token) {
-    return NextResponse.json(
-      { error: "Unauthorized: Authentication required" },
-      { status: 401 }
-    );
+    return ApiErrors.unauthorized('Authentication required');
   }
   
   // Only proceed if the user is authenticated
-  return NextResponse.json({
-    message: "This is protected API data",
-    userId: token.id,
-    timestamp: new Date().toISOString(),
+  return ApiResponse.operation('protected.get', {
+    result: {
+      message: "This is protected API data",
+      userId: token.id,
+      timestamp: new Date().toISOString(),
+    },
+    status: 'success'
   });
 }
 
@@ -37,10 +39,7 @@ export async function POST(request: NextRequest) {
   
   // If no token exists, the request is not authenticated
   if (!token) {
-    return NextResponse.json(
-      { error: "Unauthorized: Authentication required" },
-      { status: 401 }
-    );
+    return ApiErrors.unauthorized('Authentication required');
   }
   
   try {
@@ -48,16 +47,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Process the data and return a response
-    return NextResponse.json({
-      message: "Data received successfully",
-      receivedData: body,
-      userId: token.id,
-      timestamp: new Date().toISOString(),
+    return ApiResponse.operation('protected.post', {
+      result: {
+        message: "Data received successfully",
+        receivedData: body,
+        userId: token.id,
+        timestamp: new Date().toISOString(),
+      },
+      status: 'created'
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Invalid JSON data" },
-      { status: 400 }
-    );
+    return ApiErrors.badRequest('Invalid JSON data');
   }
 } 

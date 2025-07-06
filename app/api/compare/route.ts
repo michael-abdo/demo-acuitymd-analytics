@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, ApiResponse } from '@/lib/auth-utils'
+import { withRateLimit, ApiResponse } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
 import { ApiErrors } from '@/lib/utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
@@ -9,34 +9,15 @@ import { compareRateLimiter } from '@/lib/rate-limiter'
 import { config, APP_CONSTANTS } from '@/lib/config'
 import { DocumentService } from '@/lib/services/document-service'
 
-export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
-  const startTime = Date.now();
-  const timingOperations: Record<string, number> = {};
-  
+export const POST = withRateLimit(
+  compareRateLimiter,
+  async (request: NextRequest, userEmail: string) => {
   Logger.api.start('COMPARE', userEmail, {
     method: request.method,
     url: request.url
   });
   
   try {
-    // Rate limiting check - FAIL FAST
-    if (!compareRateLimiter.checkLimit(userEmail)) {
-      const resetTime = compareRateLimiter.getResetTime(userEmail);
-      const resetDate = resetTime ? new Date(resetTime).toISOString() : 'unknown';
-      
-      Logger.api.error('COMPARE', 'Rate limit exceeded', new Error('Too many requests'));
-      
-      return ApiErrors.rateLimitExceeded(resetTime ? new Date(resetTime) : undefined);
-    }
-
-    // Add rate limit info to successful responses
-    const remaining = compareRateLimiter.getRemainingRequests(userEmail);
-    const resetTime = compareRateLimiter.getResetTime(userEmail);
-    const headers = {
-      [APP_CONSTANTS.HEADERS.RATE_LIMIT.LIMIT]: APP_CONSTANTS.RATE_LIMITS.COMPARE.MAX_REQUESTS.toString(),
-      [APP_CONSTANTS.HEADERS.RATE_LIMIT.REMAINING]: remaining.toString(),
-      ...(resetTime && { [APP_CONSTANTS.HEADERS.RATE_LIMIT.RESET]: new Date(resetTime).toISOString() })
-    };
     Logger.api.step('COMPARE', 'Parsing request body');
     const { doc1Id: standardDocId, doc2Id: thirdPartyDocId } = await RequestParser.parseComparisonRequest(request);
     Logger.api.step('COMPARE', 'Parsed document IDs', { standardDocId, thirdPartyDocId });
@@ -53,9 +34,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     Logger.api.step('COMPARE', 'Fetching documents from database');
     
     // First check what documents exist for this user
-    const dbFetchStart = Date.now();
     const userDocuments = await DocumentService.getUserDocuments(userEmail);
-    timingOperations.documentFetch = Date.now() - dbFetchStart;
     Logger.api.step('COMPARE', 'User documents retrieved', { 
       count: userDocuments.length, 
       documentIds: userDocuments.map(d => d.id) 
@@ -232,13 +211,8 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
 
       // Perform OpenAI comparison
       Logger.api.step('COMPARE', 'Starting OpenAI document comparison');
-      const openAIStart = Date.now();
       const comparisonResult = await compareDocuments(standardContent, thirdPartyContent);
-      timingOperations.openAIComparison = Date.now() - openAIStart;
       Logger.api.success('COMPARE', 'OpenAI comparison completed successfully');
-      
-      // Update timing for DB update
-      const dbUpdateStart = Date.now();
       await comparisonDb.update(comparison.id, {
         status: ComparisonStatus.COMPLETED,
         comparison_summary: comparisonResult.summary,
@@ -251,9 +225,8 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
           explanation: diff.suggestion
         })),
         similarity_score: 0.85, // TODO: Calculate actual similarity
-        processing_time_ms: Date.now() - startTime
+        processing_time_ms: 0 // Timing now tracked via headers
       });
-      timingOperations.databaseUpdate = Date.now() - dbUpdateStart;
 
       // Transform result to match frontend expectations (DRY - reuse existing type structure)
       const formattedResult = {
@@ -297,13 +270,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
             ...(resetTime && { reset: new Date(resetTime).toISOString() })
           }
         },
-        status: 'created',
-        timing: { start: startTime, operations: timingOperations }
-      });
-
-      // Add rate limit headers
-      Object.entries(headers).forEach(([key, value]) => {
-        response.headers.set(key, value);
+        status: 'created'
       });
 
       return response;
@@ -327,4 +294,6 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     Logger.api.error('COMPARE', 'Comparison error', error as Error);
     return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed');
   }
-}, { allowDevBypass: true })
+  },
+  { allowDevBypass: true, includeHeaders: true }
+)

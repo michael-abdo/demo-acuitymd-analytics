@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess } from '@/lib/auth-utils';
+import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { Logger } from '@/lib/services/logger';
 
@@ -18,14 +18,17 @@ export const GET = withDocumentAccess<{ id: string }>(async (
 
     // Check if text has been extracted
     if (!document.extracted_text) {
-      return NextResponse.json({
-        document: {
-          id: document.id,
-          filename: document.original_name,
-          status: document.status
+      return ApiResponse.operation('preview.get', {
+        result: {
+          document: {
+            id: document.id,
+            filename: document.original_name,
+            status: document.status
+          },
+          preview: null,
+          message: 'No extracted text available. Please extract text first.'
         },
-        preview: null,
-        message: 'No extracted text available. Please extract text first.'
+        status: 'success'
       });
     }
 
@@ -50,28 +53,35 @@ export const GET = withDocumentAccess<{ id: string }>(async (
       wordCount
     });
 
-    return NextResponse.json({
-      document: {
-        id: document.id,
-        filename: document.original_name,
-        fileType: document.original_name.split('.').pop()?.toLowerCase(),
-        extractedAt: document.metadata?.extraction?.extractedAt || document.updated_at
+    return ApiResponse.operation('preview.get', {
+      result: {
+        document: {
+          id: document.id,
+          filename: document.original_name,
+          fileType: document.original_name.split('.').pop()?.toLowerCase(),
+          extractedAt: document.metadata?.extraction?.extractedAt || document.updated_at
+        },
+        preview: {
+          text: preview,
+          truncated: !showFull && fullText.length > previewLength,
+          fullLength: fullText.length
+        },
+        statistics: {
+          words: wordCount,
+          characters: charCount,
+          lines: lineCount,
+          pages: document.metadata?.extraction?.pages || null
+        },
+        extraction: {
+          method: document.metadata?.extraction?.method || 'unknown',
+          confidence: document.metadata?.extraction?.confidence || null
+        }
       },
-      preview: {
-        text: preview,
-        truncated: !showFull && fullText.length > previewLength,
-        fullLength: fullText.length
+      metadata: {
+        previewLength,
+        showFull
       },
-      statistics: {
-        words: wordCount,
-        characters: charCount,
-        lines: lineCount,
-        pages: document.metadata?.extraction?.pages || null
-      },
-      extraction: {
-        method: document.metadata?.extraction?.method || 'unknown',
-        confidence: document.metadata?.extraction?.confidence || null
-      }
+      status: 'success'
     });
 
   } catch (error) {

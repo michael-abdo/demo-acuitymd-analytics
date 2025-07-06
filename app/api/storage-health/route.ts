@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { config } from '@/lib/config';
 import { Logger } from '@/lib/services/logger';
+import { ApiResponse } from '@/lib/auth-utils';
+import { ApiErrors } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -57,31 +59,34 @@ export async function GET() {
     // Verify content matches
     const contentMatches = downloadedContent === testContent;
     
-    return NextResponse.json({
-      status: 'healthy',
-      provider,
-      timestamp: new Date().toISOString(),
-      tests: {
-        upload: uploadResult.key === testKey,
-        exists: exists === true,
-        head: headResult?.key === testKey,
-        download: contentMatches,
-        list: listResult.files.some(f => f.key === testKey),
-        signedUrl: signedUrl !== null,
-        delete: deleteResult.deleted === true
-      },
-      details: {
+    return ApiResponse.operation('storage.health', {
+      result: {
+        status: 'healthy',
         provider,
-        isLocal,
-        uploadedFileSize: uploadResult.size,
-        downloadedFileSize: downloadResult.data.length,
-        contentType: downloadResult.contentType,
-        metadata: headResult?.metadata,
-        listCount: listResult.files.length,
-        signedUrlSupported: !isLocal,
-        basePath: isLocal ? config.LOCAL_STORAGE_PATH || '.storage' : undefined
+        timestamp: new Date().toISOString(),
+        tests: {
+          upload: uploadResult.key === testKey,
+          exists: exists === true,
+          head: headResult?.key === testKey,
+          download: contentMatches,
+          list: listResult.files.some(f => f.key === testKey),
+          signedUrl: signedUrl !== null,
+          delete: deleteResult.deleted === true
+        },
+        details: {
+          provider,
+          isLocal,
+          uploadedFileSize: uploadResult.size,
+          downloadedFileSize: downloadResult.data.length,
+          contentType: downloadResult.contentType,
+          metadata: headResult?.metadata,
+          listCount: listResult.files.length,
+          signedUrlSupported: !isLocal,
+          basePath: isLocal ? config.LOCAL_STORAGE_PATH || '.storage' : undefined
+        },
+        operations: ['upload', 'exists', 'head', 'download', 'list', 'signedUrl', 'delete']
       },
-      operations: ['upload', 'exists', 'head', 'download', 'list', 'signedUrl', 'delete']
+      status: 'success'
     });
     
   } catch (error: any) {
@@ -106,13 +111,12 @@ export async function GET() {
       errorDetails.stack = error.stack;
     }
     
-    return NextResponse.json({
-      status: 'error',
+    return ApiErrors.serverError('Storage health check failed', {
       provider: storage.isLocal?.() ? 'local' : storage.isS3?.() ? 's3' : 'unknown',
       timestamp: new Date().toISOString(),
       error: errorDetails,
       suggestion: getErrorSuggestion(error)
-    }, { status: 500 });
+    });
   }
 }
 
