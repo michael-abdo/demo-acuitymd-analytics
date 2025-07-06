@@ -11,7 +11,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
 
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
-      return ApiErrors.serverError('OpenAI API key not configured')
+      return ApiErrors.serverError('OpenAI API key not configured');
     }
 
     // Fetch documents from database
@@ -21,7 +21,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     ])
 
     if (!standardDoc || !thirdPartyDoc) {
-      return ApiErrors.notFound('One or both documents')
+      return ApiErrors.notFound('One or both documents');
     }
 
     // Check if text has been extracted for both documents
@@ -33,7 +33,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       return ApiErrors.validation('Text extraction not completed', {
         details: `Text extraction is pending for: ${missingExtraction.join(', ')}`,
         suggestion: 'Please wait for text extraction to complete or trigger it via /api/process-queue'
-      })
+      });
     }
 
     // Create comparison record
@@ -113,7 +113,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     }
 
   } catch (error) {
-    console.error('Comparison error:', error)
-    return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed')
+    console.error('Comparison error:', error);
+    return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed');
   }
 })
