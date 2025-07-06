@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess } from '@/lib/auth-utils';
+import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
 import { Logger } from '@/lib/services/logger';
 
 // GET /api/documents/[id] - Get document details
-export const GET = withDocumentAccess(async (
+export const GET = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   document,
@@ -44,15 +44,23 @@ export const GET = withDocumentAccess(async (
     );
 
     // Return enhanced document data
-    return NextResponse.json({
-      ...document,
-      downloadUrl,
-      storageMetadata,
-      fileType: document.filename.split('.').pop()?.toLowerCase() || 'unknown',
-      sizeMB: document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : null,
-      comparisonsCount: relatedComparisons.length,
-      canCompare: !document.is_standard, // Can compare if it's not a standard doc
-      canSetAsStandard: !document.is_standard, // Can set as standard if not already
+    return ApiResponse.operation('document.get', {
+      result: {
+        ...document,
+        downloadUrl,
+        storageMetadata,
+        fileType: document.filename.split('.').pop()?.toLowerCase() || 'unknown',
+        sizeMB: document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : null,
+        comparisonsCount: relatedComparisons.length,
+        canCompare: !document.is_standard, // Can compare if it's not a standard doc
+        canSetAsStandard: !document.is_standard, // Can set as standard if not already
+      },
+      metadata: {
+        documentId: document.id,
+        hasStorage: !!storageMetadata,
+        hasDownloadUrl: !!downloadUrl,
+        relatedComparisons: relatedComparisons.length
+      }
     });
 
   } catch (error) {
@@ -62,7 +70,7 @@ export const GET = withDocumentAccess(async (
 });
 
 // DELETE /api/documents/[id] - Delete document
-export const DELETE = withDocumentAccess(async (
+export const DELETE = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   document,
@@ -100,10 +108,14 @@ export const DELETE = withDocumentAccess(async (
       return ApiErrors.serverError('Failed to delete document');
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Document deleted successfully',
-      deletedId: document.id
+    return ApiResponse.operation('document.delete', {
+      result: {
+        deletedId: document.id
+      },
+      status: 'deleted',
+      metadata: {
+        deletedFromStorage: true
+      }
     });
 
   } catch (error) {
@@ -113,7 +125,7 @@ export const DELETE = withDocumentAccess(async (
 });
 
 // PATCH /api/documents/[id] - Update document metadata
-export const PATCH = withDocumentAccess(async (
+export const PATCH = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   document,
@@ -147,9 +159,12 @@ export const PATCH = withDocumentAccess(async (
     // Return updated document
     const updatedDocument = await documentDb.findById(document.id);
     
-    return NextResponse.json({
-      success: true,
-      document: updatedDocument
+    return ApiResponse.operation('document.update', {
+      result: updatedDocument,
+      status: 'updated',
+      metadata: {
+        updatedFields: Object.keys(updates)
+      }
     });
 
   } catch (error) {

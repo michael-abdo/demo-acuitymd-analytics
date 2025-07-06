@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth, RequestParser } from '@/lib/auth-utils';
+import { withAuth } from '@/lib/auth-utils';
+import { RequestParser } from '@/lib/services/request-parser';
 import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
 import { documentDb, comparisonDb, ComparisonStatus } from '@/lib/nda';
 
 // POST /api/compare/simple - Create a simple text comparison
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    const { doc1Id, doc2Id } = await RequestParser.parseComparisonRequest(request);
-    
-    // Parse and validate document IDs
-    const validDoc1Id = parseDocumentId(doc1Id);
-    const validDoc2Id = parseDocumentId(doc2Id);
-    
-    if (!validDoc1Id || !validDoc2Id) {
-      return ApiErrors.badRequest('Invalid document IDs');
-    }
+    const { doc1Id: validDoc1Id, doc2Id: validDoc2Id } = await RequestParser.parseComparisonRequest(request);
     
     if (validDoc1Id === validDoc2Id) {
       return ApiErrors.badRequest('Cannot compare a document with itself');

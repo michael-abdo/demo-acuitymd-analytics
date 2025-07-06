@@ -83,4 +83,9 @@ export async function testDatabaseConnection() {
   }
 }
 
+// Get a connection from the pool
+export async function getConnection() {
+  return pool.getConnection();
+}
+
 export { pool } 

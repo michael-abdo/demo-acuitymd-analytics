@@ -6,7 +6,10 @@
  * This allows seamless transition when database access is granted.
  */
 
-import { executeQuery } from '@/lib/db';
+import { executeQuery, getConnection } from '@/lib/db';
+
+// Re-export database utilities for migration scripts and special cases
+export { executeQuery, getConnection };
 import { config } from '@/lib/config';
 import { 
   NDADocument, 

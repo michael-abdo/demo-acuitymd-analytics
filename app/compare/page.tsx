@@ -48,8 +48,8 @@ export default function ComparePage() {
     },
     {
       onSuccess: (data) => {
-        setCurrentComparison(data.comparison);
-        setRecentComparisons(prev => [data.comparison, ...prev.slice(0, 4)]);
+        setCurrentComparison(data.data);
+        setRecentComparisons(prev => [data.data, ...prev.slice(0, 4)]);
       },
       onError: (error) => {
         alert(`Comparison failed: ${error.message}`);

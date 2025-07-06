@@ -8,7 +8,8 @@
 import path from 'path';
 import { LocalStorageProvider } from './local-provider';
 import { S3StorageProvider } from './s3-provider';
-import { config } from '@/lib/config';
+import { config, APP_CONSTANTS } from '@/lib/config';
+import { Logger } from '@/lib/services/logger';
 import { 
   IStorageProvider, 
   StorageProvider, 
@@ -88,8 +89,111 @@ export async function ensureStorageInitialized(config?: Partial<StorageConfig>):
   return storageInstance;
 }
 
+// Retry logic integrated into main storage interface
+interface StorageOperationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: Error;
+  attempts: number;
+  duration: number;
+}
+
 /**
- * Storage facade for easier use
+ * Execute storage operation with retry logic
+ */
+async function executeWithRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  metadata?: Record<string, any>
+): Promise<T> {
+  const startTime = Date.now();
+  const maxRetries = APP_CONSTANTS.STORAGE?.MAX_RETRIES || 3;
+  const retryDelay = APP_CONSTANTS.STORAGE?.RETRY_DELAY || 1000;
+  
+  let lastError: Error | undefined;
+  let attempts = 0;
+
+  while (attempts < maxRetries) {
+    attempts++;
+    
+    try {
+      Logger.storage?.operation?.(
+        `Attempting ${operationName} (attempt ${attempts}/${maxRetries})`,
+        metadata
+      );
+      
+      const data = await operation();
+      
+      const duration = Date.now() - startTime;
+      Logger.storage?.success?.(
+        `${operationName} completed`,
+        { attempts, duration, ...metadata }
+      );
+      
+      return data;
+    } catch (error) {
+      lastError = error as Error;
+      
+      Logger.storage?.error?.(
+        `${operationName} failed (attempt ${attempts}/${maxRetries})`,
+        error as Error
+      );
+      
+      // Check if error is retryable
+      if (!isRetryableError(error)) {
+        break;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      if (attempts < maxRetries) {
+        const delay = retryDelay * Math.pow(2, attempts - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // If we get here, all retries failed
+  const duration = Date.now() - startTime;
+  throw lastError || new Error(`${operationName} failed after ${attempts} attempts`);
+}
+
+/**
+ * Check if an error is retryable
+ */
+function isRetryableError(error: any): boolean {
+  // Network errors
+  if (error.code === 'ECONNREFUSED' || 
+      error.code === 'ETIMEDOUT' || 
+      error.code === 'ENOTFOUND') {
+    return true;
+  }
+  
+  // AWS S3 throttling errors
+  if (error.code === 'SlowDown' || 
+      error.code === 'RequestLimitExceeded' ||
+      error.code === 'ServiceUnavailable' ||
+      error.code === 'RequestTimeout') {
+    return true;
+  }
+  
+  // Don't retry access denied or not found errors
+  if (error.code === 'AccessDenied' || 
+      error.code === 'NoSuchKey' || 
+      error.code === 'NoSuchBucket' ||
+      error.code === 'Forbidden') {
+    return false;
+  }
+  
+  // Retry 5xx errors but not 4xx
+  if (error.statusCode >= 500 && error.statusCode < 600) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Storage facade for easier use (now with built-in retry logic)
  */
 export const storage = {
   /**
@@ -100,52 +204,80 @@ export const storage = {
   },
   
   /**
-   * Upload a file
+   * Upload a file (with retry logic)
    */
   async upload(key: string, data: Buffer | Uint8Array | string, options?: UploadOptions): Promise<StorageFile> {
-    return getStorage().upload(key, data, options);
+    return executeWithRetry(
+      () => getStorage().upload(key, data, options),
+      'storage.upload',
+      { key, size: data.length, contentType: options?.contentType }
+    );
   },
   
   /**
-   * Download a file
+   * Download a file (with retry logic)
    */
   async download(key: string): Promise<DownloadResult> {
-    return getStorage().download(key);
+    return executeWithRetry(
+      () => getStorage().download(key),
+      'storage.download',
+      { key }
+    );
   },
   
   /**
-   * Delete a file
+   * Delete a file (with retry logic)
    */
   async delete(key: string, options?: DeleteOptions): Promise<DeleteResult> {
-    return getStorage().delete(key, options);
+    return executeWithRetry(
+      () => getStorage().delete(key, options),
+      'storage.delete',
+      { key }
+    );
   },
   
   /**
-   * List files
+   * List files (with retry logic)
    */
   async list(options?: ListOptions): Promise<ListResult> {
-    return getStorage().list(options);
+    return executeWithRetry(
+      () => getStorage().list(options),
+      'storage.list',
+      { prefix: options?.prefix }
+    );
   },
   
   /**
-   * Check if file exists
+   * Check if file exists (with retry logic)
    */
   async exists(key: string): Promise<boolean> {
-    return getStorage().exists(key);
+    return executeWithRetry(
+      () => getStorage().exists(key),
+      'storage.exists',
+      { key }
+    );
   },
   
   /**
-   * Get file metadata
+   * Get file metadata (with retry logic)
    */
   async head(key: string): Promise<StorageFile | null> {
-    return getStorage().head(key);
+    return executeWithRetry(
+      () => getStorage().head(key),
+      'storage.head',
+      { key }
+    );
   },
   
   /**
-   * Copy a file
+   * Copy a file (with retry logic)
    */
   async copy(sourceKey: string, destinationKey: string, options?: CopyOptions): Promise<StorageFile> {
-    return getStorage().copy(sourceKey, destinationKey, options);
+    return executeWithRetry(
+      () => getStorage().copy(sourceKey, destinationKey, options),
+      'storage.copy',
+      { sourceKey, destinationKey }
+    );
   },
   
   /**

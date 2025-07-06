@@ -14,7 +14,7 @@ export interface PaginationParams {
 }
 
 export interface DocumentFilters {
-  type: 'standard' | 'third_party' | null;
+  type: 'standard' | 'third_party' | undefined;
   search: string;
 }
 
@@ -39,10 +39,13 @@ export const RequestParser = {
   /**
    * Parse document filtering parameters from URL search params
    */
-  parseDocumentFilters: (searchParams: URLSearchParams): DocumentFilters => ({
-    type: searchParams.get('type') as 'standard' | 'third_party' | null,
-    search: searchParams.get('search') || ''
-  }),
+  parseDocumentFilters: (searchParams: URLSearchParams): DocumentFilters => {
+    const typeParam = searchParams.get('type');
+    return {
+      type: (typeParam === 'standard' || typeParam === 'third_party') ? typeParam : undefined,
+      search: searchParams.get('search') || ''
+    };
+  },
 
   /**
    * Parse comparison request from POST body

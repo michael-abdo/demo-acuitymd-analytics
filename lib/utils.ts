@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { NextResponse } from "next/server"
+import { APP_CONSTANTS } from './config'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,18 +9,50 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Centralized API error response utilities for consistent error handling
+ * Uses centralized messages from APP_CONSTANTS.MESSAGES
  */
 export const ApiErrors = {
-  unauthorized: () => NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+  unauthorized: () => NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 }),
   notFound: (resource: string) => NextResponse.json({ error: `${resource} not found` }, { status: 404 }),
   badRequest: (message: string) => NextResponse.json({ error: message }, { status: 400 }),
-  serverError: (message: string) => NextResponse.json({ error: message }, { status: 500 }),
+  serverError: (message: string) => NextResponse.json({ error: message || APP_CONSTANTS.MESSAGES.ERROR.SERVER_ERROR }, { status: 500 }),
   forbidden: (message: string = 'Access denied') => NextResponse.json({ error: message }, { status: 403 }),
   conflict: (message: string) => NextResponse.json({ error: message }, { status: 409 }),
   validation: (message: string, details?: any) => NextResponse.json({ 
     error: message, 
     details 
-  }, { status: 422 })
+  }, { status: 422 }),
+  
+  // Add rate limit error
+  rateLimitExceeded: (resetTime?: Date) => {
+    const headers: HeadersInit = {
+      'Retry-After': resetTime ? Math.ceil((resetTime.getTime() - Date.now()) / 1000).toString() : '3600'
+    };
+    
+    return NextResponse.json({
+      error: APP_CONSTANTS.MESSAGES.ERROR.RATE_LIMIT,
+      message: APP_CONSTANTS.MESSAGES.ERROR.RATE_LIMIT,
+      resetTime: resetTime?.toISOString()
+    }, { 
+      status: 429,
+      headers
+    });
+  },
+
+  // Add processing error with details
+  processingError: (operation: string, details?: any) => NextResponse.json({
+    error: 'Processing failed',
+    operation,
+    details,
+    message: `Failed to process ${operation}`
+  }, { status: 422 }),
+
+  // Add configuration error
+  configurationError: (missing: string[]) => NextResponse.json({
+    error: APP_CONSTANTS.MESSAGES.ERROR.CONFIGURATION,
+    missing,
+    message: APP_CONSTANTS.MESSAGES.ERROR.CONFIGURATION
+  }, { status: 503 })
 };
 
 /**
@@ -65,24 +98,14 @@ export function isDocumentOwner(document: { user_id: string }, userEmail: string
  * Centralized file validation utilities for consistent file upload handling
  */
 export const FileValidation = {
-  allowedTypes: [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-    'application/msword', // .doc
-    'text/plain' // .txt
-  ],
-  allowedExtensions: ['pdf', 'docx', 'doc', 'txt'],
-  maxSize: 10 * 1024 * 1024, // 10MB
+  allowedTypes: [...APP_CONSTANTS.FILE_LIMITS.ALLOWED_MIME_TYPES] as string[],
+  allowedExtensions: APP_CONSTANTS.FILE_LIMITS.ALLOWED_EXTENSIONS,
+  maxSize: APP_CONSTANTS.FILE_LIMITS.MAX_SIZE,
   
   /**
    * Maps file extensions to MIME types
    */
-  extensionToMimeType: {
-    '.pdf': 'application/pdf',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.doc': 'application/msword',
-    '.txt': 'text/plain'
-  } as Record<string, string>,
+  extensionToMimeType: APP_CONSTANTS.FILE_LIMITS.MIME_TYPE_MAP as Record<string, string>,
   
   /**
    * Validates a file against allowed types and size limits
@@ -95,7 +118,7 @@ export const FileValidation = {
     }
     
     if (file.size > FileValidation.maxSize) {
-      throw new Error(`File too large. Maximum size is ${(FileValidation.maxSize / 1024 / 1024).toFixed(0)}MB. Received: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      throw new Error(`File too large. Maximum size is ${APP_CONSTANTS.FILE_LIMITS.MAX_SIZE_MB}MB. Received: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
     }
     
     return true;
@@ -112,15 +135,15 @@ export const FileValidation = {
       return null; // No error
     } catch (error: any) {
       if (error.message.includes('Invalid file type')) {
-        return ApiErrors.validation('Invalid file type. Only PDF, DOCX, DOC, and TXT files are allowed', {
+        return ApiErrors.validation(APP_CONSTANTS.MESSAGES.UPLOAD.INVALID_TYPE, {
           allowedTypes: FileValidation.allowedExtensions,
           receivedType: file.type
         });
       } else if (error.message.includes('File too large')) {
-        return ApiErrors.validation('File too large', {
+        return ApiErrors.validation(APP_CONSTANTS.MESSAGES.UPLOAD.TOO_LARGE, {
           maxSize: FileValidation.maxSize,
           actualSize: file.size,
-          maxSizeMB: Math.round(FileValidation.maxSize / 1024 / 1024),
+          maxSizeMB: APP_CONSTANTS.FILE_LIMITS.MAX_SIZE_MB,
           actualSizeMB: Number((file.size / 1024 / 1024).toFixed(2))
         });
       } else {
@@ -135,7 +158,7 @@ export const FileValidation = {
    * @returns MIME type string or 'application/octet-stream' for unknown types
    */
   getContentType: (filename: string) => {
-    const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+    const ext = filename.toLowerCase().split('.').pop() || '';
     return FileValidation.extensionToMimeType[ext] || 'application/octet-stream';
   }
 };

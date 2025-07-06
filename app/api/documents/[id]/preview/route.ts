@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
+import { Logger } from '@/lib/services/logger';
 
 // GET /api/documents/[id]/preview - Preview extracted text
-export const GET = withDocumentAccess(async (
+export const GET = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   document,
   context
 ) => {
   try {
+    Logger.api.start('PREVIEW', userEmail, {
+      documentId: document.id,
+      filename: document.original_name
+    });
 
     // Check if text has been extracted
     if (!document.extracted_text) {
@@ -38,6 +43,13 @@ export const GET = withDocumentAccess(async (
     const charCount = fullText.length;
     const lineCount = fullText.split('\n').length;
 
+    Logger.api.success('PREVIEW', 'Text preview generated', {
+      previewLength: preview.length,
+      fullLength: fullText.length,
+      showFull,
+      wordCount
+    });
+
     return NextResponse.json({
       document: {
         id: document.id,
@@ -63,7 +75,7 @@ export const GET = withDocumentAccess(async (
     });
 
   } catch (error) {
-    console.error('Preview error:', error);
+    Logger.api.error('PREVIEW', 'Failed to get text preview', error as Error);
     return ApiErrors.serverError('Failed to get text preview');
   }
 });

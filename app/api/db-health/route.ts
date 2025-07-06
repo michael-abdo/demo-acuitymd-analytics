@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { documentDb, DocumentStatus } from '@/lib/nda';
 import { config } from '@/lib/config';
+import { Logger } from '@/lib/services/logger';
 
 export async function GET() {
   try {
@@ -47,7 +48,7 @@ export async function GET() {
     });
     
   } catch (error: any) {
-    console.error('Database health check failed:', error);
+    Logger.db.error('Health check failed', error);
     
     return NextResponse.json({
       status: 'error',

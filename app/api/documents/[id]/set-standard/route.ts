@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
-import { documentDb } from '@/lib/nda/database';
+import { documentDb, DocumentService } from '@/lib/constants';
 
 // POST /api/documents/[id]/set-standard - Mark document as standard template
-export const POST = withDocumentAccess(async (
+export const POST = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   document,
@@ -19,7 +19,7 @@ export const POST = withDocumentAccess(async (
 
     // Optional: Unmark other standard documents for this user
     // This ensures only one standard document per user
-    const userDocuments = await documentDb.findByUser(userEmail);
+    const userDocuments = await DocumentService.getUserDocuments(userEmail);
     const currentStandardDocs = userDocuments.filter(doc => doc.is_standard);
     
     // If user wants only one standard doc, uncomment this:

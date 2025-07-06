@@ -5,9 +5,11 @@
  * Provides higher-level operations that combine multiple database calls and add business logic.
  */
 
-import { documentDb, comparisonDb } from '@/lib/nda/database';
+import { documentDb, comparisonDb, queueDb } from '@/lib/nda/database';
 import { Logger } from './logger';
-import { NDADocument } from '@/types/nda';
+import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda';
+import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
+import { APP_CONSTANTS } from '@/lib/config';
 
 export interface DocumentWithMetadata extends NDADocument {
   fileType: string;
@@ -20,6 +22,12 @@ export interface DocumentValidationResult {
   isValid: boolean;
   error?: string;
   document?: NDADocument;
+}
+
+export interface DocumentOperations {
+  processDocument(options: ProcessFileOptions): Promise<ProcessFileResult>;
+  updateDocumentStatus(documentId: number, status: DocumentStatus, metadata?: any): Promise<boolean>;
+  queueExtractionTask(documentId: number, priority?: number): Promise<{ taskId: number; queued: boolean }>;
 }
 
 export const DocumentService = {
@@ -297,5 +305,127 @@ export const DocumentService = {
   async checkDocumentOwnership(userEmail: string, documentId: number): Promise<boolean> {
     const validation = await this.getUserDocumentById(userEmail, documentId);
     return validation.isValid;
+  },
+
+  /**
+   * Process a document upload (DRY: consolidates upload/validate/store/queue pattern)
+   * Used by upload, seed-dev, and any future document ingestion routes
+   */
+  async processDocument(options: ProcessFileOptions): Promise<ProcessFileResult> {
+    Logger.api.step('DOCUMENT', 'Processing document upload', {
+      filename: options.filename,
+      userEmail: options.userEmail,
+      isStandard: options.isStandard
+    });
+
+    try {
+      // Use the existing processUploadedFile which handles:
+      // 1. File validation
+      // 2. Hash generation
+      // 3. Duplicate detection
+      // 4. Storage upload
+      // 5. Database record creation
+      // 6. Queue task creation
+      const result = await processUploadedFile(options);
+
+      Logger.api.success('DOCUMENT', 'Document processed successfully', {
+        documentId: result.document.id,
+        duplicate: result.duplicate,
+        queued: result.queued
+      });
+
+      return result;
+    } catch (error) {
+      Logger.api.error('DOCUMENT', 'Document processing failed', error as Error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update document status with consistent logging (DRY: centralized status updates)
+   */
+  async updateDocumentStatus(
+    documentId: number, 
+    status: DocumentStatus, 
+    metadata?: any
+  ): Promise<boolean> {
+    Logger.api.step('DOCUMENT', `Updating document ${documentId} status to ${status}`, metadata);
+
+    try {
+      const updateData: any = { status };
+      
+      // Merge metadata if provided
+      if (metadata) {
+        const document = await documentDb.findById(documentId);
+        if (document) {
+          updateData.metadata = {
+            ...document.metadata,
+            ...metadata,
+            lastStatusUpdate: new Date().toISOString()
+          };
+        }
+      }
+
+      const success = await documentDb.update(documentId, updateData);
+
+      if (success) {
+        Logger.api.success('DOCUMENT', `Document ${documentId} status updated to ${status}`);
+      } else {
+        Logger.api.error('DOCUMENT', `Failed to update document ${documentId} status`);
+      }
+
+      return success;
+    } catch (error) {
+      Logger.api.error('DOCUMENT', `Error updating document ${documentId} status`, error as Error);
+      return false;
+    }
+  },
+
+  /**
+   * Queue extraction task with consistent settings (DRY: standardize extraction queuing)
+   */
+  async queueExtractionTask(
+    documentId: number, 
+    priority?: number
+  ): Promise<{ taskId: number; queued: boolean }> {
+    const taskPriority = priority ?? APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY;
+    
+    Logger.api.step('DOCUMENT', `Queueing extraction for document ${documentId}`, { priority: taskPriority });
+
+    try {
+      // Check if task already exists
+      const existingTasks = await queueDb.findByDocument?.(documentId) || [];
+      const pendingTask = existingTasks.find(task => 
+        task.task_type === TaskType.EXTRACT_TEXT && 
+        (task.status === 'queued' || task.status === 'processing')
+      );
+
+      if (pendingTask) {
+        Logger.api.warn('DOCUMENT', `Extraction already queued for document ${documentId}`, {
+          existingTaskId: pendingTask.id,
+          status: pendingTask.status
+        });
+        return { taskId: pendingTask.id, queued: false };
+      }
+
+      // Create new task
+      const task = await queueDb.enqueue({
+        document_id: documentId,
+        task_type: TaskType.EXTRACT_TEXT,
+        priority: taskPriority,
+        max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
+        scheduled_at: new Date()
+      });
+
+      Logger.api.success('DOCUMENT', `Extraction queued for document ${documentId}`, {
+        taskId: task.id,
+        priority: taskPriority
+      });
+
+      return { taskId: task.id, queued: true };
+    } catch (error) {
+      Logger.api.error('DOCUMENT', `Failed to queue extraction for document ${documentId}`, error as Error);
+      throw error;
+    }
   }
 };

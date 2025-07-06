@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
-import { config } from '@/lib/config';
+import { config, APP_CONSTANTS } from '@/lib/config';
 
 // POST /api/documents/[id]/extract - Manually trigger text extraction
-export const POST = withDocumentAccess(async (
+export const POST = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
   document,
@@ -50,7 +50,7 @@ export const POST = withDocumentAccess(async (
       document_id: document.id,
       task_type: TaskType.EXTRACT_TEXT,
       priority: 1, // High priority for manual triggers
-      max_attempts: 3,
+      max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
       scheduled_at: new Date()
     });
 

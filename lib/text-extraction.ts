@@ -3,6 +3,7 @@ import pdfParse from './pdf-parse-wrapper';
 import mammoth from 'mammoth';
 import { OpenAI } from 'openai';
 import { TextExtractionResult, DocumentMetadata } from '@/lib/nda/types';
+import { config, APP_CONSTANTS } from '@/lib/config';
 
 export interface DocumentContent {
   text: string
@@ -69,7 +70,7 @@ export async function extractTextFromPDF(
     return {
       text: cleanedText,
       pages: data.numpages,
-      confidence: 0.95, // pdf-parse is reliable for text-based PDFs
+      confidence: APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE, // pdf-parse is reliable for text-based PDFs
       metadata: {
         extractedAt: new Date().toISOString(),
         method: 'pdf-parse',
@@ -122,15 +123,15 @@ export async function extractTextFromDOCX(
       .trim();
     
     // Validate cleaned text length
-    if (cleanedText.length < 10) {
+    if (cleanedText.length < APP_CONSTANTS.PROCESSING.MIN_TEXT_LENGTH) {
       throw new Error('Extracted text too short - possible extraction failure');
     }
     
-    // Estimate page count (average 500 words per page, 5 characters per word)
-    const estimatedPages = Math.max(1, Math.ceil(cleanedText.length / 2500));
+    // Estimate page count based on average words per page and characters per word
+    const estimatedPages = Math.max(1, Math.ceil(cleanedText.length / (APP_CONSTANTS.PROCESSING.AVERAGE_WORDS_PER_PAGE * APP_CONSTANTS.PROCESSING.AVERAGE_CHARS_PER_WORD)));
     
     // Calculate confidence based on extraction warnings
-    const confidence = result.messages && result.messages.length > 0 ? 0.85 : 0.98;
+    const confidence = result.messages && result.messages.length > 0 ? 0.85 : APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE;
     
     console.log(`DOCX extraction successful: ${cleanedText.length} characters, ${estimatedPages} pages`);
     
@@ -173,8 +174,8 @@ export async function extractTextFromTXT(
     // Convert buffer to string
     const text = fileBuffer.toString('utf-8');
     
-    // Estimate page count
-    const estimatedPages = Math.max(1, Math.ceil(text.length / 2500));
+    // Estimate page count based on average words per page and characters per word
+    const estimatedPages = Math.max(1, Math.ceil(text.length / (APP_CONSTANTS.PROCESSING.AVERAGE_WORDS_PER_PAGE * APP_CONSTANTS.PROCESSING.AVERAGE_CHARS_PER_WORD)));
     
     return {
       text: text.trim(),
@@ -219,7 +220,7 @@ export async function extractText(
       return extractTextFromTXT(fileBuffer, fileHash);
     
     default:
-      throw new Error(`Unsupported file type: ${extension}. Supported types: PDF, DOCX, DOC, TXT`);
+      throw new Error(`Unsupported file type: ${extension}. Supported types: ${APP_CONSTANTS.FILE_LIMITS.ALLOWED_EXTENSIONS.join(', ').toUpperCase()}`);
   }
 }
 
@@ -236,10 +237,10 @@ export async function compareDocuments(
   }>
   summary: string
 }> {
-  // Get OpenAI API key from environment (DRY - reuse existing config pattern)
-  const apiKey = process.env.OPENAI_API_KEY;
+  // Get OpenAI API key from config (DRY - centralized configuration)
+  const apiKey = config.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('OpenAI API key not configured in environment variables');
+    throw new Error('OpenAI API key not configured');
   }
 
   console.log('🤖 [OPENAI] Starting document comparison...');
@@ -248,15 +249,15 @@ export async function compareDocuments(
     // Use static import (DRY - consistent with other imports)
     const openai = new OpenAI({ apiKey });
 
-    // Create comparison prompt (Smallest Possible Feature - basic comparison)
+    // Create comparison prompt - SEND FULL DOCUMENTS (no truncation)
     const prompt = `
 Compare these two NDA documents and identify key differences:
 
 STANDARD DOCUMENT:
-${standardContent.text.substring(0, 8000)}
+${standardContent.text}
 
 THIRD-PARTY DOCUMENT:
-${thirdPartyContent.text.substring(0, 8000)}
+${thirdPartyContent.text}
 
 Return a JSON response with this exact structure:
 {
@@ -274,6 +275,14 @@ Return a JSON response with this exact structure:
 
 Focus on key legal differences like confidentiality periods, governing law, liability terms, and termination clauses.`;
 
+    // ANALYZE DOCUMENT SIZES (Claude methodology: measure before acting)
+    const standardFullLength = standardContent.text.length;
+    const thirdPartyFullLength = thirdPartyContent.text.length;
+    
+    console.log('🤖 [OPENAI] Document size analysis:');
+    console.log(`🤖 [OPENAI] Standard doc: ${standardFullLength} chars (FULL DOCUMENT)`);
+    console.log(`🤖 [OPENAI] Third-party doc: ${thirdPartyFullLength} chars (FULL DOCUMENT)`);
+    console.log('🤖 [OPENAI] Total prompt length:', prompt.length, 'chars');
     console.log('🤖 [OPENAI] Sending request to OpenAI...');
     
     const response = await openai.chat.completions.create({
@@ -297,7 +306,15 @@ Focus on key legal differences like confidentiality periods, governing law, liab
     // Parse JSON response (FAIL FAST if invalid)
     let result;
     try {
-      result = JSON.parse(content);
+      // Remove markdown code blocks if present
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      result = JSON.parse(cleanContent);
     } catch (parseError) {
       console.error('OpenAI response parsing failed:', content);
       throw new Error('Invalid JSON response from OpenAI');
@@ -380,15 +397,14 @@ export async function processUploadedFile(options: ProcessFileOptions): Promise<
     };
   }
   
-  // Initialize storage
-  await storage.initialize();
+  // Storage is automatically initialized when needed
   
   // Generate storage key
   const storageKey = ndaPaths.document(userEmail, fileHash, filename);
   console.log(`[ProcessFile] Uploading to storage: ${storageKey}`);
   
-  // Upload to storage (S3 or local)
-  const uploadResult = await storage.upload(storageKey, buffer, {
+  // Upload to storage (S3 or local) with built-in retry logic
+  const uploadOptions = {
     contentType: contentType || 'application/octet-stream',
     metadata: {
       originalName: filename,
@@ -398,9 +414,11 @@ export async function processUploadedFile(options: ProcessFileOptions): Promise<
       isStandard: isStandard.toString(),
       uploadDate: new Date().toISOString()
     }
-  });
+  };
   
-  console.log(`[ProcessFile] Upload successful: ${uploadResult.size} bytes`);
+  const uploadData = await storage.upload(storageKey, buffer, uploadOptions);
+  
+  console.log(`[ProcessFile] Upload successful: ${uploadData.key}`);
   
   // Store document metadata in database
   const document = await documentDb.create({
@@ -427,8 +445,8 @@ export async function processUploadedFile(options: ProcessFileOptions): Promise<
   const queueItem = await queueDb.enqueue({
     document_id: document.id,
     task_type: TaskType.EXTRACT_TEXT,
-    priority: 5, // Medium priority
-    max_attempts: 3,
+    priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY,
+    max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
     scheduled_at: new Date()
   });
   
@@ -438,9 +456,9 @@ export async function processUploadedFile(options: ProcessFileOptions): Promise<
     document,
     storageInfo: {
       provider: storage.getProvider(),
-      key: uploadResult.key,
-      size: uploadResult.size,
-      etag: uploadResult.etag
+      key: uploadData.key,
+      size: uploadData.size,
+      etag: uploadData.etag
     },
     duplicate: false,
     queued: true
@@ -453,8 +471,8 @@ export async function processUploadedFile(options: ProcessFileOptions): Promise<
  */
 export async function processTextExtraction(documentId: number): Promise<void> {
   // Import dependencies dynamically
-  const { getStorage } = await import('@/lib/storage');
   const { documentDb, DocumentStatus } = await import('@/lib/nda');
+  const { storage } = await import('@/lib/storage');
   
   console.log(`[Extraction] Starting text extraction for document ${documentId}`);
   
@@ -470,8 +488,7 @@ export async function processTextExtraction(documentId: number): Promise<void> {
   await documentDb.updateStatus(document.id, DocumentStatus.PROCESSING);
   
   try {
-    // Download file from storage
-    const storage = getStorage();
+    // Download file from storage (with built-in retry logic)
     const downloadResult = await storage.download(document.filename);
     const fileBuffer = downloadResult.data;
     

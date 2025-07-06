@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { config } from '@/lib/config';
+import { Logger } from '@/lib/services/logger';
 
 export async function GET() {
   try {
@@ -84,7 +85,7 @@ export async function GET() {
     });
     
   } catch (error: any) {
-    console.error('Storage health check failed:', error);
+    Logger.storage.error('Health check failed', error);
     
     let errorDetails: any = {
       message: error.message,

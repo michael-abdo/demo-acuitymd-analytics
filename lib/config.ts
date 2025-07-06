@@ -41,6 +41,9 @@ interface AppConfig {
   IS_PRODUCTION: boolean;
   TEST_USER_EMAIL: string;
   QUEUE_SYSTEM_TOKEN: string;
+  OPENAI_API_KEY: string;
+  DEV_SEED_USER: string;
+  DEV_BYPASS_ENABLED: boolean;
 }
 
 export interface Config extends DatabaseConfig, StorageConfig, AuthConfig, AppConfig {}
@@ -55,10 +58,10 @@ function parseEnvConfig(): Config {
 
   const config: Config = {
     // Database configuration
-    MYSQL_HOST: process.env.MYSQL_HOST || '127.0.0.1',
-    MYSQL_PORT: parseInt(process.env.MYSQL_PORT || '10003', 10),
-    MYSQL_USER: process.env.MYSQL_USER || 'michael',
-    MYSQL_DATABASE: process.env.MYSQL_DATABASE || 'truck_scrape',
+    MYSQL_HOST: process.env.MYSQL_HOST || (isDevelopment ? '127.0.0.1' : ''),
+    MYSQL_PORT: parseInt(process.env.MYSQL_PORT || (isDevelopment ? '10003' : '0'), 10),
+    MYSQL_USER: process.env.MYSQL_USER || (isDevelopment ? 'michael' : ''),
+    MYSQL_DATABASE: process.env.MYSQL_DATABASE || (isDevelopment ? 'truck_scrape' : ''),
     MYSQL_PASSWORD: process.env.MYSQL_PASSWORD || '',
     DB_CREATE_ACCESS: process.env.DB_CREATE_ACCESS === 'true',
     
@@ -84,8 +87,11 @@ function parseEnvConfig(): Config {
     NODE_ENV: nodeEnv,
     IS_DEVELOPMENT: isDevelopment,
     IS_PRODUCTION: isProduction,
-    TEST_USER_EMAIL: 'michaelabdo@vvgtruck.com',
-    QUEUE_SYSTEM_TOKEN: process.env.QUEUE_SYSTEM_TOKEN || 'dev-system-token'
+    TEST_USER_EMAIL: process.env.TEST_USER_EMAIL || (isDevelopment ? 'michaelabdo@vvgtruck.com' : ''),
+    QUEUE_SYSTEM_TOKEN: process.env.QUEUE_SYSTEM_TOKEN || (isDevelopment ? 'dev-system-token' : ''),
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+    DEV_SEED_USER: process.env.DEV_SEED_USER || (isDevelopment ? 'michaelabdo@vvgtruck.com' : ''),
+    DEV_BYPASS_ENABLED: process.env.DEV_BYPASS_ENABLED === 'true' && isDevelopment
   };
 
   // Validate required variables in production
@@ -96,7 +102,9 @@ function parseEnvConfig(): Config {
       'MYSQL_DATABASE',
       'MYSQL_PASSWORD',
       'NEXTAUTH_SECRET',
-      'NEXTAUTH_URL'
+      'NEXTAUTH_URL',
+      'QUEUE_SYSTEM_TOKEN',
+      'OPENAI_API_KEY'
     ];
 
     const missing = requiredInProd.filter(key => !config[key]);
@@ -161,3 +169,111 @@ export function logConfig(): void {
     HAS_DB_CREATE_ACCESS: config.DB_CREATE_ACCESS
   });
 }
+
+/**
+ * Application Constants
+ * 
+ * Centralized constants to eliminate magic numbers and repeated strings
+ * throughout the codebase. Following DRY principle.
+ */
+export const APP_CONSTANTS = {
+  // File handling limits
+  FILE_LIMITS: {
+    MAX_SIZE: 10 * 1024 * 1024, // 10MB
+    MAX_SIZE_MB: 10,
+    ALLOWED_EXTENSIONS: ['pdf', 'docx', 'doc', 'txt'] as const,
+    ALLOWED_MIME_TYPES: [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/msword', // .doc
+      'text/plain' // .txt
+    ] as const,
+    MIME_TYPE_MAP: {
+      'pdf': 'application/pdf',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'doc': 'application/msword',
+      'txt': 'text/plain'
+    } as const
+  },
+
+  // Rate limiting
+  RATE_LIMITS: {
+    COMPARE: {
+      MAX_REQUESTS: 10,
+      WINDOW_MINUTES: 60
+    },
+    UPLOAD: {
+      MAX_REQUESTS: 50,
+      WINDOW_MINUTES: 60
+    },
+    CLEANUP_THRESHOLD: 1000 // Clean up rate limiter entries when exceeding this count
+  },
+
+  // Processing timeouts and retries
+  PROCESSING: {
+    EXTRACTION_TIMEOUT_MS: 300000, // 5 minutes
+    MAX_EXTRACTION_RETRIES: 3,
+    EXTRACTION_PRIORITY: 5, // Default priority for extraction tasks
+    DEFAULT_CONFIDENCE: 0.95, // Default confidence score for extracted text
+    MIN_TEXT_LENGTH: 10, // Minimum valid extracted text length
+    AVERAGE_WORDS_PER_PAGE: 500,
+    AVERAGE_CHARS_PER_WORD: 5
+  },
+
+  // Queue system
+  QUEUE: {
+    DEFAULT_PRIORITY: 5,
+    MAX_ATTEMPTS: 3,
+    SYSTEM_TOKEN_HEADER: 'Authorization'
+  },
+
+  // UI Messages
+  MESSAGES: {
+    UPLOAD: {
+      SUCCESS: 'Document uploaded successfully',
+      DUPLICATE: 'Document already exists',
+      INVALID_TYPE: 'Invalid file type. Only PDF, DOCX, DOC, and TXT files are allowed',
+      TOO_LARGE: 'File too large. Maximum size is 10MB',
+      NO_FILE: 'No file provided'
+    },
+    EXTRACTION: {
+      PENDING: 'Text extraction is in progress. Please wait...',
+      TRIGGERED: 'Text extraction has been triggered. Please wait a moment and try again.',
+      FAILED: 'Failed to extract text from document',
+      SUCCESS: 'Text extraction completed successfully'
+    },
+    COMPARISON: {
+      PROCESSING: 'Comparing documents...',
+      SUCCESS: 'NDA comparison completed',
+      FAILED: 'Comparison failed',
+      MISSING_DOCS: 'One or both documents not found',
+      MISSING_TEXT: 'Text extraction not completed'
+    },
+    ERROR: {
+      UNAUTHORIZED: 'Unauthorized',
+      NOT_FOUND: 'Resource not found',
+      RATE_LIMIT: 'Too many requests. Please try again later.',
+      SERVER_ERROR: 'An unexpected error occurred',
+      CONFIGURATION: 'Required configuration is missing'
+    }
+  },
+
+  // HTTP Headers
+  HEADERS: {
+    RATE_LIMIT: {
+      LIMIT: 'X-RateLimit-Limit',
+      REMAINING: 'X-RateLimit-Remaining',
+      RESET: 'X-RateLimit-Reset',
+      RETRY_AFTER: 'Retry-After'
+    },
+    DEV_BYPASS: 'x-dev-bypass'
+  },
+
+  // Storage settings
+  STORAGE: {
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000, // 1 second base delay
+    TIMEOUT: 30000, // 30 seconds
+    SIGNED_URL_EXPIRES: 3600 // 1 hour
+  }
+} as const;

@@ -1,99 +1,115 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, RequestParser } from '@/lib/auth-utils'
+import { withAuth, ApiResponse } from '@/lib/auth-utils'
+import { RequestParser } from '@/lib/services/request-parser'
 import { ApiErrors } from '@/lib/utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 import { Logger } from '@/lib/services/logger'
+import { compareRateLimiter } from '@/lib/rate-limiter'
+import { config, APP_CONSTANTS } from '@/lib/config'
+import { DocumentService } from '@/lib/services/document-service'
 
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
+  const startTime = Date.now();
+  const timingOperations: Record<string, number> = {};
+  
   Logger.api.start('COMPARE', userEmail, {
     method: request.method,
     url: request.url
   });
   
   try {
-    console.log('🔍 [COMPARE] Parsing request body...');
+    // Rate limiting check - FAIL FAST
+    if (!compareRateLimiter.checkLimit(userEmail)) {
+      const resetTime = compareRateLimiter.getResetTime(userEmail);
+      const resetDate = resetTime ? new Date(resetTime).toISOString() : 'unknown';
+      
+      Logger.api.error('COMPARE', 'Rate limit exceeded', new Error('Too many requests'));
+      
+      return ApiErrors.rateLimitExceeded(resetTime ? new Date(resetTime) : undefined);
+    }
+
+    // Add rate limit info to successful responses
+    const remaining = compareRateLimiter.getRemainingRequests(userEmail);
+    const resetTime = compareRateLimiter.getResetTime(userEmail);
+    const headers = {
+      [APP_CONSTANTS.HEADERS.RATE_LIMIT.LIMIT]: APP_CONSTANTS.RATE_LIMITS.COMPARE.MAX_REQUESTS.toString(),
+      [APP_CONSTANTS.HEADERS.RATE_LIMIT.REMAINING]: remaining.toString(),
+      ...(resetTime && { [APP_CONSTANTS.HEADERS.RATE_LIMIT.RESET]: new Date(resetTime).toISOString() })
+    };
+    Logger.api.step('COMPARE', 'Parsing request body');
     const { doc1Id: standardDocId, doc2Id: thirdPartyDocId } = await RequestParser.parseComparisonRequest(request);
-    console.log('🔍 [COMPARE] Parsed IDs - Standard:', standardDocId, 'ThirdParty:', thirdPartyDocId);
+    Logger.api.step('COMPARE', 'Parsed document IDs', { standardDocId, thirdPartyDocId });
 
     // Check if OpenAI API key is configured
-    console.log('🔍 [COMPARE] Checking OpenAI API key...');
-    if (!process.env.OPENAI_API_KEY) {
-      console.log('❌ [COMPARE] OpenAI API key not configured');
-      return ApiErrors.serverError('OpenAI API key not configured');
+    Logger.api.step('COMPARE', 'Checking OpenAI API key configuration');
+    if (!config.OPENAI_API_KEY) {
+      Logger.api.error('COMPARE', 'OpenAI API key not configured', new Error('Missing OPENAI_API_KEY'));
+      return ApiErrors.configurationError(['OPENAI_API_KEY']);
     }
-    console.log('✅ [COMPARE] OpenAI API key found');
+    Logger.api.step('COMPARE', 'OpenAI API key found');
 
     // Fetch documents from database
-    console.log('🔍 [COMPARE] Fetching documents from database...');
+    Logger.api.step('COMPARE', 'Fetching documents from database');
     
     // First check what documents exist for this user
-    const userDocuments = await documentDb.findByUser(userEmail);
-    console.log('🔍 [COMPARE] User has', userDocuments.length, 'documents with IDs:', userDocuments.map(d => d.id));
+    const dbFetchStart = Date.now();
+    const userDocuments = await DocumentService.getUserDocuments(userEmail);
+    timingOperations.documentFetch = Date.now() - dbFetchStart;
+    Logger.api.step('COMPARE', 'User documents retrieved', { 
+      count: userDocuments.length, 
+      documentIds: userDocuments.map(d => d.id) 
+    });
     
     // Find documents from the user's documents (DRY principle - reuse existing logic)
     const standardDoc = userDocuments.find(doc => doc.id === parseInt(standardDocId));
     const thirdPartyDoc = userDocuments.find(doc => doc.id === parseInt(thirdPartyDocId));
-    console.log('🔍 [COMPARE] Documents found in user collection - Standard:', !!standardDoc, 'ThirdParty:', !!thirdPartyDoc);
+    Logger.api.step('COMPARE', 'Documents found in user collection', {
+      standardFound: !!standardDoc,
+      thirdPartyFound: !!thirdPartyDoc
+    });
 
     if (!standardDoc || !thirdPartyDoc) {
-      console.log('❌ [COMPARE] Missing documents - Standard:', !!standardDoc, 'ThirdParty:', !!thirdPartyDoc);
+      Logger.api.warn('COMPARE', 'Missing documents', {
+        standardFound: !!standardDoc,
+        thirdPartyFound: !!thirdPartyDoc
+      });
       return ApiErrors.notFound('One or both documents');
     }
 
     // Check if text has been extracted for both documents
-    console.log('🔍 [COMPARE] Checking text extraction - Standard:', !!standardDoc.extracted_text, 'ThirdParty:', !!thirdPartyDoc.extracted_text);
+    Logger.api.step('COMPARE', 'Checking text extraction status', {
+      standardExtracted: !!standardDoc.extracted_text,
+      thirdPartyExtracted: !!thirdPartyDoc.extracted_text
+    });
     if (!standardDoc.extracted_text || !thirdPartyDoc.extracted_text) {
       const missingExtraction = []
       if (!standardDoc.extracted_text) missingExtraction.push(`Standard document (ID: ${standardDocId})`)
       if (!thirdPartyDoc.extracted_text) missingExtraction.push(`Third-party document (ID: ${thirdPartyDocId})`)
       
-      console.log('❌ [COMPARE] Text extraction missing:', missingExtraction);
-      console.log('🔄 [COMPARE] Adding missing documents to extraction queue...');
+      Logger.api.warn('COMPARE', 'Text extraction missing', { missingExtraction });
+      Logger.api.step('COMPARE', 'Adding missing documents to extraction queue');
       
-      // DRY: Apply fallback extraction for missing documents
-      if (!standardDoc.extracted_text && standardDoc.id === 2) {
-        console.log('🔧 [COMPARE] Processing document 2 directly');
+      // DRY: Apply direct extraction for missing documents
+      if (!standardDoc.extracted_text) {
+        Logger.api.step('COMPARE', `Processing standard document ${standardDoc.id} directly`);
         try {
           const { processTextExtraction } = await import('@/lib/text-extraction');
-          await processTextExtraction(2);
-          console.log('✅ [COMPARE] Document 2 text extraction completed');
-          
-          // Refresh the document object
-          const updatedUserDocs = await documentDb.findByUser(userEmail);
-          const updatedStandardDoc = updatedUserDocs.find(doc => doc.id === parseInt(standardDocId));
-          if (updatedStandardDoc?.extracted_text) {
-            standardDoc.extracted_text = updatedStandardDoc.extracted_text;
-          }
+          await processTextExtraction(standardDoc.id);
+          Logger.api.success('COMPARE', `Standard document ${standardDoc.id} text extraction completed`);
         } catch (fallbackError) {
-          console.log('⚠️ [COMPARE] Document 2 extraction failed:', fallbackError);
+          Logger.api.warn('COMPARE', `Standard document ${standardDoc.id} extraction failed`, fallbackError as Error);
         }
       }
       
-      if (!thirdPartyDoc.extracted_text && thirdPartyDoc.id === 3) {
-        console.log('🔧 [COMPARE] Using text file fallback for document 3');
+      if (!thirdPartyDoc.extracted_text) {
+        Logger.api.step('COMPARE', `Processing third-party document ${thirdPartyDoc.id} directly`);
         try {
-          const fs = await import('fs/promises');
-          const textContent = await fs.readFile('/Users/Mike/Desktop/programming/3_current_projects/other/VVG/NDA/.storage/michaelabdo@vvgtruck.com/bbec9c3638a4cdf8f2bb9da889057d94e6da9481d7ed202bfcab2bcde37b32bb/Simple-Mutual-NDA-Template.txt', 'utf-8');
-          
-          // Update document with extracted text directly (bypass queue for this test)
-          const { documentDb } = await import('@/lib/nda');
-          await documentDb.update(3, {
-            extracted_text: textContent,
-            status: 'completed'
-          });
-          
-          console.log('✅ [COMPARE] Document 3 text extraction completed via fallback');
-          
-          // Refresh the document object
-          const updatedUserDocs = await documentDb.findByUser(userEmail);
-          const updatedThirdPartyDoc = updatedUserDocs.find(doc => doc.id === parseInt(thirdPartyDocId));
-          if (updatedThirdPartyDoc?.extracted_text) {
-            thirdPartyDoc.extracted_text = updatedThirdPartyDoc.extracted_text;
-            console.log('🚀 [COMPARE] Both documents ready - proceeding with comparison');
-          }
+          const { processTextExtraction } = await import('@/lib/text-extraction');
+          await processTextExtraction(thirdPartyDoc.id);
+          Logger.api.success('COMPARE', `Third-party document ${thirdPartyDoc.id} text extraction completed`);
         } catch (fallbackError) {
-          console.log('⚠️ [COMPARE] Fallback failed:', fallbackError);
+          Logger.api.warn('COMPARE', `Third-party document ${thirdPartyDoc.id} extraction failed`, fallbackError as Error);
         }
       }
       
@@ -108,8 +124,8 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
             queueDb.enqueue({
               document_id: standardDoc.id,
               task_type: TaskType.EXTRACT_TEXT,
-              priority: 5,
-              max_attempts: 3,
+              priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY,
+              max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
               scheduled_at: new Date()
             })
           );
@@ -120,22 +136,22 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
             queueDb.enqueue({
               document_id: thirdPartyDoc.id,
               task_type: TaskType.EXTRACT_TEXT,
-              priority: 5,
-              max_attempts: 3,
+              priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY,
+              max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
               scheduled_at: new Date()
             })
           );
         }
         
         await Promise.all(queuePromises);
-        console.log('✅ [COMPARE] Documents added to extraction queue');
+        Logger.api.success('COMPARE', 'Documents added to extraction queue');
         
         // Now trigger the queue processing
         const response = await fetch(`${request.nextUrl.origin}/api/process-queue`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.QUEUE_SYSTEM_TOKEN || 'dev-system-token'}`
+            [APP_CONSTANTS.QUEUE.SYSTEM_TOKEN_HEADER]: `Bearer ${config.QUEUE_SYSTEM_TOKEN}`
           }
         });
         
@@ -148,20 +164,39 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
         Logger.api.error('COMPARE', 'Queue setup error', error as Error);
       }
       
-      // Check if we fixed the extraction issue
+      // Refresh document objects after extraction to get updated extracted_text
+      Logger.api.step('COMPARE', 'Refreshing document objects after extraction');
+      const refreshedUserDocs = await DocumentService.getUserDocuments(userEmail);
+      const refreshedStandardDoc = refreshedUserDocs.find(doc => doc.id === parseInt(standardDocId));
+      const refreshedThirdPartyDoc = refreshedUserDocs.find(doc => doc.id === parseInt(thirdPartyDocId));
+
+      if (refreshedStandardDoc?.extracted_text) {
+        standardDoc.extracted_text = refreshedStandardDoc.extracted_text;
+        standardDoc.metadata = refreshedStandardDoc.metadata;
+      }
+      if (refreshedThirdPartyDoc?.extracted_text) {
+        thirdPartyDoc.extracted_text = refreshedThirdPartyDoc.extracted_text;
+        thirdPartyDoc.metadata = refreshedThirdPartyDoc.metadata;
+      }
+
+      // Check if we now have extracted text
       if (standardDoc.extracted_text && thirdPartyDoc.extracted_text) {
-        console.log('✅ [COMPARE] All documents now have extracted text - proceeding');
+        Logger.api.success('COMPARE', 'All documents now have extracted text - proceeding');
         // Continue to comparison logic
       } else {
-        return ApiErrors.validation('Text extraction not completed', {
-          details: `Text extraction is pending for: ${missingExtraction.join(', ')}`,
-          suggestion: 'Text extraction has been triggered. Please wait a moment and try again.'
+        Logger.api.warn('COMPARE', 'Text extraction still missing after queue processing', {
+          standardHasText: !!standardDoc.extracted_text,
+          thirdPartyHasText: !!thirdPartyDoc.extracted_text
+        });
+        return ApiErrors.validation(APP_CONSTANTS.MESSAGES.COMPARISON.MISSING_TEXT, {
+          details: `Text extraction is still pending for: ${missingExtraction.join(', ')}`,
+          suggestion: 'Please wait a moment and try again. Extraction is processing in the background.'
         });
       }
     }
 
     // Create comparison record
-    console.log('🔍 [COMPARE] Creating comparison record...');
+    Logger.api.step('COMPARE', 'Creating comparison record');
     const comparison = await comparisonDb.create({
       document1_id: standardDocId,
       document2_id: thirdPartyDocId,
@@ -169,14 +204,14 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       user_id: userEmail,
       status: ComparisonStatus.PROCESSING
     })
-    console.log('🔍 [COMPARE] Comparison record created with ID:', comparison.id);
+    Logger.api.step('COMPARE', 'Comparison record created', { comparisonId: comparison.id });
 
     try {
       // Prepare document content for comparison
       const standardContent: DocumentContent = {
         text: standardDoc.extracted_text,
         pages: standardDoc.metadata?.extraction?.pages || 1,
-        confidence: standardDoc.metadata?.extraction?.confidence || 0.95,
+        confidence: standardDoc.metadata?.extraction?.confidence || APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE,
         metadata: {
           extractedAt: standardDoc.metadata?.extraction?.extractedAt || new Date().toISOString(),
           method: standardDoc.metadata?.extraction?.method || 'pdf-parse',
@@ -187,7 +222,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       const thirdPartyContent: DocumentContent = {
         text: thirdPartyDoc.extracted_text,
         pages: thirdPartyDoc.metadata?.extraction?.pages || 1,
-        confidence: thirdPartyDoc.metadata?.extraction?.confidence || 0.95,
+        confidence: thirdPartyDoc.metadata?.extraction?.confidence || APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE,
         metadata: {
           extractedAt: thirdPartyDoc.metadata?.extraction?.extractedAt || new Date().toISOString(),
           method: thirdPartyDoc.metadata?.extraction?.method || 'pdf-parse',
@@ -196,11 +231,14 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       }
 
       // Perform OpenAI comparison
-      console.log('🤖 [COMPARE] Starting OpenAI document comparison...');
+      Logger.api.step('COMPARE', 'Starting OpenAI document comparison');
+      const openAIStart = Date.now();
       const comparisonResult = await compareDocuments(standardContent, thirdPartyContent);
-      console.log('🤖 [COMPARE] OpenAI comparison completed successfully');
+      timingOperations.openAIComparison = Date.now() - openAIStart;
+      Logger.api.success('COMPARE', 'OpenAI comparison completed successfully');
       
-      // Update comparison with results (DRY - reuse existing database pattern)
+      // Update timing for DB update
+      const dbUpdateStart = Date.now();
       await comparisonDb.update(comparison.id, {
         status: ComparisonStatus.COMPLETED,
         comparison_summary: comparisonResult.summary,
@@ -213,8 +251,9 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
           explanation: diff.suggestion
         })),
         similarity_score: 0.85, // TODO: Calculate actual similarity
-        processing_time_ms: 2000 // TODO: Track actual processing time
+        processing_time_ms: Date.now() - startTime
       });
+      timingOperations.databaseUpdate = Date.now() - dbUpdateStart;
 
       // Transform result to match frontend expectations (DRY - reuse existing type structure)
       const formattedResult = {
@@ -238,10 +277,9 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
         confidence: 0.85
       };
 
-      return NextResponse.json({
-        status: 'success',
-        message: 'NDA comparison completed',
-        comparison: {
+      // Use ApiResponse.operation for standardized response
+      const response = ApiResponse.operation('comparison.create', {
+        result: {
           id: comparison.id,
           standardDocument: standardDoc,
           thirdPartyDocument: thirdPartyDoc,
@@ -249,8 +287,26 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
           status: 'completed',
           createdAt: comparison.created_date.toISOString(),
           completedAt: new Date().toISOString()
-        }
-      })
+        },
+        metadata: {
+          differenceCount: comparisonResult.differences.length,
+          overallRisk: formattedResult.overallRisk,
+          rateLimit: {
+            limit: APP_CONSTANTS.RATE_LIMITS.COMPARE.MAX_REQUESTS,
+            remaining,
+            ...(resetTime && { reset: new Date(resetTime).toISOString() })
+          }
+        },
+        status: 'created',
+        timing: { start: startTime, operations: timingOperations }
+      });
+
+      // Add rate limit headers
+      Object.entries(headers).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      return response;
 
     } catch (comparisonError) {
       // Update comparison status to error (DRY - reuse existing error handling)
@@ -261,14 +317,14 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
         error_message: errorMessage
       });
       
-      console.error('Comparison failed:', errorMessage);
+      Logger.api.error('COMPARE', 'Comparison failed', new Error(errorMessage));
       
       // FAIL FAST - return clear error instead of hiding failure
       return ApiErrors.serverError(`Comparison failed: ${errorMessage}`);
     }
 
   } catch (error) {
-    console.error('Comparison error:', error);
+    Logger.api.error('COMPARE', 'Comparison error', error as Error);
     return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed');
   }
-})
+}, { allowDevBypass: true })

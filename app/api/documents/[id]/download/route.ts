@@ -2,24 +2,38 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess } from '@/lib/auth-utils';
 import { ApiErrors, FileValidation, getFilenameFromPath } from '@/lib/utils';
 import { storage } from '@/lib/storage';
+import { Logger } from '@/lib/services/logger';
+import type { NDADocument } from '@/types/nda';
 
 // GET /api/documents/[id]/download - Download document file
-export const GET = withDocumentAccess(async (
+export const GET = withDocumentAccess<{ id: string }>(async (
   request: NextRequest,
   userEmail: string,
-  document,
-  context
+  document: NDADocument,
+  context: { params: { id: string } }
 ) => {
   try {
+    Logger.api.start('DOWNLOAD', userEmail, {
+      documentId: document.id,
+      filename: document.original_name
+    });
 
-    // Check if file exists in storage
+    // Check if file exists in storage (with built-in retry logic)
     const exists = await storage.exists(document.filename);
+    
     if (!exists) {
+      Logger.api.error('DOWNLOAD', 'File not found in storage', new Error('File missing'));
       return ApiErrors.notFound('File in storage');
     }
 
-    // Download file from storage
-    const fileData = await storage.download(document.filename);
+    // Download file from storage (with built-in retry logic)
+    Logger.api.step('DOWNLOAD', 'Downloading file from storage');
+    const downloadResult = await storage.download(document.filename);
+    const fileData = downloadResult.data;
+    
+    Logger.api.success('DOWNLOAD', 'File downloaded successfully', {
+      size: fileData.length
+    });
 
     // Determine content type
     const contentType = FileValidation.getContentType(document.filename);
@@ -30,18 +44,18 @@ export const GET = withDocumentAccess(async (
       `document_${document.id}`;
 
     // Return file as response
-    return new NextResponse(fileData.data, {
+    return new NextResponse(fileData, {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${originalFilename}"`,
-        'Content-Length': fileData.data.length.toString(),
+        'Content-Length': fileData.length.toString(),
         'Cache-Control': 'private, max-age=3600',
       },
     });
 
   } catch (error) {
-    console.error('Error downloading document:', error);
+    Logger.api.error('DOWNLOAD', 'Failed to download document', error as Error);
     return ApiErrors.serverError('Failed to download document');
   }
 });

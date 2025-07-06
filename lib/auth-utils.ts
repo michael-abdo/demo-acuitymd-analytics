@@ -7,6 +7,7 @@ import { documentDb } from './nda/database';
 import type { NDADocument } from '@/types/nda';
 import { ensureStorageInitialized } from './storage';
 import { ErrorLogger, ApiError } from './error-logger';
+import { APP_CONSTANTS, config } from './config';
 
 /**
  * Server-side authentication check for server components.
@@ -52,12 +53,21 @@ export async function checkPermission(requiredPermission: string) {
  * Use this for routes WITHOUT dynamic segments.
  */
 export function withAuth(
-  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>
+  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
+  options?: { allowDevBypass?: boolean }
 ) {
   return async (request: NextRequest) => {
+    // Development bypass for testing (when explicitly allowed)
+    if (options?.allowDevBypass && 
+        config.IS_DEVELOPMENT && 
+        request.headers.get(APP_CONSTANTS.HEADERS.DEV_BYPASS) === 'true') {
+      const testEmail = config.TEST_USER_EMAIL;
+      return handler(request, testEmail);
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
     }
     return handler(request, session.user.email);
   };
@@ -74,7 +84,7 @@ export function withAuthDynamic<T extends Record<string, any>>(
   return async (request: NextRequest, context: { params: T }) => {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
     }
     return handler(request, session.user.email, context);
   };
@@ -98,7 +108,13 @@ export function withDocumentAccess<T extends { id: string }>(
     context: { params: T }
   ) => Promise<NextResponse>
 ) {
-  return withAuthDynamic<T>(async (request, userEmail, context) => {
+  return async (request: NextRequest, context: { params: T }) => {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
+    }
+    const userEmail = session.user.email;
+    
     // Parse and validate document ID
     const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
@@ -118,7 +134,7 @@ export function withDocumentAccess<T extends { id: string }>(
 
     // Call the actual handler with the document
     return handler(request, userEmail, document, context);
-  });
+  };
 }
 
 /**
@@ -227,8 +243,134 @@ export const ApiResponse = {
     });
     
     return response;
+  },
+
+  /**
+   * Standardized operation response (DRY: consistent operation responses)
+   * 
+   * @example
+   * return ApiResponse.operation('document.upload', {
+   *   result: document,
+   *   metadata: { size: file.size, type: file.type }
+   * });
+   */
+  operation<T = any>(
+    operationName: string, 
+    options: {
+      result?: T;
+      metadata?: Record<string, any>;
+      message?: string;
+      status?: 'success' | 'created' | 'updated' | 'deleted' | 'partial';
+      httpStatus?: number;
+      timing?: { start: number; operations?: Record<string, number> };
+      warnings?: string[];
+    } = {}
+  ): NextResponse {
+    const {
+      result,
+      metadata = {},
+      message,
+      status = 'success',
+      httpStatus,
+      timing,
+      warnings = []
+    } = options;
+
+    const response: any = {
+      success: true,
+      operation: operationName,
+      status,
+      message: message || getOperationMessage(operationName, status),
+      timestamp: new Date().toISOString()
+    };
+
+    // Add result if provided
+    if (result !== undefined) {
+      response.data = result;
+    }
+
+    // Add metadata if provided
+    if (Object.keys(metadata).length > 0) {
+      response.metadata = metadata;
+    }
+
+    // Add warnings if any
+    if (warnings.length > 0) {
+      response.warnings = warnings;
+    }
+
+    // Add timing information if provided
+    if (timing) {
+      const duration = Date.now() - timing.start;
+      response.timing = {
+        duration: `${duration}ms`,
+        operations: timing.operations
+      };
+    }
+
+    // Determine HTTP status code
+    const statusCode = httpStatus || getHttpStatusForOperation(status);
+
+    return NextResponse.json(response, { status: statusCode });
   }
 };
+
+/**
+ * Helper function to generate operation-specific messages
+ */
+function getOperationMessage(operationName: string, status: string): string {
+  const [resource, action] = operationName.split('.');
+  
+  const messages: Record<string, Record<string, string>> = {
+    document: {
+      success: 'Document operation completed successfully',
+      created: 'Document uploaded successfully',
+      updated: 'Document updated successfully',
+      deleted: 'Document deleted successfully',
+      partial: 'Document operation partially completed'
+    },
+    comparison: {
+      success: 'Comparison completed successfully',
+      created: 'Comparison created successfully',
+      updated: 'Comparison updated successfully',
+      deleted: 'Comparison deleted successfully',
+      partial: 'Comparison partially completed'
+    },
+    extraction: {
+      success: 'Text extraction completed successfully',
+      created: 'Extraction task created successfully',
+      updated: 'Extraction task updated successfully',
+      deleted: 'Extraction task deleted successfully',
+      partial: 'Text extraction partially completed'
+    }
+  };
+
+  // Try to find a specific message
+  if (messages[resource]?.[status]) {
+    return messages[resource][status];
+  }
+
+  // Fallback to generic message
+  return `${operationName} ${status}`;
+}
+
+/**
+ * Helper function to determine HTTP status code based on operation status
+ */
+function getHttpStatusForOperation(status: string): number {
+  switch (status) {
+    case 'created':
+      return 201;
+    case 'deleted':
+      return 200; // Could be 204, but we return JSON body
+    case 'partial':
+      return 206;
+    case 'success':
+    case 'updated':
+    default:
+      return 200;
+  }
+}
 
 /**
  * Wrap any handler with consistent error handling
@@ -303,9 +445,10 @@ export function withStorage<T extends any[]>(
  * Combined auth + storage initialization wrapper
  */
 export function withAuthAndStorage(
-  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>
+  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
+  options?: { allowDevBypass?: boolean }
 ) {
-  return withAuth(withStorage(handler));
+  return withAuth(withStorage(handler), options);
 }
 
 /**
@@ -316,114 +459,4 @@ export function withAuthDynamicAndStorage<T extends Record<string, any>>(
 ) {
   return withAuthDynamic<T>(withStorage(handler));
 }
-/**
- * Request parsing utilities
- */
-export const RequestParser = {
-  /**
-   * Parse and validate JSON body with schema validation
-   */
-  async parseJSON<T>(request: NextRequest, requiredFields?: string[]): Promise<T> {
-    try {
-      const body = await request.json();
-      
-      if (requiredFields) {
-        for (const field of requiredFields) {
-          if (!(field in body) || body[field] === undefined || body[field] === null) {
-            throw new ApiError(`Missing required field: ${field}`, 400);
-          }
-        }
-      }
-      
-      return body as T;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError('Invalid JSON body', 400);
-    }
-  },
-
-  /**
-   * Parse formData with file validation
-   */
-  async parseFormData(request: NextRequest): Promise<FormData> {
-    try {
-      return await request.formData();
-    } catch (error) {
-      throw new ApiError('Invalid form data', 400);
-    }
-  },
-
-  /**
-   * Parse query parameters with defaults and validation
-   */
-  parseQuery(request: NextRequest, schema?: Record<string, { default?: any; type?: 'string' | 'number' | 'boolean' }>) {
-    const url = new URL(request.url);
-    const params: Record<string, any> = {};
-    
-    if (schema) {
-      for (const [key, config] of Object.entries(schema)) {
-        const value = url.searchParams.get(key);
-        
-        if (value === null) {
-          params[key] = config.default;
-        } else {
-          switch (config.type) {
-            case 'number':
-              const num = parseInt(value, 10);
-              params[key] = isNaN(num) ? config.default : num;
-              break;
-            case 'boolean':
-              params[key] = value === 'true';
-              break;
-            default:
-              params[key] = value;
-          }
-        }
-      }
-    } else {
-      // Return all query params as strings
-      url.searchParams.forEach((value, key) => {
-        params[key] = value;
-      });
-    }
-    
-    return params;
-  },
-
-  /**
-   * Parse document comparison request body
-   */
-  async parseComparisonRequest(request: NextRequest) {
-    const body = await this.parseJSON<{ document1Id?: any; document2Id?: any; standardDocId?: any; thirdPartyDocId?: any }>(request);
-    
-    // Handle both naming conventions
-    const doc1Id = body.document1Id || body.standardDocId;
-    const doc2Id = body.document2Id || body.thirdPartyDocId;
-    
-    if (!doc1Id || !doc2Id) {
-      throw new ApiError('Both document IDs are required', 400);
-    }
-    
-    return { doc1Id, doc2Id };
-  },
-
-  /**
-   * Parse pagination parameters
-   */
-  parsePagination(request: NextRequest, defaultPageSize = 20, maxPageSize = 100) {
-    const query = this.parseQuery(request, {
-      page: { default: 1, type: 'number' },
-      limit: { default: defaultPageSize, type: 'number' },
-      search: { default: '', type: 'string' }
-    });
-    
-    return {
-      page: Math.max(1, query.page),
-      pageSize: Math.min(maxPageSize, Math.max(1, query.limit)),
-      search: query.search?.trim() || ''
-    };
-  }
-};
 

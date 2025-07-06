@@ -8,6 +8,9 @@ import { DocumentService } from '@/lib/services/document-service';
 
 // GET /api/documents - List user's documents
 export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
+  const startTime = Date.now();
+  const timingOperations: Record<string, number> = {};
+  
   Logger.api.start('DOCUMENTS', userEmail, {
     method: request.method,
     url: request.url
@@ -25,6 +28,7 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
     });
 
     // Get paginated documents using DRY service
+    const dbStart = Date.now();
     const { documents: paginatedDocuments, total, pages } = await DocumentService.getUserDocumentsPaginated(
       userEmail,
       {
@@ -34,10 +38,12 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
         search: filters.search
       }
     );
+    timingOperations.databaseQuery = Date.now() - dbStart;
 
     // Enhance documents with signed URLs if using S3
     Logger.api.step('DOCUMENTS', 'Enhancing documents with storage URLs');
     
+    const enhanceStart = Date.now();
     const enhancedDocuments = await Promise.all(
       paginatedDocuments.map(async (doc) => {
         let downloadUrl = null;
@@ -65,6 +71,7 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
         };
       })
     );
+    timingOperations.documentEnhancement = Date.now() - enhanceStart;
 
     // Return paginated response
     Logger.api.success('DOCUMENTS', `Retrieved ${enhancedDocuments.length} documents`, {
@@ -74,14 +81,27 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
       pages
     });
     
-    return ApiResponse.list(enhancedDocuments, {
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-      total
+    return ApiResponse.operation('document.list', {
+      result: enhancedDocuments,
+      metadata: {
+        pagination: {
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          total,
+          totalPages: pages
+        },
+        filters: {
+          type: filters.type || 'all',
+          search: filters.search || null
+        },
+        count: enhancedDocuments.length,
+        hasSignedUrls: storage.isS3?.() || false
+      },
+      timing: { start: startTime, operations: timingOperations }
     });
 
   } catch (error) {
     Logger.api.error('DOCUMENTS', 'Failed to fetch documents', error as Error);
     return ApiErrors.serverError('Failed to fetch documents');
   }
-});
+}, { allowDevBypass: true });

@@ -5,6 +5,7 @@ import { ensureStorageInitialized } from '@/lib/storage';
 import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
 import { processTextExtraction } from '@/lib/text-extraction';
 import { config } from '@/lib/config';
+import { Logger } from '@/lib/services/logger';
 
 /**
  * Process queue endpoint - handles background tasks like text extraction
@@ -24,19 +25,23 @@ export const POST = async (request: NextRequest) => {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('[Queue] Processing queue - checking for tasks...');
+    Logger.api.start('QUEUE', 'system', { method: request.method, url: request.url });
     // Get the next queued task
     const task = await queueDb.getNext();
     
     if (!task) {
-      console.log('[Queue] No tasks in queue - idle');
+      Logger.api.step('QUEUE', 'No tasks in queue - idle');
       return NextResponse.json({
         status: 'idle',
         message: 'No tasks in queue'
       });
     }
     
-    console.log(`[Queue] Found task: ID=${task.id}, Type=${task.task_type}, Document=${task.document_id}`);
+    Logger.api.step('QUEUE', 'Found task to process', {
+      taskId: task.id,
+      taskType: task.task_type,
+      documentId: task.document_id
+    });
 
     // Mark task as processing
     await queueDb.updateStatus(task.id, QueueStatus.PROCESSING);
@@ -90,7 +95,7 @@ export const POST = async (request: NextRequest) => {
     }
 
   } catch (error) {
-    console.error('Queue processing error:', error);
+    Logger.api.error('QUEUE', 'Queue processing error', error as Error);
     return ApiErrors.serverError(error instanceof Error ? error.message : 'Queue processing failed');
   }
 };
@@ -144,14 +149,23 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    return NextResponse.json({
-      status: 'ok',
-      stats,
-      pendingTasks: stats.tasks.filter((t: any) => t.status === QueueStatus.QUEUED),
-      failedTasks: stats.tasks.filter((t: any) => t.status === QueueStatus.FAILED)
+    return ApiResponse.operation('queue.status', {
+      result: {
+        status: 'ok',
+        stats,
+        pendingTasks: stats.tasks.filter((t: any) => t.status === QueueStatus.QUEUED),
+        failedTasks: stats.tasks.filter((t: any) => t.status === QueueStatus.FAILED)
+      },
+      metadata: {
+        totalTasks: stats.total,
+        queuedCount: stats.queued,
+        processingCount: stats.processing,
+        completedCount: stats.completed,
+        failedCount: stats.failed
+      }
     });
   } catch (error) {
-    console.error('Queue stats error:', error);
+    Logger.api.error('QUEUE', 'Queue stats error', error as Error);
     
     // If findAll doesn't exist, return minimal stats
     return NextResponse.json({

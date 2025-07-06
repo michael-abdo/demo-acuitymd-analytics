@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuthAndStorage, ApiResponse } from '@/lib/auth-utils';
 import { FileValidation, ApiErrors } from '@/lib/utils';
-import { processUploadedFile } from '@/lib/text-extraction';
+import { DocumentService } from '@/lib/services/document-service';
 import { storage } from '@/lib/storage';
+import { Logger } from '@/lib/services/logger';
+import { APP_CONSTANTS } from '@/lib/config';
 
 export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: string) => {
+  const startTime = Date.now();
+  const timingOperations: Record<string, number> = {};
+  
+  Logger.api.start('UPLOAD', userEmail, {
+    method: request.method,
+    url: request.url
+  });
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -12,17 +22,30 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
     const isStandard = formData.get('isStandard') === 'true';
 
     if (!file) {
-      return ApiErrors.badRequest('No file provided');
+      Logger.api.error('UPLOAD', 'No file provided in request', new Error('Missing file'));
+      return ApiErrors.badRequest(APP_CONSTANTS.MESSAGES.UPLOAD.NO_FILE);
     }
+
+    Logger.api.step('UPLOAD', 'File received', {
+      filename: file.name,
+      size: file.size,
+      type: file.type,
+      docType,
+      isStandard
+    });
 
     // Validate file using centralized utilities
     const validationError = FileValidation.getValidationError(file);
     if (validationError) {
+      Logger.api.error('UPLOAD', 'File validation failed', new Error('Validation error'));
       return validationError;
     }
 
-    // Use consolidated file processing utility
-    const result = await processUploadedFile({
+    Logger.api.step('UPLOAD', 'File validation passed');
+
+    // Use DocumentService for DRY processing
+    const processingStart = Date.now();
+    const result = await DocumentService.processDocument({
       file,
       filename: file.name,
       userEmail,
@@ -30,14 +53,29 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       isStandard,
       contentType: file.type
     });
+    timingOperations.documentProcessing = Date.now() - processingStart;
 
     // Handle duplicate file case
     if (result.duplicate) {
-      return ApiResponse.successWithMeta(
-        result.document,
-        { duplicate: true, status: 'duplicate' },
-        'Document already exists'
-      );
+      Logger.api.success('UPLOAD', 'Duplicate file detected', {
+        documentId: result.document.id,
+        originalHash: result.document.file_hash
+      });
+      
+      return ApiResponse.operation('document.upload', {
+        result: result.document,
+        metadata: {
+          duplicate: true,
+          fileSize: file.size,
+          fileType: file.type,
+          storageProvider: result.storageInfo.provider,
+          extractionQueued: result.queued
+        },
+        message: APP_CONSTANTS.MESSAGES.UPLOAD.DUPLICATE,
+        status: 'success',
+        timing: { start: startTime, operations: timingOperations },
+        warnings: ['File already exists in the system']
+      });
     }
 
     // Format response with document metadata
@@ -52,13 +90,34 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       status: result.document.status,
       storageProvider: result.storageInfo.provider,
       storageKey: result.storageInfo.key,
-      storage: result.storageInfo
+      storage: result.storageInfo,
+      extractionQueued: result.queued
     };
     
-    return ApiResponse.created(documentWithMeta, 'Document uploaded successfully');
+    Logger.api.success('UPLOAD', 'Document uploaded successfully', {
+      documentId: result.document.id,
+      filename: result.document.original_name,
+      size: result.document.file_size,
+      provider: result.storageInfo.provider,
+      queued: result.queued
+    });
+
+    return ApiResponse.operation('document.upload', {
+      result: documentWithMeta,
+      metadata: {
+        fileSize: file.size,
+        fileType: file.type,
+        storageProvider: result.storageInfo.provider,
+        extractionQueued: result.queued,
+        docType,
+        isStandard
+      },
+      status: 'created',
+      timing: { start: startTime, operations: timingOperations }
+    });
 
   } catch (error: any) {
-    console.error('Upload error:', error);
+    Logger.api.error('UPLOAD', 'Upload failed', error);
     
     // Provide specific error messages based on error type
     let errorMessage = 'Upload failed';
@@ -87,4 +146,4 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
         })
       : ApiErrors.serverError(errorMessage);
   }
-});
+}, { allowDevBypass: true });

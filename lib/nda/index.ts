@@ -13,8 +13,19 @@ export {
   documentDb, 
   comparisonDb, 
   queueDb, 
-  initializeDatabase 
+  initializeDatabase,
+  executeQuery,
+  getConnection
 } from './database';
+
+// Re-export enums explicitly
+export { 
+  DocumentStatus,
+  ComparisonStatus,
+  ExportType,
+  TaskType,
+  QueueStatus
+} from '@/types/nda';
 
 // Re-export types for convenience (excluding enums which are values)
 export type {

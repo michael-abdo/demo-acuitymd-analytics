@@ -46,6 +46,13 @@ export const Logger = {
       if (details) {
         console.log(`🔍 [${endpoint.toUpperCase()}] ${step} details:`, details);
       }
+    },
+    
+    warn: (endpoint: string, message: string, details?: any) => {
+      console.warn(`⚠️  [${endpoint.toUpperCase()}] ${message}`);
+      if (details) {
+        console.warn(`⚠️  [${endpoint.toUpperCase()}] Details:`, details);
+      }
     }
   },
 
@@ -68,6 +75,13 @@ export const Logger = {
     missing: (resource: string, context?: LogContext) => {
       const userInfo = context?.userEmail ? ` for ${context.userEmail}` : '';
       console.log(`❌ [DB] ${resource} not found${userInfo}`);
+    },
+    
+    error: (message: string, error?: Error) => {
+      console.error(`❌ [DB] ${message}`);
+      if (error) {
+        console.error(`❌ [DB] Error:`, error.message);
+      }
     }
   },
 
@@ -86,6 +100,20 @@ export const Logger = {
       console.log(`📁 [STORAGE] Initialized ${provider} provider`);
       if (path) {
         console.log(`📁 [STORAGE] Path: ${path}`);
+      }
+    },
+
+    success: (message: string, details?: any) => {
+      console.log(`✅ [STORAGE] ${message}`);
+      if (details) {
+        console.log(`📁 [STORAGE] Details:`, details);
+      }
+    },
+    
+    error: (message: string, error?: Error) => {
+      console.error(`❌ [STORAGE] ${message}`);
+      if (error) {
+        console.error(`❌ [STORAGE] Error:`, error.message);
       }
     }
   },
