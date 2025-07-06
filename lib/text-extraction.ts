@@ -1,6 +1,7 @@
 // Text extraction utilities for NDA documents
 import pdfParse from './pdf-parse-wrapper';
 import mammoth from 'mammoth';
+import { OpenAI } from 'openai';
 import { TextExtractionResult, DocumentMetadata } from '@/lib/nda/types';
 
 export interface DocumentContent {
@@ -21,11 +22,11 @@ export async function extractTextFromPDF(
   try {
     console.log('Extracting text from PDF using pdf-parse, hash:', fileHash);
     
-    // Try to use pdf-parse, but catch module loading errors
+    // Use existing PDF parser wrapper (DRY principle)
     let data;
     try {
-      const pdfParse = await import('pdf-parse');
-      data = await (pdfParse.default || pdfParse)(fileBuffer);
+      const parsePdf = await import('./pdf-parse-wrapper');
+      data = await (parsePdf.default)(fileBuffer);
     } catch (moduleError) {
       // Fallback: For simple test PDFs, we can extract text manually
       console.warn('pdf-parse failed to load, using fallback text extraction');
@@ -235,30 +236,90 @@ export async function compareDocuments(
   }>
   summary: string
 }> {
-  // Mock comparison logic - replace with actual OpenAI integration
-  console.log('Comparing documents...')
+  // Get OpenAI API key from environment (DRY - reuse existing config pattern)
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured in environment variables');
+  }
+
+  console.log('🤖 [OPENAI] Starting document comparison...');
   
-  // Simulate processing
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
-  return {
-    differences: [
-      {
-        section: 'Confidentiality Period',
-        standardText: 'five (5) years',
-        thirdPartyText: 'three (3) years',
-        severity: 'high',
-        suggestion: 'Request extension to 5-year confidentiality period to align with standard'
-      },
-      {
-        section: 'Governing Law',
-        standardText: 'laws of Delaware',
-        thirdPartyText: 'laws of California',
-        severity: 'medium',
-        suggestion: 'Negotiate for Delaware law or mutually acceptable jurisdiction'
-      }
-    ],
-    summary: 'Found 2 key differences requiring legal review and potential negotiation'
+  try {
+    // Use static import (DRY - consistent with other imports)
+    const openai = new OpenAI({ apiKey });
+
+    // Create comparison prompt (Smallest Possible Feature - basic comparison)
+    const prompt = `
+Compare these two NDA documents and identify key differences:
+
+STANDARD DOCUMENT:
+${standardContent.text.substring(0, 8000)}
+
+THIRD-PARTY DOCUMENT:
+${thirdPartyContent.text.substring(0, 8000)}
+
+Return a JSON response with this exact structure:
+{
+  "differences": [
+    {
+      "section": "string",
+      "standardText": "string", 
+      "thirdPartyText": "string",
+      "severity": "low|medium|high",
+      "suggestion": "string"
+    }
+  ],
+  "summary": "string"
+}
+
+Focus on key legal differences like confidentiality periods, governing law, liability terms, and termination clauses.`;
+
+    console.log('🤖 [OPENAI] Sending request to OpenAI...');
+    
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Use cost-effective model
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.1, // Low temperature for consistent legal analysis
+      max_tokens: 2000
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response content from OpenAI');
+    }
+
+    console.log('🤖 [OPENAI] Raw response content:');
+    console.log('---START RAW RESPONSE---');
+    console.log(content);
+    console.log('---END RAW RESPONSE---');
+    console.log('🤖 [OPENAI] Parsing response...');
+
+    // Parse JSON response (FAIL FAST if invalid)
+    let result;
+    try {
+      result = JSON.parse(content);
+    } catch (parseError) {
+      console.error('OpenAI response parsing failed:', content);
+      throw new Error('Invalid JSON response from OpenAI');
+    }
+
+    // Validate response structure (FAIL FAST if wrong format)
+    if (!result.differences || !Array.isArray(result.differences) || !result.summary) {
+      throw new Error('Invalid response format from OpenAI');
+    }
+
+    console.log(`🤖 [OPENAI] Comparison completed: ${result.differences.length} differences found`);
+    
+    return result;
+
+  } catch (error) {
+    console.error('OpenAI comparison failed:', error);
+    
+    // FAIL FAST with specific error message
+    if (error instanceof Error) {
+      throw new Error(`OpenAI comparison failed: ${error.message}`);
+    }
+    throw new Error('OpenAI comparison failed with unknown error');
   }
 }
 
