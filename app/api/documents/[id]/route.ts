@@ -3,6 +3,7 @@ import { withDocumentAccess } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { storage } from '@/lib/storage';
+import { Logger } from '@/lib/services/logger';
 
 // GET /api/documents/[id] - Get document details
 export const GET = withDocumentAccess(async (
@@ -33,7 +34,7 @@ export const GET = withDocumentAccess(async (
         }
       }
     } catch (error) {
-      console.error(`Failed to get storage metadata for ${document.filename}:`, error);
+      Logger.storage.error(`Failed to get storage metadata for ${document.filename}`, error as Error);
     }
 
     // Get related comparisons count
@@ -55,7 +56,7 @@ export const GET = withDocumentAccess(async (
     });
 
   } catch (error) {
-    console.error('Error fetching document:', error);
+    Logger.api.error('DOCUMENTS', 'Error fetching document details', error as Error);
     return ApiErrors.serverError('Failed to fetch document');
   }
 });
@@ -88,7 +89,7 @@ export const DELETE = withDocumentAccess(async (
         await storage.delete(document.filename);
       }
     } catch (error) {
-      console.error(`Failed to delete file from storage: ${document.filename}`, error);
+      Logger.storage.error(`Failed to delete file from storage: ${document.filename}`, error as Error);
       // Continue with database deletion even if storage deletion fails
     }
 
@@ -106,7 +107,7 @@ export const DELETE = withDocumentAccess(async (
     });
 
   } catch (error) {
-    console.error('Error deleting document:', error);
+    Logger.api.error('DOCUMENTS', 'Error deleting document', error as Error);
     return ApiErrors.serverError('Failed to delete document');
   }
 });
@@ -152,7 +153,7 @@ export const PATCH = withDocumentAccess(async (
     });
 
   } catch (error) {
-    console.error('Error updating document:', error);
+    Logger.api.error('DOCUMENTS', 'Error updating document', error as Error);
     return ApiErrors.serverError('Failed to update document');
   }
 });

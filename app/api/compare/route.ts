@@ -3,12 +3,13 @@ import { withAuth, RequestParser } from '@/lib/auth-utils'
 import { ApiErrors } from '@/lib/utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
+import { Logger } from '@/lib/services/logger'
 
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
-  console.log('🔍 [COMPARE] POST endpoint called');
-  console.log('🔍 [COMPARE] User email:', userEmail);
-  console.log('🔍 [COMPARE] Request method:', request.method);
-  console.log('🔍 [COMPARE] Request URL:', request.url);
+  Logger.api.start('COMPARE', userEmail, {
+    method: request.method,
+    url: request.url
+  });
   
   try {
     console.log('🔍 [COMPARE] Parsing request body...');
@@ -139,12 +140,12 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
         });
         
         if (response.ok) {
-          console.log('✅ [COMPARE] Queue processing triggered');
+          Logger.api.success('COMPARE', 'Queue processing triggered');
         } else {
-          console.log('⚠️ [COMPARE] Queue processing trigger failed:', response.status);
+          Logger.api.error('COMPARE', `Queue processing trigger failed: ${response.status}`);
         }
       } catch (error) {
-        console.log('⚠️ [COMPARE] Queue setup error:', error);
+        Logger.api.error('COMPARE', 'Queue setup error', error as Error);
       }
       
       // Check if we fixed the extraction issue
