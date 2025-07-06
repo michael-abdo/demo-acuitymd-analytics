@@ -263,12 +263,7 @@ export const POST = withRateLimit(
         },
         metadata: {
           differenceCount: comparisonResult.differences.length,
-          overallRisk: formattedResult.overallRisk,
-          rateLimit: {
-            limit: APP_CONSTANTS.RATE_LIMITS.COMPARE.MAX_REQUESTS,
-            remaining,
-            ...(resetTime && { reset: new Date(resetTime).toISOString() })
-          }
+          overallRisk: formattedResult.overallRisk
         },
         status: 'created'
       });
