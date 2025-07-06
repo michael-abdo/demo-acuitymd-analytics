@@ -10,6 +10,7 @@ export interface ErrorContext {
   method?: string;
   statusCode?: number;
   documentId?: number;
+  type?: string;
   metadata?: Record<string, any>;
 }
 
@@ -56,7 +57,7 @@ export const ErrorLogger = {
         message: error.message,
         statusCode,
         context: isApiError ? error.context : context,
-        stack: config.LOG_STACK_TRACES ? error.stack : undefined
+        stack: config.IS_DEVELOPMENT ? error.stack : undefined
       }));
     }
     

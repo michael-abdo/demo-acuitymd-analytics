@@ -105,18 +105,110 @@ function rowToQueueItem(row: ProcessingQueueRow): ProcessingQueueItem {
 }
 
 /**
- * Wraps database operations with consistent error handling
+ * Enhanced database error handling with detailed context
  */
 async function withDbErrorHandling<T>(
   operation: () => Promise<T>,
-  errorMessage: string
+  context: {
+    operation: string;
+    entity: string;
+    details?: Record<string, any>;
+  }
 ): Promise<T> {
   try {
     return await operation();
   } catch (error) {
-    console.error(errorMessage, error);
+    const errorMessage = `Database ${context.operation} failed for ${context.entity}`;
+    const errorDetails = {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      operation: context.operation,
+      entity: context.entity,
+      details: context.details
+    };
+    
+    console.error(errorMessage, errorDetails);
+    
+    // Return more specific error types based on the error
+    if (error instanceof Error) {
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('Connection')) {
+        throw new Error(`Database connection failed: ${context.operation} ${context.entity}`);
+      }
+      if (error.message.includes('Duplicate') || error.message.includes('duplicate')) {
+        throw new Error(`Duplicate ${context.entity} found`);
+      }
+      if (error.message.includes('foreign key constraint')) {
+        throw new Error(`Cannot ${context.operation} ${context.entity}: referenced data exists`);
+      }
+    }
+    
     throw new Error(errorMessage);
   }
+}
+
+/**
+ * Safe database query wrapper for SELECT operations
+ */
+async function safeQuery<T>(
+  query: string,
+  values: any[],
+  context: { entity: string; operation: string; userId?: string }
+): Promise<T> {
+  return withDbErrorHandling(
+    () => executeQuery<T>({ query, values }),
+    {
+      operation: context.operation,
+      entity: context.entity,
+      details: { query: query.slice(0, 100), userId: context.userId }
+    }
+  );
+}
+
+/**
+ * Safe database insert wrapper
+ */
+async function safeInsert(
+  query: string,
+  values: any[],
+  entity: string,
+  userId?: string
+): Promise<InsertResult> {
+  return safeQuery<InsertResult>(query, values, {
+    entity,
+    operation: 'insert',
+    userId
+  });
+}
+
+/**
+ * Safe database update wrapper
+ */
+async function safeUpdate(
+  query: string,
+  values: any[],
+  entity: string,
+  userId?: string
+): Promise<UpdateResult> {
+  return safeQuery<UpdateResult>(query, values, {
+    entity,
+    operation: 'update', 
+    userId
+  });
+}
+
+/**
+ * Safe database delete wrapper
+ */
+async function safeDelete(
+  query: string,
+  values: any[],
+  entity: string,
+  userId?: string
+): Promise<DeleteResult> {
+  return safeQuery<DeleteResult>(query, values, {
+    entity,
+    operation: 'delete',
+    userId
+  });
 }
 
 /**
@@ -125,14 +217,12 @@ async function withDbErrorHandling<T>(
 export const documentDb = {
   async create(data: Omit<NDADocument, 'id' | 'created_at' | 'updated_at'>): Promise<NDADocument> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<InsertResult>({
-        query: `
-          INSERT INTO nda_documents (
-            filename, original_name, file_hash, s3_url, file_size,
-            user_id, status, extracted_text, is_standard, metadata
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        values: [
+      const result = await safeInsert(
+        `INSERT INTO nda_documents (
+          filename, original_name, file_hash, s3_url, file_size,
+          user_id, status, extracted_text, is_standard, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
           data.filename,
           data.original_name,
           data.file_hash,
@@ -143,9 +233,10 @@ export const documentDb = {
           data.extracted_text || null,
           data.is_standard,
           data.metadata ? JSON.stringify(data.metadata) : null
-        ]
-      });
-      
+        ],
+        'document',
+        data.user_id
+      );      
       const created = await this.findById(result.insertId);
       if (!created) {
         throw new Error('Failed to retrieve created record');
@@ -168,11 +259,11 @@ export const documentDb = {
 
   async findById(id: number): Promise<NDADocument | null> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<NDADocumentRow[]>({
-        query: 'SELECT * FROM nda_documents WHERE id = ?',
-        values: [id]
-      });
-      return rows.length > 0 ? rowToDocument(rows[0]) : null;
+      const rows = await safeQuery<NDADocumentRow[]>(
+        'SELECT * FROM nda_documents WHERE id = ?',
+        [id],
+        { entity: 'document', operation: 'findById' }
+      );      return rows.length > 0 ? rowToDocument(rows[0]) : null;
     } else {
       return memoryStore.documents.get(id) || null;
     }
@@ -180,10 +271,11 @@ export const documentDb = {
 
   async findByHash(hash: string): Promise<NDADocument | null> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<NDADocumentRow[]>({
-        query: 'SELECT * FROM nda_documents WHERE file_hash = ?',
-        values: [hash]
-      });
+      const rows = await safeQuery<NDADocumentRow[]>(
+        'SELECT * FROM nda_documents WHERE file_hash = ?',
+        [hash],
+        { entity: 'document', operation: 'findByHash' }
+      );
       return rows.length > 0 ? rowToDocument(rows[0]) : null;
     } else {
       for (const doc of memoryStore.documents.values()) {
@@ -213,7 +305,11 @@ export const documentDb = {
         }
       }
       
-      const rows = await executeQuery<NDADocumentRow[]>({ query, values });
+      const rows = await safeQuery<NDADocumentRow[]>(
+        query,
+        values,
+        { entity: 'document', operation: 'findByUser', userId }
+      );
       return rows.map(rowToDocument);
     } else {
       let documents = Array.from(memoryStore.documents.values())
@@ -255,7 +351,11 @@ export const documentDb = {
         WHERE id = ?
       `;
       
-      const result = await executeQuery<UpdateResult>({ query, values });
+      const result = await safeUpdate(
+        query,
+        values,
+        'document'
+      );
       return result.affectedRows > 0;
     } else {
       const doc = memoryStore.documents.get(id);
@@ -268,10 +368,11 @@ export const documentDb = {
 
   async delete(id: number): Promise<boolean> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<DeleteResult>({
-        query: 'DELETE FROM nda_documents WHERE id = ?',
-        values: [id]
-      });
+      const result = await safeDelete(
+        'DELETE FROM nda_documents WHERE id = ?',
+        [id],
+        'document'
+      );
       return result.affectedRows > 0;
     } else {
       return memoryStore.documents.delete(id);
@@ -280,10 +381,11 @@ export const documentDb = {
 
   async getStandardDocument(userId: string): Promise<NDADocument | null> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<NDADocumentRow[]>({
-        query: 'SELECT * FROM nda_documents WHERE user_id = ? AND is_standard = TRUE LIMIT 1',
-        values: [userId]
-      });
+      const rows = await safeQuery<NDADocumentRow[]>(
+        'SELECT * FROM nda_documents WHERE user_id = ? AND is_standard = TRUE LIMIT 1',
+        [userId],
+        { entity: 'document', operation: 'getStandardDocument', userId }
+      );
       return rows.length > 0 ? rowToDocument(rows[0]) : null;
     } else {
       for (const doc of memoryStore.documents.values()) {
@@ -304,16 +406,14 @@ export const documentDb = {
 export const comparisonDb = {
   async create(data: Omit<NDAComparison, 'id' | 'created_at' | 'updated_at'>): Promise<NDAComparison> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<InsertResult>({
-        query: `
-          INSERT INTO nda_comparisons (
-            document1_id, document2_id, comparison_result_s3_url,
-            comparison_summary, similarity_score, key_differences,
-            ai_suggestions, user_id, status, error_message,
-            processing_time_ms
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        values: [
+      const result = await safeInsert(
+        `INSERT INTO nda_comparisons (
+          document1_id, document2_id, comparison_result_s3_url,
+          comparison_summary, similarity_score, key_differences,
+          ai_suggestions, user_id, status, error_message,
+          processing_time_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
           data.document1_id,
           data.document2_id,
           data.comparison_result_s3_url || null,
@@ -325,8 +425,10 @@ export const comparisonDb = {
           data.status,
           data.error_message || null,
           data.processing_time_ms || null
-        ]
-      });
+        ],
+        'comparison',
+        data.user_id
+      );
       
       const created = await this.findById(result.insertId);
       if (!created) {
@@ -350,10 +452,11 @@ export const comparisonDb = {
 
   async findById(id: number): Promise<NDAComparison | null> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<NDAComparisonRow[]>({
-        query: 'SELECT * FROM nda_comparisons WHERE id = ?',
-        values: [id]
-      });
+      const rows = await safeQuery<NDAComparisonRow[]>(
+        'SELECT * FROM nda_comparisons WHERE id = ?',
+        [id],
+        { entity: 'comparison', operation: 'findById' }
+      );
       return rows.length > 0 ? rowToComparison(rows[0]) : null;
     } else {
       return memoryStore.comparisons.get(id) || null;
@@ -382,7 +485,11 @@ export const comparisonDb = {
         }
       }
       
-      const rows = await executeQuery<NDAComparisonRow[]>({ query, values });
+      const rows = await safeQuery<NDAComparisonRow[]>(
+        query,
+        values,
+        { entity: 'comparison', operation: 'findByUser', userId }
+      );
       return rows.map(rowToComparison);
     } else {
       let comparisons = Array.from(memoryStore.comparisons.values())
@@ -419,7 +526,11 @@ export const comparisonDb = {
         WHERE id = ?
       `;
       
-      const result = await executeQuery<UpdateResult>({ query, values });
+      const result = await safeUpdate(
+        query,
+        values,
+        'comparison'
+      );
       return result.affectedRows > 0;
     } else {
       const comp = memoryStore.comparisons.get(id);
@@ -437,22 +548,21 @@ export const comparisonDb = {
 export const queueDb = {
   async enqueue(data: Omit<ProcessingQueueItem, 'id' | 'created_at' | 'updated_at' | 'attempts' | 'status'>): Promise<ProcessingQueueItem> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<InsertResult>({
-        query: `
-          INSERT INTO nda_processing_queue (
-            document_id, task_type, priority, status,
-            max_attempts, scheduled_at
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        `,
-        values: [
+      const result = await safeInsert(
+        `INSERT INTO nda_processing_queue (
+          document_id, task_type, priority, status,
+          max_attempts, scheduled_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
           data.document_id,
           data.task_type,
           data.priority || 5,
           QueueStatus.QUEUED,
           data.max_attempts || 3,
           data.scheduled_at || null
-        ]
-      });
+        ],
+        'queue_item'
+      );
       
       const created = await this.findById(result.insertId);
       if (!created) {
@@ -477,10 +587,11 @@ export const queueDb = {
 
   async findById(id: number): Promise<ProcessingQueueItem | null> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<ProcessingQueueRow[]>({
-        query: 'SELECT * FROM nda_processing_queue WHERE id = ?',
-        values: [id]
-      });
+      const rows = await safeQuery<ProcessingQueueRow[]>(
+        'SELECT * FROM nda_processing_queue WHERE id = ?',
+        [id],
+        { entity: 'queue_item', operation: 'findById' }
+      );
       return rows.length > 0 ? rowToQueueItem(rows[0]) : null;
     } else {
       return memoryStore.queue.get(id) || null;
@@ -489,16 +600,15 @@ export const queueDb = {
 
   async getNext(): Promise<ProcessingQueueItem | null> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<ProcessingQueueRow[]>({
-        query: `
-          SELECT * FROM nda_processing_queue 
-          WHERE status = ? 
-          AND (scheduled_at IS NULL OR scheduled_at <= NOW())
-          ORDER BY priority ASC, created_at ASC
-          LIMIT 1
-        `,
-        values: [QueueStatus.QUEUED]
-      });
+      const rows = await safeQuery<ProcessingQueueRow[]>(
+        `SELECT * FROM nda_processing_queue 
+        WHERE status = ? 
+        AND (scheduled_at IS NULL OR scheduled_at <= NOW())
+        ORDER BY priority ASC, created_at ASC
+        LIMIT 1`,
+        [QueueStatus.QUEUED],
+        { entity: 'queue_item', operation: 'getNext' }
+      );
       return rows.length > 0 ? rowToQueueItem(rows[0]) : null;
     } else {
       const now = new Date();
@@ -520,10 +630,11 @@ export const queueDb = {
 
   async updateStatus(id: number, status: QueueStatus): Promise<boolean> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<UpdateResult>({
-        query: 'UPDATE nda_processing_queue SET status = ?, updated_at = NOW() WHERE id = ?',
-        values: [status, id]
-      });
+      const result = await safeUpdate(
+        'UPDATE nda_processing_queue SET status = ?, updated_at = NOW() WHERE id = ?',
+        [status, id],
+        'queue_item'
+      );
       return result.affectedRows > 0;
     } else {
       const item = memoryStore.queue.get(id);
@@ -536,16 +647,15 @@ export const queueDb = {
 
   async updateError(id: number, errorMessage: string): Promise<boolean> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<UpdateResult>({
-        query: `
-          UPDATE nda_processing_queue 
-          SET error_message = ?, 
-              attempts = attempts + 1,
-              updated_at = NOW() 
-          WHERE id = ?
-        `,
-        values: [errorMessage, id]
-      });
+      const result = await safeUpdate(
+        `UPDATE nda_processing_queue 
+        SET error_message = ?, 
+            attempts = attempts + 1,
+            updated_at = NOW() 
+        WHERE id = ?`,
+        [errorMessage, id],
+        'queue_item'
+      );
       return result.affectedRows > 0;
     } else {
       const item = memoryStore.queue.get(id);
@@ -559,16 +669,15 @@ export const queueDb = {
 
   async retry(id: number): Promise<boolean> {
     if (HAS_DB_ACCESS) {
-      const result = await executeQuery<UpdateResult>({
-        query: `
-          UPDATE nda_processing_queue 
-          SET status = ?, 
-              scheduled_at = DATE_ADD(NOW(), INTERVAL 1 MINUTE),
-              updated_at = NOW() 
-          WHERE id = ?
-        `,
-        values: [QueueStatus.QUEUED, id]
-      });
+      const result = await safeUpdate(
+        `UPDATE nda_processing_queue 
+        SET status = ?, 
+            scheduled_at = DATE_ADD(NOW(), INTERVAL 1 MINUTE),
+            updated_at = NOW() 
+        WHERE id = ?`,
+        [QueueStatus.QUEUED, id],
+        'queue_item'
+      );
       return result.affectedRows > 0;
     } else {
       const item = memoryStore.queue.get(id);
@@ -582,10 +691,11 @@ export const queueDb = {
 
   async findByDocument(documentId: number): Promise<ProcessingQueueItem[]> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<ProcessingQueueRow[]>({
-        query: 'SELECT * FROM nda_processing_queue WHERE document_id = ? ORDER BY created_at DESC',
-        values: [documentId]
-      });
+      const rows = await safeQuery<ProcessingQueueRow[]>(
+        'SELECT * FROM nda_processing_queue WHERE document_id = ? ORDER BY created_at DESC',
+        [documentId],
+        { entity: 'queue_item', operation: 'findByDocument' }
+      );
       return rows.map(rowToQueueItem);
     } else {
       const items: ProcessingQueueItem[] = [];
@@ -600,9 +710,11 @@ export const queueDb = {
 
   async findAll(): Promise<ProcessingQueueItem[]> {
     if (HAS_DB_ACCESS) {
-      const rows = await executeQuery<ProcessingQueueRow[]>({
-        query: 'SELECT * FROM nda_processing_queue ORDER BY created_at DESC'
-      });
+      const rows = await safeQuery<ProcessingQueueRow[]>(
+        'SELECT * FROM nda_processing_queue ORDER BY created_at DESC',
+        [],
+        { entity: 'queue_item', operation: 'findAll' }
+      );
       return rows.map(rowToQueueItem);
     } else {
       return Array.from(memoryStore.queue.values())
@@ -634,7 +746,7 @@ export async function initializeDatabase(): Promise<void> {
       .filter(s => s.length > 0 && !s.startsWith('--'));
     
     for (const statement of statements) {
-      await executeQuery({ query: statement });
+      await safeQuery(statement, [], { entity: 'schema', operation: 'initializeDatabase' });
     }
     
     console.log('Database tables initialized successfully');

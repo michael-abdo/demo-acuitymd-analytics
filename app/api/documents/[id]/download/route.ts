@@ -25,7 +25,7 @@ export const GET = withDocumentAccess(async (
     const contentType = FileValidation.getContentType(document.filename);
 
     // Extract original filename from storage path
-    const originalFilename = document.display_name || 
+    const originalFilename = document.original_name || 
       getFilenameFromPath(document.filename) || 
       `document_${document.id}`;
 

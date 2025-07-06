@@ -3,6 +3,7 @@ import { FileValidation } from '@/lib/utils';
 import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { NDADocument } from '@/types/nda';
 
 export async function POST(request: NextRequest) {
   // Only work in development
@@ -32,11 +33,11 @@ export async function POST(request: NextRequest) {
     const memoryStore = (global as any)._ndaMemoryStore;
 
     // Clear existing documents for this user
-    const existingDocs = Array.from(memoryStore.documents.values())
-      .filter((doc: any) => doc.user_id === seedUser);
+    const existingDocs = (Array.from(memoryStore.documents.values()) as NDADocument[])
+      .filter((doc: NDADocument) => doc.user_id === seedUser);
     
     for (const doc of existingDocs) {
-      memoryStore.documents.delete(doc.id);
+      memoryStore.documents.delete((doc as NDADocument).id);
     }
 
     const documents = [

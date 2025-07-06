@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess } from '@/lib/auth-utils';
+import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { documentDb } from '@/lib/nda/database';
 
@@ -37,12 +37,11 @@ export const POST = withDocumentAccess(async (
     // Return updated document
     const updatedDocument = await documentDb.findById(document.id);
     
-    return NextResponse.json({
-      success: true,
-      message: 'Document marked as standard template',
-      document: updatedDocument,
-      previousStandardCount: currentStandardDocs.length
-    });
+    return ApiResponse.successWithMeta(
+      updatedDocument,
+      { previousStandardCount: currentStandardDocs.length },
+      'Document marked as standard template'
+    );
 
   } catch (error) {
     console.error('Error setting document as standard:', error);

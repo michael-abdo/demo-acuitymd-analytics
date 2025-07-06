@@ -7,16 +7,37 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, FileText, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
-
-interface UploadNDAProps {
-  onUploadComplete?: (document: any) => void
-}
+import { NDADocument, UploadNDAProps } from '@/types/nda'
+import { useFileUpload } from '@/lib/hooks'
 
 export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
   const [file, setFile] = useState<File | null>(null)
   const [docType, setDocType] = useState<string>('THIRD_PARTY')
-  const [uploading, setUploading] = useState(false)
   const { toast } = useToast()
+
+  // Use consolidated file upload hook
+  const { upload, uploading } = useFileUpload('/api/upload', {
+    onSuccess: (result) => {
+      toast({
+        title: "Upload successful",
+        description: "Your NDA document has been uploaded successfully."
+      });
+      
+      setFile(null);
+      onUploadComplete?.(result.document);
+      
+      // Reset form
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -44,52 +65,21 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
     if (!file) {
       toast({
         title: "No file selected",
-        description: "Please select a PDF file to upload.",
+        description: "Please select a file to upload.",
         variant: "destructive"
       })
       return
     }
 
-    setUploading(true)
-    
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('isStandard', docType === 'STANDARD' ? 'true' : 'false')
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      })
-
-      const result = await response.json()
-
-      if (result.status === 'success') {
-        toast({
-          title: "Upload successful",
-          description: "Your NDA document has been uploaded successfully."
-        })
-        
-        setFile(null)
-        onUploadComplete?.(result.document)
-        
-        // Reset form
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement
-        if (fileInput) fileInput.value = ''
-        
-      } else {
-        throw new Error(result.message || 'Upload failed')
-      }
-
+      await upload(formData)
     } catch (error) {
+      // Error handling is done in the hook's onError callback
       console.error('Upload error:', error)
-      toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "An error occurred during upload.",
-        variant: "destructive"
-      })
-    } finally {
-      setUploading(false)
     }
   }
 

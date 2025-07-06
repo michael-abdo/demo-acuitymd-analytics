@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileUp, FileText, GitCompare, Download, Loader2, RefreshCw } from "lucide-react";
@@ -10,46 +9,31 @@ import { useToast } from "@/components/ui/use-toast";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
+import { useApiData } from "@/lib/hooks";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { toast } = useToast();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchStats();
-    }
-  }, [status]);
-
-  const fetchStats = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/dashboard/stats');
-      const data: DashboardStatsResponse = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to fetch statistics');
-      }
-      
-      setStats(data.data || null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard statistics';
-      setError(errorMessage);
+  // Use consolidated API data hook
+  const { 
+    data: stats, 
+    loading, 
+    error, 
+    reload: fetchStats 
+  } = useApiData<DashboardStats | null>('/api/dashboard/stats', {
+    autoLoad: status === "authenticated",
+    transform: (response: DashboardStatsResponse) => response.data || null,
+    onError: (error) => {
       toast({
         title: "Error loading statistics",
-        description: errorMessage,
+        description: error.message,
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    deps: [status]
+  });
 
   return (
     <PageContainer>

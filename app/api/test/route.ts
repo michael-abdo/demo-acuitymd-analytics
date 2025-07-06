@@ -198,8 +198,9 @@ async function uploadTestFiles(): Promise<any> {
       filename: storageKey,
       original_name: filename,
       file_hash: fileHash,
-      s3_url: storageFile.url || storageKey,
+      s3_url: storageKey,
       file_size: fileBuffer.length,
+      upload_date: new Date(),
       user_id: testUser,
       status: DocumentStatus.UPLOADED,
       is_standard: filename.toLowerCase().includes('standard'),
@@ -214,7 +215,6 @@ async function uploadTestFiles(): Promise<any> {
       document_id: document.id,
       task_type: TaskType.EXTRACT_TEXT,
       priority: 1,
-      status: QueueStatus.QUEUED,
       max_attempts: 3,
       scheduled_at: new Date()
     });
@@ -274,7 +274,6 @@ async function triggerExtraction(documentId?: number): Promise<any> {
           document_id: doc.id,
           task_type: TaskType.EXTRACT_TEXT,
           priority: 1,
-          status: QueueStatus.QUEUED,
           max_attempts: 3,
           scheduled_at: new Date()
         });
@@ -294,7 +293,7 @@ async function triggerExtraction(documentId?: number): Promise<any> {
   // Trigger queue processing
   setTimeout(async () => {
     try {
-      const response = await fetch(`http://localhost:${config.PORT || 3000}/api/process-queue`, {
+      const response = await fetch(`http://localhost:3000/api/process-queue`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

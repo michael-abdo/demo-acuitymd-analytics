@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,104 +9,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
 import { getFilenameFromPath } from '@/lib/utils';
+import { NDADocument, ComparisonResult, Comparison } from '@/types/nda';
+import { useApiData, useAsyncOperation } from '@/lib/hooks';
 
-interface Document {
-  id: number;
-  filename: string;
-  display_name?: string;
-  is_standard: boolean;
-  status: string;
-  uploaded_at: string;
-}
-
-interface ComparisonResult {
-  summary: string;
-  overallRisk: 'low' | 'medium' | 'high';
-  keyDifferences: string[];
-  sections: {
-    section: string;
-    differences: string[];
-    severity: 'low' | 'medium' | 'high';
-    suggestions: string[];
-  }[];
-  recommendedActions: string[];
-  confidence: number;
-}
-
-interface Comparison {
-  id: number;
-  standardDocument: Document;
-  thirdPartyDocument: Document;
-  result: ComparisonResult;
-  status: string;
-  createdAt: string;
-  completedAt?: string;
-}
+// Using NDADocument directly since this page doesn't need UI-specific fields
+type Document = NDADocument;
 
 export default function ComparePage() {
   const { data: session } = useSession();
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedStandard, setSelectedStandard] = useState<string>('');
   const [selectedThirdParty, setSelectedThirdParty] = useState<string>('');
-  const [comparing, setComparing] = useState(false);
   const [currentComparison, setCurrentComparison] = useState<Comparison | null>(null);
   const [recentComparisons, setRecentComparisons] = useState<Comparison[]>([]);
 
-  // Load documents on page load
-  useEffect(() => {
-    if (session) {
-      loadDocuments();
-    }
-  }, [session]);
+  // Use consolidated API data hook for documents
+  const { data: documents } = useApiData<NDADocument[]>('/api/documents', {
+    autoLoad: !!session,
+    initialData: [],
+    transform: (response) => response.data || [],
+    deps: [session]
+  });
 
-  const loadDocuments = async () => {
-    try {
-      const response = await fetch('/api/documents');
-      if (response.ok) {
-        const data = await response.json();
-        setDocuments(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading documents:', error);
-    }
-  };
-
-  const startComparison = async () => {
-    if (!selectedStandard || !selectedThirdParty) return;
-
-    try {
-      setComparing(true);
-      setCurrentComparison(null);
-
+  // Use async operation hook for comparison
+  const { execute: startComparison, loading: comparing } = useAsyncOperation(
+    async (standardDocId: string, thirdPartyDocId: string) => {
       const response = await fetch('/api/compare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          standardDocId: selectedStandard,
-          thirdPartyDocId: selectedThirdParty
-        }),
+        body: JSON.stringify({ standardDocId, thirdPartyDocId }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentComparison(data.comparison);
-        // Add to recent comparisons
-        setRecentComparisons(prev => [data.comparison, ...prev.slice(0, 4)]);
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
-        console.error('Comparison failed:', errorData);
-        alert(`Comparison failed: ${errorData.message || 'Unknown error'}`);
+        throw new Error(errorData.message || 'Comparison failed');
       }
-    } catch (error) {
-      console.error('Error starting comparison:', error);
-      alert('Error starting comparison. Please try again.');
-    } finally {
-      setComparing(false);
+
+      return response.json();
+    },
+    {
+      onSuccess: (data) => {
+        setCurrentComparison(data.comparison);
+        setRecentComparisons(prev => [data.comparison, ...prev.slice(0, 4)]);
+      },
+      onError: (error) => {
+        alert(`Comparison failed: ${error.message}`);
+      }
     }
+  );
+
+  const handleStartComparison = async () => {
+    if (!selectedStandard || !selectedThirdParty) return;
+    
+    setCurrentComparison(null);
+    await startComparison(selectedStandard, selectedThirdParty);
   };
 
-  const standardDocuments = documents.filter(doc => doc.is_standard);
-  const thirdPartyDocuments = documents.filter(doc => !doc.is_standard);
+  const standardDocuments = documents?.filter(doc => doc.is_standard) || [];
+  const thirdPartyDocuments = documents?.filter(doc => !doc.is_standard) || [];
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
@@ -165,7 +124,7 @@ export default function ComparePage() {
                     <SelectItem key={doc.id} value={doc.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Star className="h-3 w-3 text-yellow-500" />
-                        {doc.display_name || getFilenameFromPath(doc.filename)}
+                        {doc.original_name || getFilenameFromPath(doc.filename)}
                       </div>
                     </SelectItem>
                   ))}
@@ -191,7 +150,7 @@ export default function ComparePage() {
                     <SelectItem key={doc.id} value={doc.id.toString()}>
                       <div className="flex items-center gap-2">
                         <FileText className="h-3 w-3" />
-                        {doc.display_name || getFilenameFromPath(doc.filename)}
+                        {doc.original_name || getFilenameFromPath(doc.filename)}
                       </div>
                     </SelectItem>
                   ))}
@@ -207,7 +166,7 @@ export default function ComparePage() {
 
           <div className="flex justify-center">
             <Button
-              onClick={startComparison}
+              onClick={handleStartComparison}
               disabled={!selectedStandard || !selectedThirdParty || comparing}
               size="lg"
               className="px-8"
@@ -350,11 +309,11 @@ export default function ComparePage() {
                   <div className="flex items-center gap-3">
                     <div className="text-sm">
                       <span className="font-medium">
-                        {comparison.standardDocument.display_name || getFilenameFromPath(comparison.standardDocument.filename)}
+                        {comparison.standardDocument.original_name || getFilenameFromPath(comparison.standardDocument.filename)}
                       </span>
                       <span className="text-gray-500 mx-2">vs</span>
                       <span className="font-medium">
-                        {comparison.thirdPartyDocument.display_name || getFilenameFromPath(comparison.thirdPartyDocument.filename)}
+                        {comparison.thirdPartyDocument.original_name || getFilenameFromPath(comparison.thirdPartyDocument.filename)}
                       </span>
                     </div>
                   </div>

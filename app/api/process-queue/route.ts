@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/utils';
-import { getStorage, ensureStorageInitialized } from '@/lib/storage';
-import { documentDb, queueDb, TaskType, QueueStatus, DocumentStatus } from '@/lib/nda';
-import { extractText } from '@/lib/text-extraction';
+import { ApiResponse } from '@/lib/auth-utils';
+import { ensureStorageInitialized } from '@/lib/storage';
+import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
+import { processTextExtraction } from '@/lib/text-extraction';
 import { config } from '@/lib/config';
 
 /**
@@ -43,7 +44,7 @@ export const POST = async (request: NextRequest) => {
     try {
       switch (task.task_type) {
         case TaskType.EXTRACT_TEXT:
-          await processTextExtraction(task);
+          await processTextExtraction(task.document_id);
           break;
         
         case TaskType.COMPARE:
@@ -61,16 +62,17 @@ export const POST = async (request: NextRequest) => {
       // Mark task as completed
       await queueDb.updateStatus(task.id, QueueStatus.COMPLETED);
       
-      return NextResponse.json({
-        status: 'success',
-        message: `Processed ${task.task_type} task for document ${task.document_id}`,
-        task: {
-          id: task.id,
-          type: task.task_type,
-          documentId: task.document_id,
-          completedAt: new Date()
-        }
-      });
+      const processedTask = {
+        id: task.id,
+        type: task.task_type,
+        documentId: task.document_id,
+        completedAt: new Date()
+      };
+      
+      return ApiResponse.success(
+        processedTask,
+        `Processed ${task.task_type} task for document ${task.document_id}`
+      );
 
     } catch (error) {
       // Update task with error
@@ -92,73 +94,6 @@ export const POST = async (request: NextRequest) => {
     return ApiErrors.serverError(error instanceof Error ? error.message : 'Queue processing failed');
   }
 };
-
-async function processTextExtraction(task: any) {
-  console.log(`[Extraction] Starting text extraction for document ${task.document_id}`);
-  console.log(`[Extraction] Task ID: ${task.id}, Attempt: ${task.attempts + 1}/${task.max_attempts}`);
-  
-  // Get document from database
-  const document = await documentDb.findById(task.document_id);
-  if (!document) {
-    console.error(`[Extraction] Document ${task.document_id} not found in database`);
-    throw new Error(`Document ${task.document_id} not found`);
-  }
-  
-  console.log(`[Extraction] Document found: ${document.original_name} (${document.file_size} bytes)`);
-  console.log(`[Extraction] Storage path: ${document.filename}`);
-
-  // Update document status to processing
-  await documentDb.updateStatus(document.id, DocumentStatus.PROCESSING);
-
-  try {
-    // Download file from storage
-    const storageKey = document.filename;
-    console.log(`[Extraction] Downloading file from storage: ${storageKey}`);
-    
-    const storage = getStorage();
-    const downloadResult = await storage.download(storageKey);
-    const fileBuffer = downloadResult.data;
-    console.log(`[Extraction] Downloaded ${fileBuffer.length} bytes`);
-    
-    // Extract text using unified extractor
-    console.log(`[Extraction] Starting text extraction for file type: ${document.original_name.split('.').pop()}`);
-    const extractedContent = await extractText(
-      fileBuffer, 
-      document.original_name,
-      document.file_hash
-    );
-    
-    console.log(`[Extraction] Text extraction completed:`);
-    console.log(`[Extraction]   - Characters: ${extractedContent.text.length}`);
-    console.log(`[Extraction]   - Pages: ${extractedContent.pages || 'N/A'}`);
-    console.log(`[Extraction]   - Method: ${extractedContent.metadata.method}`);
-    console.log(`[Extraction]   - First 100 chars: ${extractedContent.text.substring(0, 100)}...`);
-    
-    // Update document with extracted text
-    console.log(`[Extraction] Updating document ${document.id} with extracted text`);
-    await documentDb.update(document.id, {
-      extracted_text: extractedContent.text,
-      status: DocumentStatus.PROCESSED,
-      metadata: {
-        ...document.metadata,
-        extraction: {
-          pages: extractedContent.pages,
-          confidence: extractedContent.confidence,
-          method: extractedContent.metadata.method,
-          extractedAt: extractedContent.metadata.extractedAt
-        }
-      }
-    });
-
-    console.log(`[Extraction] ✅ Successfully completed extraction for document ${document.id}`);
-    
-  } catch (error) {
-    console.error(`[Extraction] ❌ Error during extraction:`, error);
-    // Update document status to error
-    await documentDb.updateStatus(document.id, DocumentStatus.ERROR);
-    throw error;
-  }
-}
 
 // GET endpoint to check queue status
 export async function GET(request: NextRequest) {

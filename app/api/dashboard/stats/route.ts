@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuth, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { DocumentStatus, ComparisonStatus } from '@/types/nda';
@@ -50,17 +50,14 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
       lastUpdated: new Date().toISOString()
     };
 
-    // Add cache headers for performance (cache for 1 minute)
-    const headers = new Headers();
-    headers.set('Cache-Control', 'private, max-age=60');
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: stats,
-        ...(errors.length > 0 && { errors })
-      } as DashboardStatsResponse,
-      { headers }
+    // Use ApiResponse with cache headers
+    const responseData = errors.length > 0 
+      ? { ...stats, errors } 
+      : stats;
+      
+    return ApiResponse.successWithHeaders(
+      responseData,
+      { 'Cache-Control': 'private, max-age=60' }
     );
 
   } catch (error) {

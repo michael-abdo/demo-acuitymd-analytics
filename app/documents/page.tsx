@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,77 +9,48 @@ import { Input } from '@/components/ui/input';
 import { Upload, FileText, Trash2, Star, Download } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
 import { getFilenameFromPath } from '@/lib/utils';
-
-interface Document {
-  id: number;
-  filename: string;
-  original_name: string;
-  file_size: number;
-  is_standard: boolean;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  downloadUrl?: string;
-  fileType?: string;
-  sizeMB?: string;
-}
+import { NDADocument, DocumentWithUIFields, DocumentCardProps } from '@/types/nda';
+import { useApiData, useFileUpload } from '@/lib/hooks';
 
 export default function DocumentsPage() {
   const { data: session } = useSession();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Load documents on page load
-  useEffect(() => {
-    if (session) {
-      loadDocuments();
-    }
-  }, [session]);
+  // Use consolidated API data hook
+  const { 
+    data: documents, 
+    loading, 
+    error, 
+    reload: loadDocuments 
+  } = useApiData<DocumentWithUIFields[]>('/api/documents', {
+    autoLoad: !!session,
+    initialData: [],
+    transform: (response) => response.data || [],
+    deps: [session]
+  });
 
-  const loadDocuments = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/documents');
-      if (response.ok) {
-        const data = await response.json();
-        setDocuments(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading documents:', error);
-    } finally {
-      setLoading(false);
+  // Use consolidated file upload hook
+  const { upload, uploading } = useFileUpload('/api/upload', {
+    onSuccess: () => {
+      loadDocuments(); // Reload documents after successful upload
     }
-  };
+  });
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      setUploading(true);
       const formData = new FormData();
       formData.append('file', file);
       formData.append('isStandard', 'false');
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        // Reload documents to show the new upload
-        await loadDocuments();
-        // Clear the input
-        event.target.value = '';
-      } else {
-        console.error('Upload failed');
-      }
+      await upload(formData);
+      
+      // Clear the input on success
+      event.target.value = '';
     } catch (error) {
       console.error('Error uploading file:', error);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -117,10 +88,10 @@ export default function DocumentsPage() {
     }
   };
 
-  const filteredDocuments = documents.filter(doc =>
+  const filteredDocuments = documents?.filter(doc =>
     doc.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doc.original_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
 
   const standardDocuments = filteredDocuments.filter(doc => doc.is_standard);
   const thirdPartyDocuments = filteredDocuments.filter(doc => !doc.is_standard);
@@ -239,12 +210,6 @@ export default function DocumentsPage() {
   );
 }
 
-interface DocumentCardProps {
-  document: Document;
-  onToggleStandard: () => void;
-  onDelete: () => void;
-}
-
 function DocumentCard({ document, onToggleStandard, onDelete }: DocumentCardProps) {
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -254,8 +219,8 @@ function DocumentCard({ document, onToggleStandard, onDelete }: DocumentCardProp
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString();
   };
 
   return (

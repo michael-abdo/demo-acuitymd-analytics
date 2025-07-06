@@ -50,7 +50,6 @@ export const POST = withDocumentAccess(async (
       document_id: document.id,
       task_type: TaskType.EXTRACT_TEXT,
       priority: 1, // High priority for manual triggers
-      status: QueueStatus.QUEUED,
       max_attempts: 3,
       scheduled_at: new Date()
     });

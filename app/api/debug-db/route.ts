@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { NDADocument } from '@/types/nda';
 
 export async function GET(request: NextRequest) {
   // Only work in development
@@ -18,15 +19,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const documents = Array.from(memoryStore.documents.values());
+    const documents = Array.from(memoryStore.documents.values()) as NDADocument[];
     
     return NextResponse.json({
       message: 'Memory store contents',
       documentsCount: documents.length,
-      documents: documents.map(doc => ({
+      documents: documents.map((doc: NDADocument) => ({
         id: doc.id,
         filename: doc.filename,
-        display_name: doc.display_name,
+        original_name: doc.original_name,
         user_id: doc.user_id,
         is_standard: doc.is_standard,
         status: doc.status

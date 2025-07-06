@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/auth-utils'
+import { withAuth, RequestParser } from '@/lib/auth-utils'
 import { ApiErrors } from '@/lib/utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
@@ -7,12 +7,7 @@ import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
 
-    const body = await request.json()
-    const { standardDocId, thirdPartyDocId } = body
-
-    if (!standardDocId || !thirdPartyDocId) {
-      return ApiErrors.badRequest('Both standard and third-party document IDs are required')
-    }
+    const { doc1Id: standardDocId, doc2Id: thirdPartyDocId } = await RequestParser.parseComparisonRequest(request);
 
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {

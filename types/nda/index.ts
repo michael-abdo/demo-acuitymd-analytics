@@ -274,3 +274,67 @@ export interface APIError {
   status_code: number;
   details?: any;
 }
+
+/**
+ * Component Props Interfaces
+ * Following DRY principle by consolidating all component prop interfaces
+ */
+
+/**
+ * Upload NDA component props
+ */
+export interface UploadNDAProps {
+  onUploadComplete?: (document: NDADocument) => void;
+}
+
+/**
+ * Document Card component props
+ */
+export interface DocumentCardProps {
+  document: DocumentWithUIFields;
+  onToggleStandard: () => void;
+  onDelete: () => void;
+}
+
+/**
+ * Document with UI-specific fields
+ * Extends NDADocument with additional UI metadata
+ */
+export interface DocumentWithUIFields extends NDADocument {
+  // UI-specific fields only
+  downloadUrl?: string;
+  fileType?: string;
+  sizeMB?: string;
+}
+
+/**
+ * UI Comparison Result structure
+ * Used for displaying comparison results in the UI
+ */
+export interface ComparisonResult {
+  summary: string;
+  overallRisk: 'low' | 'medium' | 'high';
+  keyDifferences: string[];
+  sections: {
+    section: string;
+    differences: string[];
+    severity: 'low' | 'medium' | 'high';
+    suggestions: string[];
+  }[];
+  recommendedActions: string[];
+  confidence: number;
+}
+
+/**
+ * UI Comparison structure
+ * Represents a comparison with UI-friendly document references
+ */
+export interface Comparison {
+  id: number;
+  standardDocument: NDADocument;
+  thirdPartyDocument: NDADocument;
+  result: ComparisonResult;
+  status: string;
+  createdAt: string;
+  completedAt?: string;
+}

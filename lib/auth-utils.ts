@@ -177,6 +177,56 @@ export const ApiResponse = {
    */
   noContent(): NextResponse {
     return new NextResponse(null, { status: 204 });
+  },
+
+  /**
+   * Updated response for resource updates
+   */
+  updated<T>(data: T, message?: string): NextResponse {
+    return NextResponse.json({
+      success: true,
+      message: message || 'Resource updated successfully',
+      data
+    });
+  },
+
+  /**
+   * Deleted response for resource deletion
+   */
+  deleted(message?: string): NextResponse {
+    return NextResponse.json({
+      success: true,
+      message: message || 'Resource deleted successfully'
+    });
+  },
+
+  /**
+   * Response with additional metadata
+   */
+  successWithMeta<T>(data: T, metadata: Record<string, any>, message?: string): NextResponse {
+    return NextResponse.json({
+      success: true,
+      message: message || 'Request completed successfully',
+      data,
+      ...metadata
+    });
+  },
+
+  /**
+   * Response with custom headers
+   */
+  successWithHeaders<T>(data: T, headers: Record<string, string>, message?: string): NextResponse {
+    const response = NextResponse.json({
+      success: true,
+      message: message || 'Request completed successfully',
+      data
+    });
+    
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    
+    return response;
   }
 };
 
@@ -265,4 +315,115 @@ export function withAuthDynamicAndStorage<T extends Record<string, any>>(
   handler: (request: NextRequest, userEmail: string, context: { params: T }) => Promise<NextResponse>
 ) {
   return withAuthDynamic<T>(withStorage(handler));
-} 
+}
+/**
+ * Request parsing utilities
+ */
+export const RequestParser = {
+  /**
+   * Parse and validate JSON body with schema validation
+   */
+  async parseJSON<T>(request: NextRequest, requiredFields?: string[]): Promise<T> {
+    try {
+      const body = await request.json();
+      
+      if (requiredFields) {
+        for (const field of requiredFields) {
+          if (!(field in body) || body[field] === undefined || body[field] === null) {
+            throw new ApiError(`Missing required field: ${field}`, 400);
+          }
+        }
+      }
+      
+      return body as T;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError('Invalid JSON body', 400);
+    }
+  },
+
+  /**
+   * Parse formData with file validation
+   */
+  async parseFormData(request: NextRequest): Promise<FormData> {
+    try {
+      return await request.formData();
+    } catch (error) {
+      throw new ApiError('Invalid form data', 400);
+    }
+  },
+
+  /**
+   * Parse query parameters with defaults and validation
+   */
+  parseQuery(request: NextRequest, schema?: Record<string, { default?: any; type?: 'string' | 'number' | 'boolean' }>) {
+    const url = new URL(request.url);
+    const params: Record<string, any> = {};
+    
+    if (schema) {
+      for (const [key, config] of Object.entries(schema)) {
+        const value = url.searchParams.get(key);
+        
+        if (value === null) {
+          params[key] = config.default;
+        } else {
+          switch (config.type) {
+            case 'number':
+              const num = parseInt(value, 10);
+              params[key] = isNaN(num) ? config.default : num;
+              break;
+            case 'boolean':
+              params[key] = value === 'true';
+              break;
+            default:
+              params[key] = value;
+          }
+        }
+      }
+    } else {
+      // Return all query params as strings
+      url.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+    }
+    
+    return params;
+  },
+
+  /**
+   * Parse document comparison request body
+   */
+  async parseComparisonRequest(request: NextRequest) {
+    const body = await this.parseJSON<{ document1Id?: any; document2Id?: any; standardDocId?: any; thirdPartyDocId?: any }>(request);
+    
+    // Handle both naming conventions
+    const doc1Id = body.document1Id || body.standardDocId;
+    const doc2Id = body.document2Id || body.thirdPartyDocId;
+    
+    if (!doc1Id || !doc2Id) {
+      throw new ApiError('Both document IDs are required', 400);
+    }
+    
+    return { doc1Id, doc2Id };
+  },
+
+  /**
+   * Parse pagination parameters
+   */
+  parsePagination(request: NextRequest, defaultPageSize = 20, maxPageSize = 100) {
+    const query = this.parseQuery(request, {
+      page: { default: 1, type: 'number' },
+      limit: { default: defaultPageSize, type: 'number' },
+      search: { default: '', type: 'string' }
+    });
+    
+    return {
+      page: Math.max(1, query.page),
+      pageSize: Math.min(maxPageSize, Math.max(1, query.limit)),
+      search: query.search?.trim() || ''
+    };
+  }
+};
+

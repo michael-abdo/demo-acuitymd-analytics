@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuthAndStorage } from '@/lib/auth-utils';
+import { withAuthAndStorage, ApiResponse } from '@/lib/auth-utils';
 import { FileValidation, ApiErrors } from '@/lib/utils';
-import { createHash } from 'crypto';
-import { storage, ndaPaths } from '@/lib/storage';
-import { documentDb, DocumentStatus, queueDb, TaskType, QueueStatus } from '@/lib/nda';
-import { config } from '@/lib/config';
+import { processUploadedFile } from '@/lib/text-extraction';
+import { storage } from '@/lib/storage';
 
 export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: string) => {
   try {
-
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const docType = formData.get('docType') as string || 'THIRD_PARTY';
@@ -24,97 +21,41 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       return validationError;
     }
 
-    // Read file content
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    // Generate file hash for deduplication
-    const fileHash = createHash('sha256').update(buffer).digest('hex');
-    
-    // Check if file already exists
-    const existingDocument = await documentDb.findByHash(fileHash);
-    if (existingDocument) {
-      return NextResponse.json({
-        status: 'duplicate',
-        message: 'Document already exists',
-        document: existingDocument,
-        duplicate: true
-      });
+    // Use consolidated file processing utility
+    const result = await processUploadedFile({
+      file,
+      filename: file.name,
+      userEmail,
+      docType,
+      isStandard,
+      contentType: file.type
+    });
+
+    // Handle duplicate file case
+    if (result.duplicate) {
+      return ApiResponse.successWithMeta(
+        result.document,
+        { duplicate: true, status: 'duplicate' },
+        'Document already exists'
+      );
     }
 
-    // Initialize storage
-    await storage.initialize();
+    // Format response with document metadata
+    const documentWithMeta = {
+      id: result.document.id,
+      filename: result.document.filename,
+      originalName: result.document.original_name,
+      fileHash: result.document.file_hash,
+      fileSize: result.document.file_size,
+      uploadDate: result.document.upload_date,
+      isStandard: result.document.is_standard,
+      status: result.document.status,
+      storageProvider: result.storageInfo.provider,
+      storageKey: result.storageInfo.key,
+      storage: result.storageInfo
+    };
     
-    // Generate storage key
-    const storageKey = ndaPaths.document(userEmail, fileHash, file.name);
-    
-    // Upload to storage (S3 or local)
-    const uploadResult = await storage.upload(storageKey, buffer, {
-      contentType: file.type,
-      metadata: {
-        originalName: file.name,
-        uploadedBy: userEmail,
-        docType: docType,
-        fileHash: fileHash,
-        isStandard: isStandard.toString(),
-        uploadDate: new Date().toISOString()
-      }
-    });
-
-    // Store document metadata in database (memory or MySQL)
-    const document = await documentDb.create({
-      filename: storageKey,
-      original_name: file.name,
-      file_hash: fileHash,
-      s3_url: storage.isS3() ? `s3://${config.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
-      file_size: file.size,
-      upload_date: new Date(),
-      user_id: userEmail,
-      status: DocumentStatus.UPLOADED,
-      extracted_text: null,
-      is_standard: isStandard,
-      metadata: {
-        docType,
-        contentType: file.type,
-        provider: storage.getProvider()
-      }
-    });
-
-    // Queue text extraction task using existing queue system
-    await queueDb.enqueue({
-      document_id: document.id,
-      task_type: TaskType.EXTRACT_TEXT,
-      priority: 5, // Medium priority
-      status: QueueStatus.QUEUED,
-      attempts: 0,
-      max_attempts: 3,
-      scheduled_at: new Date()
-    });
-
-    console.log(`Queued text extraction for document ${document.id}, hash: ${fileHash}`);
-
-    return NextResponse.json({
-      status: 'success',
-      message: 'Document uploaded successfully',
-      document: {
-        id: document.id,
-        filename: document.filename,
-        originalName: document.original_name,
-        fileHash: document.file_hash,
-        fileSize: document.file_size,
-        uploadDate: document.upload_date,
-        isStandard: document.is_standard,
-        status: document.status,
-        storageProvider: storage.getProvider(),
-        storageKey: storageKey
-      },
-      storage: {
-        provider: storage.getProvider(),
-        key: uploadResult.key,
-        size: uploadResult.size,
-        etag: uploadResult.etag
-      }
-    });
+    return ApiResponse.created(documentWithMeta, 'Document uploaded successfully');
 
   } catch (error: any) {
     console.error('Upload error:', error);

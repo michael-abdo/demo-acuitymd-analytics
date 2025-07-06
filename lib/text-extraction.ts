@@ -140,9 +140,7 @@ export async function extractTextFromDOCX(
       metadata: {
         extractedAt: new Date().toISOString(),
         method: 'mammoth',
-        fileHash,
-        warnings: result.messages?.length || 0,
-        originalLength: result.value.length
+        fileHash
       }
     };
   } catch (error) {
@@ -261,5 +259,192 @@ export async function compareDocuments(
       }
     ],
     summary: 'Found 2 key differences requiring legal review and potential negotiation'
+  }
+}
+
+/**
+ * Consolidated file processing utility following DRY principle
+ * Handles the complete file upload and processing workflow
+ */
+export interface ProcessFileOptions {
+  file: File | Buffer;
+  filename: string;
+  userEmail: string;
+  docType?: string;
+  isStandard?: boolean;
+  contentType?: string;
+}
+
+export interface ProcessFileResult {
+  document: any;
+  storageInfo: {
+    provider: string;
+    key: string;
+    size: number;
+    etag?: string;
+  };
+  duplicate: boolean;
+  queued: boolean;
+}
+
+export async function processUploadedFile(options: ProcessFileOptions): Promise<ProcessFileResult> {
+  const { file, filename, userEmail, docType = 'THIRD_PARTY', isStandard = false, contentType } = options;
+  
+  // Import dependencies dynamically to avoid circular dependencies
+  const { createHash } = await import('crypto');
+  const { storage, ndaPaths } = await import('@/lib/storage');
+  const { documentDb, DocumentStatus, queueDb, TaskType } = await import('@/lib/nda');
+  const { config } = await import('@/lib/config');
+  
+  // Convert File to Buffer if needed
+  const buffer = file instanceof Buffer ? file : Buffer.from(await (file as File).arrayBuffer());
+  
+  // Generate file hash for deduplication
+  const fileHash = createHash('sha256').update(buffer).digest('hex');
+  console.log(`[ProcessFile] Generated hash: ${fileHash} for file: ${filename}`);
+  
+  // Check if file already exists
+  const existingDocument = await documentDb.findByHash(fileHash);
+  if (existingDocument) {
+    console.log(`[ProcessFile] Duplicate file detected: ${fileHash}`);
+    return {
+      document: existingDocument,
+      storageInfo: {
+        provider: storage.getProvider(),
+        key: existingDocument.filename,
+        size: existingDocument.file_size
+      },
+      duplicate: true,
+      queued: false
+    };
+  }
+  
+  // Initialize storage
+  await storage.initialize();
+  
+  // Generate storage key
+  const storageKey = ndaPaths.document(userEmail, fileHash, filename);
+  console.log(`[ProcessFile] Uploading to storage: ${storageKey}`);
+  
+  // Upload to storage (S3 or local)
+  const uploadResult = await storage.upload(storageKey, buffer, {
+    contentType: contentType || 'application/octet-stream',
+    metadata: {
+      originalName: filename,
+      uploadedBy: userEmail,
+      docType: docType,
+      fileHash: fileHash,
+      isStandard: isStandard.toString(),
+      uploadDate: new Date().toISOString()
+    }
+  });
+  
+  console.log(`[ProcessFile] Upload successful: ${uploadResult.size} bytes`);
+  
+  // Store document metadata in database
+  const document = await documentDb.create({
+    filename: storageKey,
+    original_name: filename,
+    file_hash: fileHash,
+    s3_url: storage.isS3() ? `s3://${config.S3_BUCKET_NAME}/${storageKey}` : `local://${storageKey}`,
+    file_size: buffer.length,
+    upload_date: new Date(),
+    user_id: userEmail,
+    status: DocumentStatus.UPLOADED,
+    extracted_text: null,
+    is_standard: isStandard,
+    metadata: {
+      docType,
+      contentType: contentType || 'application/octet-stream',
+      provider: storage.getProvider()
+    }
+  });
+  
+  console.log(`[ProcessFile] Document created: ID=${document.id}`);
+  
+  // Queue text extraction task
+  const queueItem = await queueDb.enqueue({
+    document_id: document.id,
+    task_type: TaskType.EXTRACT_TEXT,
+    priority: 5, // Medium priority
+    max_attempts: 3,
+    scheduled_at: new Date()
+  });
+  
+  console.log(`[ProcessFile] Queued extraction task: ID=${queueItem.id}`);
+  
+  return {
+    document,
+    storageInfo: {
+      provider: storage.getProvider(),
+      key: uploadResult.key,
+      size: uploadResult.size,
+      etag: uploadResult.etag
+    },
+    duplicate: false,
+    queued: true
+  };
+}
+
+/**
+ * Process text extraction for a document
+ * Consolidates extraction logic for reuse
+ */
+export async function processTextExtraction(documentId: number): Promise<void> {
+  // Import dependencies dynamically
+  const { getStorage } = await import('@/lib/storage');
+  const { documentDb, DocumentStatus } = await import('@/lib/nda');
+  
+  console.log(`[Extraction] Starting text extraction for document ${documentId}`);
+  
+  // Get document from database
+  const document = await documentDb.findById(documentId);
+  if (!document) {
+    throw new Error(`Document ${documentId} not found`);
+  }
+  
+  console.log(`[Extraction] Processing: ${document.original_name}`);
+  
+  // Update status to processing
+  await documentDb.updateStatus(document.id, DocumentStatus.PROCESSING);
+  
+  try {
+    // Download file from storage
+    const storage = getStorage();
+    const downloadResult = await storage.download(document.filename);
+    const fileBuffer = downloadResult.data;
+    
+    console.log(`[Extraction] Downloaded ${fileBuffer.length} bytes`);
+    
+    // Extract text using unified extractor
+    const extractedContent = await extractText(
+      fileBuffer,
+      document.original_name,
+      document.file_hash
+    );
+    
+    console.log(`[Extraction] Extracted ${extractedContent.text.length} characters`);
+    
+    // Update document with extracted text
+    await documentDb.update(document.id, {
+      extracted_text: extractedContent.text,
+      status: DocumentStatus.PROCESSED,
+      metadata: {
+        ...document.metadata,
+        extraction: {
+          pages: extractedContent.pages,
+          confidence: extractedContent.confidence,
+          method: extractedContent.metadata.method,
+          extractedAt: extractedContent.metadata.extractedAt
+        }
+      }
+    });
+    
+    console.log(`[Extraction] ✅ Completed for document ${document.id}`);
+    
+  } catch (error) {
+    console.error(`[Extraction] ❌ Failed:`, error);
+    await documentDb.updateStatus(document.id, DocumentStatus.ERROR);
+    throw error;
   }
 }

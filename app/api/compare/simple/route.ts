@@ -1,30 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-utils';
+import { withAuth, RequestParser } from '@/lib/auth-utils';
 import { ApiErrors, parseDocumentId, isDocumentOwner } from '@/lib/utils';
-import { documentDb, comparisonDb } from '@/lib/nda';
+import { documentDb, comparisonDb, ComparisonStatus } from '@/lib/nda';
 
 // POST /api/compare/simple - Create a simple text comparison
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    const body = await request.json();
-    const { document1Id, document2Id } = body;
+    const { doc1Id, doc2Id } = await RequestParser.parseComparisonRequest(request);
     
-    // Validate input
-    const doc1Id = parseDocumentId(document1Id);
-    const doc2Id = parseDocumentId(document2Id);
+    // Parse and validate document IDs
+    const validDoc1Id = parseDocumentId(doc1Id);
+    const validDoc2Id = parseDocumentId(doc2Id);
     
-    if (!doc1Id || !doc2Id) {
+    if (!validDoc1Id || !validDoc2Id) {
       return ApiErrors.badRequest('Invalid document IDs');
     }
     
-    if (doc1Id === doc2Id) {
+    if (validDoc1Id === validDoc2Id) {
       return ApiErrors.badRequest('Cannot compare a document with itself');
     }
     
     // Get documents
     const [doc1, doc2] = await Promise.all([
-      documentDb.findById(doc1Id),
-      documentDb.findById(doc2Id)
+      documentDb.findById(validDoc1Id),
+      documentDb.findById(validDoc2Id)
     ]);
     
     if (!doc1 || !doc2) {
@@ -72,33 +71,30 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     
     // Create comparison record
     const comparison = await comparisonDb.create({
-      document1_id: doc1Id,
-      document2_id: doc2Id,
+      document1_id: validDoc1Id,
+      document2_id: validDoc2Id,
       comparison_summary: `Simple text comparison between "${doc1.original_name}" and "${doc2.original_name}"`,
       similarity_score: Math.round(similarityScore * 100) / 100,
-      key_differences: {
-        wordCount: {
-          doc1: stats1.words,
-          doc2: stats2.words,
-          difference: stats1.words - stats2.words
+      key_differences: [
+        {
+          section: 'Document Statistics',
+          type: 'different',
+          importance: 'low',
+          standard_text: `Word count: ${stats1.words}`,
+          compared_text: `Word count: ${stats2.words}`,
+          explanation: `Word count difference: ${stats1.words - stats2.words} words`
         },
-        characterCount: {
-          doc1: stats1.characters,
-          doc2: stats2.characters,
-          difference: stats1.characters - stats2.characters
-        },
-        uniqueWords: {
-          doc1: uniqueToDoc1.size,
-          doc2: uniqueToDoc2.size
-        },
-        sections: {
-          doc1: sections1.length,
-          doc2: sections2.length,
-          commonSections: sections1.filter(s => sections2.includes(s)).length
+        {
+          section: 'Content Length',
+          type: 'different',
+          importance: 'low',
+          standard_text: `Character count: ${stats1.characters}`,
+          compared_text: `Character count: ${stats2.characters}`,
+          explanation: `Character count difference: ${stats1.characters - stats2.characters} characters`
         }
-      },
+      ],
       user_id: userEmail,
-      status: 'completed',
+      status: ComparisonStatus.COMPLETED,
       processing_time_ms: 0,
       created_date: new Date()
     });
