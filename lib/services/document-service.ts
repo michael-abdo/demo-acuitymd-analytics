@@ -10,6 +10,7 @@ import { Logger } from './logger';
 import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda';
 import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
 import { APP_CONSTANTS } from '@/lib/config';
+import { storage } from '@/lib/storage';
 
 export interface DocumentWithMetadata extends NDADocument {
   fileType: string;
