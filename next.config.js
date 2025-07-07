@@ -6,11 +6,8 @@ const nextConfig = {
   // Disable x-powered-by header for security
   poweredByHeader: false,
   
-  // Enable experimental features
-  experimental: {
-    // Better error handling in production
-    serverComponentsExternalPackages: ['pdf-parse', 'mammoth'],
-  },
+  // External packages for server components
+  serverExternalPackages: ['pdf-parse', 'mammoth'],
   
   // Configure allowed image domains if using next/image
   images: {
