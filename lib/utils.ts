@@ -15,10 +15,7 @@ export const ApiErrors = {
   unauthorized: () => NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 }),
   notFound: (resource: string) => NextResponse.json({ error: `${resource} not found` }, { status: 404 }),
   badRequest: (message: string) => NextResponse.json({ error: message }, { status: 400 }),
-  serverError: (message: string, details?: any) => NextResponse.json({ 
-    error: message || APP_CONSTANTS.MESSAGES.ERROR.SERVER_ERROR,
-    ...(details && { details })
-  }, { status: 500 }),
+  serverError: (message: string) => NextResponse.json({ error: message || APP_CONSTANTS.MESSAGES.ERROR.SERVER_ERROR }, { status: 500 }),
   forbidden: (message: string = 'Access denied') => NextResponse.json({ error: message }, { status: 403 }),
   conflict: (message: string) => NextResponse.json({ error: message }, { status: 409 }),
   validation: (message: string, details?: any) => NextResponse.json({ 

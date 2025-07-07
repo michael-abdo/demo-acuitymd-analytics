@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { signIn, getProviders } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Suspense } from "react";
@@ -10,17 +10,46 @@ import { Suspense } from "react";
 function SignInRedirect() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const [isRedirecting, setIsRedirecting] = useState(false);
   
   useEffect(() => {
-    // Automatically redirect to Azure AD sign-in
-    signIn("azure-ad", { callbackUrl });
+    // Add a small delay and error handling to prevent infinite loops
+    const handleSignIn = async () => {
+      try {
+        setIsRedirecting(true);
+        const providers = await getProviders();
+        
+        if (providers && providers["azure-ad"]) {
+          await signIn("azure-ad", { callbackUrl });
+        } else {
+          console.error("Azure AD provider not configured");
+          // Fallback to dashboard if provider is not available
+          window.location.href = callbackUrl;
+        }
+      } catch (error) {
+        console.error("Sign-in error:", error);
+        // Fallback to dashboard on error
+        window.location.href = callbackUrl;
+      }
+    };
+
+    // Add a small delay to prevent immediate execution during compilation
+    const timer = setTimeout(handleSignIn, 100);
+    return () => clearTimeout(timer);
   }, [callbackUrl]);
   
   return (
     <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md text-center">
       <div className="flex flex-col items-center mb-8">
-        <h1 className="text-2xl font-bold">Redirecting to Sign In</h1>
-        <p className="text-gray-500 mt-2">You are being redirected to Microsoft for authentication...</p>
+        <h1 className="text-2xl font-bold">
+          {isRedirecting ? "Redirecting to Sign In" : "Preparing Sign In"}
+        </h1>
+        <p className="text-gray-500 mt-2">
+          {isRedirecting 
+            ? "You are being redirected to Microsoft for authentication..."
+            : "Please wait while we prepare your authentication..."
+          }
+        </p>
       </div>
       
       <div className="mt-6">

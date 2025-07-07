@@ -98,10 +98,10 @@ export function withAuth(
  * Use this for routes WITH dynamic segments like [id].
  */
 export function withAuthDynamic<T extends Record<string, any>>(
-  handler: (request: NextRequest, userEmail: string, context: { params: Promise<T> }) => Promise<NextResponse>,
+  handler: (request: NextRequest, userEmail: string, context: { params: T }) => Promise<NextResponse>,
   options?: { trackTiming?: boolean }
 ) {
-  return async (request: NextRequest, context: { params: Promise<T> }) => {
+  return async (request: NextRequest, context: { params: T }) => {
     const startTime = Date.now();
     
     const session = await getServerSession(authOptions);
@@ -135,11 +135,11 @@ export function withDocumentAccess<T extends { id: string }>(
     request: NextRequest,
     userEmail: string,
     document: NDADocument,
-    context: { params: Promise<T> }
+    context: { params: T }
   ) => Promise<NextResponse>,
   options?: { trackTiming?: boolean }
 ) {
-  return async (request: NextRequest, context: { params: Promise<T> }) => {
+  return async (request: NextRequest, context: { params: T }) => {
     const startTime = Date.now();
     
     const session = await getServerSession(authOptions);
@@ -149,8 +149,7 @@ export function withDocumentAccess<T extends { id: string }>(
     const userEmail = session.user.email;
     
     // Parse and validate document ID
-    const params = await context.params;
-    const documentId = parseDocumentId(params.id);
+    const documentId = parseDocumentId(context.params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }

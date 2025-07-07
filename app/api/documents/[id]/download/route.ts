@@ -5,7 +5,7 @@ import { storage } from '@/lib/storage';
 import { Logger } from '@/lib/services/logger';
 
 // GET /api/documents/[id]/download - Download document file
-export const GET = withDocumentAccess<{ id: string }>(async (
+export const GET = withDocumentAccess(async (
   request: NextRequest,
   userEmail: string,
   document,

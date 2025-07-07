@@ -68,6 +68,7 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
         },
         message: APP_CONSTANTS.MESSAGES.UPLOAD.DUPLICATE,
         status: 'success',
+        timing: { start: startTime, operations: timingOperations },
         warnings: ['File already exists in the system']
       });
     }
