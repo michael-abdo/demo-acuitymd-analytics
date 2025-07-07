@@ -8,6 +8,7 @@
     "dev:seed": "node scripts/dev/dev-with-seed.js",
     "build": "next build",
     "start": "next start",
+    "start:prod": "NODE_ENV=production next dev --port 3000",
     "lint": "next lint",
     "db:migrate": "tsx database/run-migrations.ts",
     "test:e2e": "node scripts/test-e2e-simple.js"

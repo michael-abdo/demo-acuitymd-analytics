@@ -79,9 +79,13 @@ function SignInLoading() {
 export default function SignIn() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <Suspense fallback={<SignInLoading />}>
-        <SignInRedirect />
-      </Suspense>
+      <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md text-center">
+        <h1 className="text-2xl font-bold mb-4">Sign In</h1>
+        <p className="text-gray-500">Redirecting to authentication...</p>
+        <div className="mt-6">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+        </div>
+      </div>
     </div>
   );
 } 
