@@ -29,8 +29,66 @@ export async function extractTextFromPDF(
       const parsePdf = await import('./pdf-parse-wrapper');
       data = await (parsePdf.default)(fileBuffer);
     } catch (moduleError) {
-      // Fallback: For simple test PDFs, we can extract text manually
-      console.warn('pdf-parse failed to load, using fallback text extraction');
+      // Enhanced fallback: Try multiple PDF text extraction approaches
+      console.warn('pdf-parse failed to load, using enhanced fallback text extraction');
+      
+      // Method 1: Enhanced regex-based PDF text extraction
+      console.log('Attempting enhanced PDF text extraction...');
+      const pdfBinary = fileBuffer.toString('binary');
+      
+      // Try to extract text from various PDF text encoding patterns
+      const textPatterns = [
+        // Standard text commands
+        /\((.*?)\)\s*Tj/g,
+        /\((.*?)\)\s*TJ/g,
+        // Show text with positioning
+        /\[(.*?)\]\s*TJ/g,
+        // Simple text streams
+        /BT\s+(.*?)\s+ET/gs,
+        // Text between parentheses (common in PDFs)
+        /\(([^)]+)\)/g
+      ];
+      
+      let extractedTexts = [];
+      
+      for (const pattern of textPatterns) {
+        const matches = [...pdfBinary.matchAll(pattern)];
+        if (matches.length > 0) {
+          const texts = matches
+            .map(match => match[1])
+            .filter(text => text && text.length > 2)
+            .map(text => text
+              .replace(/\\(\d{3})/g, (match, octal) => String.fromCharCode(parseInt(octal, 8)))
+              .replace(/\\n/g, ' ')
+              .replace(/\\r/g, ' ')
+              .replace(/\\t/g, ' ')
+              .replace(/\\/g, '')
+              .trim()
+            )
+            .filter(text => text.length > 3);
+          
+          extractedTexts.push(...texts);
+        }
+      }
+      
+      if (extractedTexts.length > 0) {
+        const fullText = extractedTexts.join(' ').trim();
+        if (fullText.length > 20) {
+          console.log(`Enhanced PDF extraction successful: ${fullText.length} characters`);
+          return {
+            text: fullText,
+            pages: 1,
+            confidence: 0.7,
+            metadata: {
+              extractedAt: new Date().toISOString(),
+              method: 'enhanced-regex-fallback',
+              fileHash
+            }
+          };
+        }
+      }
+      
+      // Method 2: Basic PDF text extraction from raw buffer
       const pdfText = fileBuffer.toString('utf-8');
       
       // Extract text between stream tags for simple PDFs
@@ -45,17 +103,38 @@ export async function extractTextFromPDF(
             .join(' ')
             .replace(/\\(\d{3})/g, (match, octal) => String.fromCharCode(parseInt(octal, 8)));
           
-          return {
-            text: extractedText,
-            pages: 1,
-            confidence: 0.7, // Lower confidence for fallback method
-            metadata: {
-              extractedAt: new Date().toISOString(),
-              method: 'pdf-parse',
-              fileHash
-            }
-          };
+          if (extractedText.trim().length > 10) {
+            return {
+              text: extractedText.trim(),
+              pages: 1,
+              confidence: 0.6, // Lower confidence for basic extraction
+              metadata: {
+                extractedAt: new Date().toISOString(),
+                method: 'basic-pdf-fallback',
+                fileHash
+              }
+            };
+          }
         }
+      }
+      
+      // Method 3: Extract any readable text from the PDF buffer
+      const readableText = pdfText
+        .replace(/[^\x20-\x7E\n\r]/g, ' ') // Keep only printable ASCII
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (readableText.length > 50) { // Require at least 50 characters
+        return {
+          text: readableText,
+          pages: 1,
+          confidence: 0.4, // Very low confidence for raw extraction
+          metadata: {
+            extractedAt: new Date().toISOString(),
+            method: 'raw-text-fallback',
+            fileHash
+          }
+        };
       }
       
       throw new Error('Unable to extract text from PDF');
