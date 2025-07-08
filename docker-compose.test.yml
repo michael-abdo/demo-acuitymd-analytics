@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker.local
+    volumes:
+      - ./storage:/app/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  tests:
+    build:
+      context: .
+      target: builder
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Waiting for app to be ready...' &&
+        sleep 10 &&
+        echo 'Running E2E tests...' &&
+        npm run test:e2e:smoke
+      "
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=test
+      - BASE_URL=http://app:3000
+    volumes:
+      - ./scripts:/app/scripts
+      - ./test-data:/app/test-data
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
