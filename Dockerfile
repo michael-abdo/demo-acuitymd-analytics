@@ -11,7 +11,9 @@ RUN apk add --no-cache \
     pango-dev \
     giflib-dev \
     libc6-compat \
-    nodejs-current
+    nodejs-current \
+    poppler-utils \
+    poppler-dev
 
 # Set working directory
 WORKDIR /app
@@ -45,7 +47,9 @@ RUN apk add --no-cache \
     pango \
     giflib \
     libc6-compat \
-    libstdc++
+    libstdc++ \
+    poppler \
+    poppler-utils
 
 WORKDIR /app
 
