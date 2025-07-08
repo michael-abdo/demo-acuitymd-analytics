@@ -16,7 +16,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-  basePath: "/nda-analyzer/api/auth",
     signIn: "/sign-in",
   },
   callbacks: {

@@ -6,6 +6,9 @@ import PendoScript from '@/components/PendoScript'
 import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
+  icons: {
+    icon: '/nda-analyzer/favicon.ico',
+  },
   title: 'NDA Analyzer',
   description: 'AI-powered NDA document analysis and comparison tool',
 }
