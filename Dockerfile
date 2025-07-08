@@ -41,6 +41,7 @@ RUN npm run build && ls -la .next
 FROM node:20-alpine AS runner
 
 # Install runtime dependencies including PDF parsing support
+# Also install wget for health checks
 RUN apk add --no-cache \
     cairo \
     jpeg \
@@ -49,7 +50,8 @@ RUN apk add --no-cache \
     libc6-compat \
     libstdc++ \
     poppler \
-    poppler-utils
+    poppler-utils \
+    wget
 
 WORKDIR /app
 

@@ -32,9 +32,21 @@ export default withAuth(
 // Update the matcher to only protect specific routes
 export const config = {
   matcher: [
+    // Protect dashboard routes
     "/dashboard/:path*",
-    "/(api/(?!auth|process-queue|seed-dev).*)", 
-    // Exclude authentication-related routes from protection
-    "/((?!api/auth|api/process-queue|api/seed-dev|_next/static|_next/image|favicon.ico|sign-in|auth).*)"
+    // Protect specific pages
+    "/upload",
+    "/documents",
+    "/compare",
+    // Protect API routes except public ones
+    "/api/upload",
+    "/api/documents/:path*",
+    "/api/compare/:path*",
+    "/api/dashboard/:path*",
+    "/api/migrate-db",
+    "/api/protected-example",
+    "/api/storage-health",
+    "/api/db-health",
+    "/api/validate-url"
   ],
 }; 

@@ -3,6 +3,7 @@ version: '3.8'
 services:
   app:
     build: .
+    container_name: nda-analyzer
     ports:
       - "3000:3000"
     env_file:
@@ -11,10 +12,37 @@ services:
     volumes:
       # Mount storage directory for production
       - ./storage:/app/storage
+      
     restart: unless-stopped
+    
+    # Health check configuration
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    
+    # Resource limits (adjust based on EC2 instance size)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Process configuration
+    init: true  # Proper signal handling
