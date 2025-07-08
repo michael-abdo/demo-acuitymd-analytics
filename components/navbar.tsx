@@ -59,7 +59,7 @@ export function Navbar() {
 
         {/* Center - Logo */}
         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <img src="/logo.svg" alt="Logo" className="w-6 h-6" />
+          <img src="/nda-analyzer/logo.svg" alt="Logo" className="w-6 h-6" />
         </div>
 
         {/* Right side - User Profile button with dropdown */}
@@ -70,7 +70,7 @@ export function Navbar() {
           >
             <span className="text-[#152C5B] font-medium">{userName}</span>
             <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-              <img src="/user.svg" alt="User" className="w-4 h-4" />
+              <img src="/nda-analyzer/user.svg" alt="User" className="w-4 h-4" />
             </div>
           </button>
 
@@ -85,7 +85,7 @@ export function Navbar() {
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                 onClick={() => setShowDropdown(false)}
               >
-                <img src="/settings.svg" alt="Settings" className="h-4 w-4 mr-2 text-gray-500" />
+                <img src="/nda-analyzer/settings.svg" alt="Settings" className="h-4 w-4 mr-2 text-gray-500" />
                 Profile settings
               </Link>
               <button
@@ -95,7 +95,7 @@ export function Navbar() {
                 }}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
               >
-                <img src="/logout.svg" alt="Logout" className="h-4 w-4 mr-2 text-gray-500" />
+                <img src="/nda-analyzer/logout.svg" alt="Logout" className="h-4 w-4 mr-2 text-gray-500" />
                 Log out
               </button>
             </div>
