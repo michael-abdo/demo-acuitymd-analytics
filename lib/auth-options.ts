@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid profile email",
-          redirect_uri: (process.env.NEXTAUTH_URL || "http://localhost:3000") + "/api/auth/callback/azure-ad"
+          redirect_uri: "https://legal.vtc.systems/nda-analyzer/api/auth/callback/azure-ad"
         }
       }
     }),
