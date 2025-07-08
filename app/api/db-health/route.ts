@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { documentDb, DocumentStatus } from '@/lib/nda';
 import { config } from '@/lib/config';

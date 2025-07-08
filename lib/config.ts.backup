@@ -94,7 +94,42 @@ function parseEnvConfig(): Config {
     DEV_BYPASS_ENABLED: process.env.DEV_BYPASS_ENABLED === 'true' && isDevelopment
   };
 
-  // Skipping validation during build
+  // Validate required variables in production (only on server)
+  if (isProduction && typeof window === 'undefined') {
+    const requiredInProd: Array<keyof Config> = [
+      'MYSQL_HOST',
+      'MYSQL_USER',
+      'MYSQL_DATABASE',
+      'MYSQL_PASSWORD',
+      'NEXTAUTH_SECRET',
+      'NEXTAUTH_URL',
+      'QUEUE_SYSTEM_TOKEN',
+      'OPENAI_API_KEY'
+    ];
+
+    const missing = requiredInProd.filter(key => !config[key]);
+    
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables in production: ${missing.join(', ')}`);
+    }
+
+    // Validate S3 config if S3 is the storage provider
+    if (config.STORAGE_PROVIDER === 's3') {
+      const s3Required: Array<keyof Config> = [
+        'S3_BUCKET_NAME',
+        'AWS_REGION',
+        'AWS_ACCESS_KEY_ID',
+        'AWS_SECRET_ACCESS_KEY'
+      ];
+      
+      const s3Missing = s3Required.filter(key => !config[key]);
+      
+      if (s3Missing.length > 0) {
+        throw new Error(`Missing required S3 configuration: ${s3Missing.join(', ')}`);
+      }
+    }
+  }
+
   return config;
 }
 
