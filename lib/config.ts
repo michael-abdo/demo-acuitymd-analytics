@@ -94,8 +94,8 @@ function parseEnvConfig(): Config {
     DEV_BYPASS_ENABLED: process.env.DEV_BYPASS_ENABLED === 'true' && isDevelopment
   };
 
-  // Validate required variables in production
-  if (isProduction) {
+  // Validate required variables in production (only on server)
+  if (isProduction && typeof window === 'undefined') {
     const requiredInProd: Array<keyof Config> = [
       'MYSQL_HOST',
       'MYSQL_USER',
