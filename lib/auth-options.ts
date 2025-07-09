@@ -12,7 +12,9 @@ export const authOptions: NextAuthOptions = {
           scope: "openid profile email",
           redirect_uri: "https://legal.vtc.systems/nda-analyzer/api/auth/callback/azure-ad"
         }
-      }
+      },
+      // Override the callback URL that NextAuth generates
+      callbackUrl: "https://legal.vtc.systems/nda-analyzer/api/auth/callback/azure-ad"
     }),
   ],
   pages: {
