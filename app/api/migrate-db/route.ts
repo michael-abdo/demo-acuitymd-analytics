@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { executeQuery } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { ApiResponse } from '@/lib/auth-utils'

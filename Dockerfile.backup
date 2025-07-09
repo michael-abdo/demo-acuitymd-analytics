@@ -35,7 +35,7 @@ ENV SKIP_ENV_VALIDATION=true
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 # Create a custom next.config that definitely ignores TypeScript errors
-RUN echo "module.exports = { typescript: { ignoreBuildErrors: true }, eslint: { ignoreDuringBuilds: true }, basePath: '/nda-analyzer', assetPrefix: '/nda-analyzer' }" > next.config.js
+RUN echo "module.exports = { typescript: { ignoreBuildErrors: true }, eslint: { ignoreDuringBuilds: true } }" > next.config.js
 ENV SKIP_ENV_VALIDATION=true
 ENV WEBPACK_BUILD=true
 RUN npm run build && ls -la .next

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server'
 import { withRateLimit, ApiResponse } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'

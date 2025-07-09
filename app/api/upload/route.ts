@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuthAndStorage, ApiResponse } from '@/lib/auth-utils';
 import { FileValidation, ApiErrors } from '@/lib/utils';
