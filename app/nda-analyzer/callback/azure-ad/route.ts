@@ -5,7 +5,10 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   
   // Build the correct callback URL with all parameters
-  const correctCallbackUrl = new URL('/nda-analyzer/api/auth/callback/azure-ad', request.url);
+  const baseUrl = request.headers.get('host') ? 
+    `https://${request.headers.get('host')}` : 
+    'https://legal.vtc.systems';
+  const correctCallbackUrl = new URL('/nda-analyzer/api/auth/callback/azure-ad', baseUrl);
   
   // Copy all query parameters to the correct URL
   searchParams.forEach((value, key) => {
