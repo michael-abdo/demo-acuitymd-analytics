@@ -22,7 +22,7 @@ export default function DocumentsPage() {
     loading, 
     error, 
     reload: loadDocuments 
-  } = useApiData<DocumentWithUIFields[]>('/api/documents', {
+  } = useApiData<DocumentWithUIFields[]>('/nda-analyzer/api/documents', {
     autoLoad: !!session,
     initialData: [],
     transform: (response) => response.data || [],
@@ -30,7 +30,7 @@ export default function DocumentsPage() {
   });
 
   // Use consolidated file upload hook
-  const { upload, uploading } = useFileUpload('/api/upload', {
+  const { upload, uploading } = useFileUpload('/nda-analyzer/api/upload', {
     onSuccess: () => {
       loadDocuments(); // Reload documents after successful upload
     }
@@ -58,7 +58,7 @@ export default function DocumentsPage() {
     try {
       if (!currentStatus) {
         // Setting as standard
-        const response = await fetch(`/api/documents/${documentId}/set-standard`, {
+        const response = await fetch(`/nda-analyzer/api/documents/${documentId}/set-standard`, {
           method: 'POST',
         });
         if (response.ok) {
@@ -77,7 +77,7 @@ export default function DocumentsPage() {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
-      const response = await fetch(`/api/documents/${documentId}`, {
+      const response = await fetch(`/nda-analyzer/api/documents/${documentId}`, {
         method: 'DELETE',
       });
       if (response.ok) {

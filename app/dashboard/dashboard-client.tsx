@@ -22,7 +22,7 @@ export default function DashboardClient() {
     loading, 
     error, 
     reload: fetchStats 
-  } = useApiData<DashboardStats | null>('/api/dashboard/stats', {
+  } = useApiData<DashboardStats | null>('/nda-analyzer/api/dashboard/stats', {
     autoLoad: status === "authenticated",
     transform: (response: DashboardStatsResponse) => response.data || null,
     onError: (error) => {

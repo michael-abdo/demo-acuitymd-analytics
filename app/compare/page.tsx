@@ -23,7 +23,7 @@ export default function ComparePage() {
   const [recentComparisons, setRecentComparisons] = useState<Comparison[]>([]);
 
   // Use consolidated API data hook for documents
-  const { data: documents } = useApiData<NDADocument[]>('/api/documents', {
+  const { data: documents } = useApiData<NDADocument[]>('/nda-analyzer/api/documents', {
     autoLoad: !!session,
     initialData: [],
     transform: (response) => response.data || [],
@@ -33,7 +33,7 @@ export default function ComparePage() {
   // Use async operation hook for comparison
   const { execute: startComparison, loading: comparing } = useAsyncOperation(
     async (standardDocId: string, thirdPartyDocId: string) => {
-      const response = await fetch('/api/compare', {
+      const response = await fetch('/nda-analyzer/api/compare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ standardDocId, thirdPartyDocId }),

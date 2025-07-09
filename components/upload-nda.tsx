@@ -16,7 +16,7 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
   const { toast } = useToast()
 
   // Use consolidated file upload hook
-  const { upload, uploading } = useFileUpload('/api/upload', {
+  const { upload, uploading } = useFileUpload('/nda-analyzer/api/upload', {
     onSuccess: (result) => {
       toast({
         title: "Upload successful",
