@@ -24,7 +24,7 @@ export default withAuth(
       },
     },
     pages: {
-      signIn: "/sign-in",
+      signIn: "/nda-analyzer/sign-in",
     },
   }
 );

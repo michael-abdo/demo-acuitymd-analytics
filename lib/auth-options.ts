@@ -17,8 +17,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/sign-in",
-    signOut: "/auth/signout",
+    signIn: "/nda-analyzer/sign-in",
+    signOut: "/nda-analyzer/auth/signout",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -36,15 +36,15 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Redirect to Microsoft authentication directly when trying to access any signin page
+      // Redirect to sign-in page with base path
       if (url.includes("/auth/signin")) {
-        return `${baseUrl}/sign-in`;
+        return `${baseUrl}/nda-analyzer/sign-in`;
       }
-      // Allows relative callback URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Ensure all relative URLs include the base path
+      if (url.startsWith("/")) return `${baseUrl}/nda-analyzer${url}`;
       // Allows callback URLs on the same origin
       else if (new URL(url).origin === baseUrl) return url;
-      return baseUrl;
+      return `${baseUrl}/nda-analyzer/dashboard`;
     },
   },
   secret: config.NEXTAUTH_SECRET,
