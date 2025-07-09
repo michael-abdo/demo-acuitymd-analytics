@@ -4,11 +4,11 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     // Check for dev bypass header in development
-    if (process.env.NODE_ENV === 'development' && 
-        req.headers.get('X-Dev-Bypass') === 'true') {
+    if (process.env.NODE_ENV === development &&
+        req.headers.get(X-Dev-Bypass) === true) {
       return NextResponse.next();
     }
-    
+
     // Additional custom middleware logic could be added here if needed
     return NextResponse.next();
   },
@@ -16,15 +16,15 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         // Allow dev bypass in development
-        if (process.env.NODE_ENV === 'development' && 
-            req.headers.get('X-Dev-Bypass') === 'true') {
+        if (process.env.NODE_ENV === development &&
+            req.headers.get(X-Dev-Bypass) === true) {
           return true;
         }
-        return !!token;
+        return \!\!token;
       },
     },
     pages: {
-      signIn: "/sign-in",
+      signIn: "/nda-analyzer/sign-in",
     },
   }
 );
@@ -49,4 +49,4 @@ export const config = {
     "/api/db-health",
     "/api/validate-url"
   ],
-}; 
+};

@@ -10,15 +10,13 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid profile email",
-          redirect_uri: "https://legal.vtc.systems/nda-analyzer/api/auth/callback/azure-ad"
+          redirect_uri: (process.env.NEXTAUTH_URL || "http://localhost:3000") + "/api/auth/callback/azure-ad"
         }
-      },
-      // Override the callback URL that NextAuth generates
-      callbackUrl: "https://legal.vtc.systems/nda-analyzer/api/auth/callback/azure-ad"
+      }
     }),
   ],
   pages: {
-    signIn: "/sign-in",
+    signIn: "/nda-analyzer/sign-in",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -36,8 +34,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.includes("/auth/signin")) {
-        return `${baseUrl}/sign-in`;
+      if (url.includes("/auth/signin")) {        return `${baseUrl}/nda-analyzer/sign-in`;      }      if (url === "/dashboard" || url.endsWith("/dashboard")) {        return `${baseUrl}/nda-analyzer/dashboard`;      }
       }
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       else if (new URL(url).origin === baseUrl) return url;
