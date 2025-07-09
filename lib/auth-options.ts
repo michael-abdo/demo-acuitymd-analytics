@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid profile email",
-          redirect_uri: (process.env.NEXTAUTH_URL || "http://localhost:3000") + "/api/auth/callback/azure-ad"
+          redirect_uri: "https://legal.vtc.systems/nda-analyzer/api/auth/callback/azure-ad"
         }
       }
     }),
@@ -34,17 +34,30 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.includes("/auth/signin")) {        return `${baseUrl}/nda-analyzer/sign-in`;      }      if (url === "/dashboard" || url.endsWith("/dashboard")) {        return `${baseUrl}/nda-analyzer/dashboard`;      }
+      if (url.includes("/auth/signin")) {
+        return baseUrl + "/nda-analyzer/sign-in";
       }
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
-      return baseUrl;
+      if (url === "/dashboard" || url.endsWith("/dashboard")) {
+        return baseUrl + "/nda-analyzer/dashboard";
+      }
+      if (url.startsWith("/") && \!url.startsWith("/nda-analyzer")) {
+        return baseUrl + "/nda-analyzer" + url;
+      }
+      if (url.startsWith("/nda-analyzer")) {
+        return baseUrl + url;
+      }
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch (e) {
+        // Invalid URL
+      }
+      return baseUrl + "/nda-analyzer/dashboard";
     },
   },
   secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-build",
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
-  debug: process.env.NODE_ENV !== "production",
+  debug: false,
 };
