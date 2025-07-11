@@ -1,7 +1,7 @@
 /**
- * NDA Analyzer Type Definitions
+ * ${PROJECT_DISPLAY_NAME} Type Definitions
  * 
- * This file contains all TypeScript type definitions for the NDA Analyzer.
+ * This file contains all TypeScript type definitions for the ${PROJECT_DISPLAY_NAME}.
  * These types mirror the database schema for type safety.
  */
 

@@ -14,7 +14,7 @@ export default function SignOut() {
       <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md text-center">
         <div className="flex flex-col items-center mb-8">
           <Image 
-            src="/nda-analyzer/vvg-logo.jpg" 
+            src="/${PROJECT_NAME}/vvg-logo.jpg" 
             alt="Company Logo" 
             width={120} 
             height={120}

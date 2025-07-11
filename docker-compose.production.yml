@@ -3,7 +3,7 @@ version: '3.8'
 services:
   app:
     build: .
-    container_name: nda-analyzer
+    container_name: ${PROJECT_NAME:-vvg-app}
     ports:
       - "3000:3000"
     env_file:

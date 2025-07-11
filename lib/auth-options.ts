@@ -15,8 +15,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/nda-analyzer/sign-in",
-    signOut: "/nda-analyzer/auth/signout",
+    signIn: "/${PROJECT_NAME}/sign-in",
+    signOut: "/${PROJECT_NAME}/auth/signout",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -35,15 +35,15 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       if (url.includes("/auth/signin")) {
-        return baseUrl + "/nda-analyzer/sign-in";
+        return baseUrl + "/${PROJECT_NAME}/sign-in";
       }
       if (url === "/dashboard" || url.endsWith("/dashboard")) {
-        return baseUrl + "/nda-analyzer/dashboard";
+        return baseUrl + "/${PROJECT_NAME}/dashboard";
       }
-      if (url.startsWith("/") && !url.startsWith("/nda-analyzer")) {
-        return baseUrl + "/nda-analyzer" + url;
+      if (url.startsWith("/") && !url.startsWith("/${PROJECT_NAME}")) {
+        return baseUrl + "/${PROJECT_NAME}" + url;
       }
-      if (url.startsWith("/nda-analyzer")) {
+      if (url.startsWith("/${PROJECT_NAME}")) {
         return baseUrl + url;
       }
       try {
@@ -51,7 +51,7 @@ export const authOptions: NextAuthOptions = {
       } catch (e) {
         // Invalid URL
       }
-      return baseUrl + "/nda-analyzer/dashboard";
+      return baseUrl + "/${PROJECT_NAME}/dashboard";
     },
   },
   secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-build",

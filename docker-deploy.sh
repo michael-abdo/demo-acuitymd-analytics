@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Docker Deployment Script for NDA Analyzer
+# Docker Deployment Script for ${PROJECT_DISPLAY_NAME}
 # This script ensures consistent deployment without the errors from direct deployment
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Docker deployment for NDA Analyzer..."
+echo "🚀 Starting Docker deployment for ${PROJECT_DISPLAY_NAME}..."
 
 # Check if running on EC2 or local
 if [ "$1" == "production" ]; then
@@ -35,7 +35,7 @@ docker-compose -f $COMPOSE_FILE down || true
 
 # Build fresh image (ensures all fixes are included)
 echo "🔨 Building Docker image..."
-docker build --no-cache -t nda-analyzer:latest .
+docker build --no-cache -t ${PROJECT_NAME:-vvg-app}:latest .
 
 # Start container
 echo "🚀 Starting container..."

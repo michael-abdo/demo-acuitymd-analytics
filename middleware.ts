@@ -24,7 +24,7 @@ export default withAuth(
       },
     },
     pages: {
-      signIn: "/nda-analyzer/sign-in",
+      signIn: "/${PROJECT_NAME}/sign-in",
     },
   }
 );
@@ -34,14 +34,14 @@ export const config = {
   matcher: [
     // Protect dashboard routes (both with and without basePath)
     "/dashboard/:path*",
-    "/nda-analyzer/dashboard/:path*",
+    "/${PROJECT_NAME}/dashboard/:path*",
     // Protect specific pages
     "/upload",
     "/documents", 
     "/compare",
-    "/nda-analyzer/upload",
-    "/nda-analyzer/documents",
-    "/nda-analyzer/compare",
+    "/${PROJECT_NAME}/upload",
+    "/${PROJECT_NAME}/documents",
+    "/${PROJECT_NAME}/compare",
     // Protect API routes except public ones
     "/api/upload",
     "/api/documents/:path*",
@@ -52,14 +52,14 @@ export const config = {
     "/api/storage-health",
     "/api/db-health",
     "/api/validate-url",
-    "/nda-analyzer/api/upload",
-    "/nda-analyzer/api/documents/:path*",
-    "/nda-analyzer/api/compare/:path*",
-    "/nda-analyzer/api/dashboard/:path*",
-    "/nda-analyzer/api/migrate-db",
-    "/nda-analyzer/api/protected-example",
-    "/nda-analyzer/api/storage-health",
-    "/nda-analyzer/api/db-health",
-    "/nda-analyzer/api/validate-url"
+    "/${PROJECT_NAME}/api/upload",
+    "/${PROJECT_NAME}/api/documents/:path*",
+    "/${PROJECT_NAME}/api/compare/:path*",
+    "/${PROJECT_NAME}/api/dashboard/:path*",
+    "/${PROJECT_NAME}/api/migrate-db",
+    "/${PROJECT_NAME}/api/protected-example",
+    "/${PROJECT_NAME}/api/storage-health",
+    "/${PROJECT_NAME}/api/db-health",
+    "/${PROJECT_NAME}/api/validate-url"
   ],
 };

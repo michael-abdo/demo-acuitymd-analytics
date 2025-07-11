@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
       version: process.env.npm_package_version || '0.1.0',
-      service: 'nda-analyzer',
+      service: '${PROJECT_NAME}',
       uptime: process.uptime(),
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),

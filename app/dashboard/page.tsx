@@ -7,7 +7,7 @@ export default async function Dashboard() {
   const session = await getServerSession(authOptions);
   
   if (!session) {
-    redirect("/nda-analyzer/sign-in");
+    redirect("/${PROJECT_NAME}/sign-in");
   }
 
   return <DashboardClient />;
