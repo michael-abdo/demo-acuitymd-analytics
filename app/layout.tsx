@@ -7,9 +7,9 @@ import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
   icons: {
-    icon: '/${PROJECT_NAME}/favicon.ico',
+    icon: '/favicon.ico',
   },
-  title: '${PROJECT_DISPLAY_NAME}',
+  title: 'Template App',
   description: 'AI-powered NDA document analysis and comparison tool',
 }
 

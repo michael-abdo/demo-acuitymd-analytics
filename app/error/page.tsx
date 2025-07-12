@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
+import { config } from "@/lib/config";
 
 function ErrorContent() {
   const searchParams = useSearchParams();
@@ -40,7 +41,7 @@ function ErrorContent() {
               <p className="font-semibold">For administrators:</p>
               <p className="mt-2">Ensure your Azure AD redirect URI is set to:</p>
               <code className="block mt-2 p-2 bg-gray-200 rounded text-xs break-all">
-                https://legal.vtc.systems/${PROJECT_NAME}/api/auth/callback/azure-ad
+                {config.template.paths.urls.azureCallback}
               </code>
             </div>
           )}

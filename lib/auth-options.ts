@@ -15,8 +15,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/${PROJECT_NAME}/sign-in",
-    signOut: "/${PROJECT_NAME}/auth/signout",
+    signIn: "/sign-in",
+    signOut: "/auth/signout",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -35,15 +35,12 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       if (url.includes("/auth/signin")) {
-        return baseUrl + "/${PROJECT_NAME}/sign-in";
+        return baseUrl + "/sign-in";
       }
       if (url === "/dashboard" || url.endsWith("/dashboard")) {
-        return baseUrl + "/${PROJECT_NAME}/dashboard";
+        return baseUrl + "/dashboard";
       }
-      if (url.startsWith("/") && !url.startsWith("/${PROJECT_NAME}")) {
-        return baseUrl + "/${PROJECT_NAME}" + url;
-      }
-      if (url.startsWith("/${PROJECT_NAME}")) {
+      if (url.startsWith("/")) {
         return baseUrl + url;
       }
       try {
@@ -51,7 +48,7 @@ export const authOptions: NextAuthOptions = {
       } catch (e) {
         // Invalid URL
       }
-      return baseUrl + "/${PROJECT_NAME}/dashboard";
+      return baseUrl + "/dashboard";
     },
   },
   secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-build",

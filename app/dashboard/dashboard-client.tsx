@@ -22,7 +22,7 @@ export default function DashboardClient() {
     loading, 
     error, 
     reload: fetchStats 
-  } = useApiData<DashboardStats | null>('/${PROJECT_NAME}/api/dashboard/stats', {
+  } = useApiData<DashboardStats | null>('/api/dashboard/stats', {
     autoLoad: status === "authenticated",
     transform: (response: DashboardStatsResponse) => response.data || null,
     onError: (error) => {
@@ -39,7 +39,7 @@ export default function DashboardClient() {
     <PageContainer>
       <div className="flex items-center justify-between mb-6">
         <PageTitle description={`Welcome, ${session?.user?.name || "User"}!`}>
-          ${PROJECT_DISPLAY_NAME} Dashboard
+          Dashboard
         </PageTitle>
         <Button
           variant="outline"

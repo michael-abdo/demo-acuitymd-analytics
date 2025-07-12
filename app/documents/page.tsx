@@ -11,6 +11,7 @@ import { PageContainer } from '@/components/page-container';
 import { getFilenameFromPath } from '@/lib/utils';
 import { NDADocument, DocumentWithUIFields, DocumentCardProps } from '@/types/nda';
 import { useApiData, useFileUpload } from '@/lib/hooks';
+import { config } from '@/lib/config';
 
 export default function DocumentsPage() {
   const { data: session } = useSession();
@@ -22,7 +23,7 @@ export default function DocumentsPage() {
     loading, 
     error, 
     reload: loadDocuments 
-  } = useApiData<DocumentWithUIFields[]>('/${PROJECT_NAME}/api/documents', {
+  } = useApiData<DocumentWithUIFields[]>(config.template.paths.api.documents, {
     autoLoad: !!session,
     initialData: [],
     transform: (response) => response.data || [],
@@ -30,7 +31,7 @@ export default function DocumentsPage() {
   });
 
   // Use consolidated file upload hook
-  const { upload, uploading } = useFileUpload('/${PROJECT_NAME}/api/upload', {
+  const { upload, uploading } = useFileUpload(config.template.paths.api.upload, {
     onSuccess: () => {
       loadDocuments(); // Reload documents after successful upload
     }
@@ -58,7 +59,7 @@ export default function DocumentsPage() {
     try {
       if (!currentStatus) {
         // Setting as standard
-        const response = await fetch(`/${PROJECT_NAME}/api/documents/${documentId}/set-standard`, {
+        const response = await fetch(`${config.template.paths.api.documents}/${documentId}/set-standard`, {
           method: 'POST',
         });
         if (response.ok) {
@@ -77,7 +78,7 @@ export default function DocumentsPage() {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
-      const response = await fetch(`/${PROJECT_NAME}/api/documents/${documentId}`, {
+      const response = await fetch(`${config.template.paths.api.documents}/${documentId}`, {
         method: 'DELETE',
       });
       if (response.ok) {

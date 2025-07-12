@@ -1,5 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { config as appConfig } from "@/lib/config";
 
 export default withAuth(
   function middleware(req) {
@@ -24,7 +25,7 @@ export default withAuth(
       },
     },
     pages: {
-      signIn: "/${PROJECT_NAME}/sign-in",
+      signIn: appConfig.template.paths.pages.signIn,
     },
   }
 );

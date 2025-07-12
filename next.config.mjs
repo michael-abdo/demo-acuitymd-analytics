@@ -22,8 +22,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  basePath: "/nda-analyzer",
-  assetPrefix: "/nda-analyzer",
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
