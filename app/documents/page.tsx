@@ -1,20 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@/components/ui';
 import { Upload, FileText, Trash2, Star, Download } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
+import { AuthGuard, useAuth } from '@/components/auth-guard';
 import { getFilenameFromPath } from '@/lib/utils';
 import { NDADocument, DocumentWithUIFields, DocumentCardProps } from '@/types/nda';
 import { useApiData, useFileUpload } from '@/lib/hooks';
 import { config } from '@/lib/config';
 
 export default function DocumentsPage() {
-  const { data: session } = useSession();
+  const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Use consolidated API data hook
@@ -97,23 +94,12 @@ export default function DocumentsPage() {
   const standardDocuments = filteredDocuments.filter(doc => doc.is_standard);
   const thirdPartyDocuments = filteredDocuments.filter(doc => !doc.is_standard);
 
-  if (!session) {
-    return (
-      <PageContainer>
-        <Card>
-          <CardHeader>
-            <CardTitle>Document Library</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Please sign in to manage your documents.</p>
-          </CardContent>
-        </Card>
-      </PageContainer>
-    );
-  }
-
   return (
-    <PageContainer>
+    <AuthGuard 
+      title="Document Library" 
+      message="Please sign in to manage your documents."
+    >
+      <PageContainer>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Document Library</h1>
         <div className="flex gap-4">
@@ -207,7 +193,8 @@ export default function DocumentsPage() {
           </Card>
         </div>
       )}
-    </PageContainer>
+      </PageContainer>
+    </AuthGuard>
   );
 }
 

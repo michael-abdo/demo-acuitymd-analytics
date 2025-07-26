@@ -11,6 +11,7 @@ import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda';
 import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
 import { APP_CONSTANTS } from '@/lib/config';
 import { storage } from '@/lib/storage';
+import { withDatabaseErrorHandling, withStorageErrorHandling, withValidationErrorHandling } from '@/lib/decorators/error-handler';
 
 export interface DocumentWithMetadata extends NDADocument {
   fileType: string;
@@ -25,6 +26,20 @@ export interface DocumentValidationResult {
   document?: NDADocument;
 }
 
+export interface DocumentDeletionValidation {
+  canDelete: boolean;
+  blockers: string[];
+  relatedComparisons: number;
+}
+
+export interface DocumentEnhanced extends DocumentWithMetadata {
+  canCompare: boolean;
+  canSetAsStandard: boolean;
+  sizeMB: string | null;
+  downloadUrl: string | null;
+  storageMetadata: any;
+}
+
 export interface DocumentOperations {
   processDocument(options: ProcessFileOptions): Promise<ProcessFileResult>;
   updateDocumentStatus(documentId: number, status: DocumentStatus, metadata?: any): Promise<boolean>;
@@ -34,15 +49,16 @@ export interface DocumentOperations {
 export const DocumentService = {
   /**
    * Get all documents for a user with enhanced metadata
+   * Uses error handling decorator for consistent database error handling
    */
-  async getUserDocuments(userEmail: string): Promise<NDADocument[]> {
+  getUserDocuments: withDatabaseErrorHandling(async (userEmail: string): Promise<NDADocument[]> => {
     Logger.db.operation(`Fetching documents for user: ${userEmail}`);
     
     const documents = await documentDb.findByUser(userEmail);
     
     Logger.db.found('documents', documents.length, { userEmail });
-    return documents;
-  },
+    return documents || [];
+  }, 'GET_USER_DOCUMENTS'),
 
   /**
    * Get documents with pagination and filtering
@@ -432,38 +448,191 @@ export const DocumentService = {
 
   /**
    * Get document URLs including signed URL for download (DRY: centralize URL generation)
+   * Uses storage error handling decorator for consistent error handling
    */
-  async getDocumentUrls(
+  getDocumentUrls: withStorageErrorHandling(async (
     document: NDADocument
-  ): Promise<{ downloadUrl: string | null; storageMetadata: any }> {
+  ): Promise<{ downloadUrl: string | null; storageMetadata: any }> => {
     let downloadUrl = null;
     let storageMetadata = null;
     
     Logger.api.step('DOCUMENT', `Getting URLs for document ${document.id}`);
     
-    try {
-      const exists = await storage.exists(document.filename);
+    const exists = await storage.exists(document.filename);
+    
+    if (exists) {
+      // Get metadata
+      storageMetadata = await storage.head(document.filename);
       
-      if (exists) {
-        // Get metadata
-        storageMetadata = await storage.head(document.filename);
-        
-        // Generate signed URL for download
-        if (storage.isS3?.()) {
-          downloadUrl = await storage.getSignedUrl(document.filename, 'get', { expires: 3600 });
-          Logger.api.step('DOCUMENT', 'Generated S3 signed URL');
-        } else {
-          // For local storage, use download endpoint
-          downloadUrl = `/api/documents/${document.id}/download`;
-          Logger.api.step('DOCUMENT', 'Generated local download URL');
-        }
+      // Generate signed URL for download
+      if (storage.isS3?.()) {
+        downloadUrl = await storage.getSignedUrl(document.filename, 'get', { expires: 3600 });
+        Logger.api.step('DOCUMENT', 'Generated S3 signed URL');
       } else {
-        Logger.api.warn('DOCUMENT', `Storage file not found: ${document.filename}`);
+        // For local storage, use download endpoint
+        downloadUrl = `/api/documents/${document.id}/download`;
+        Logger.api.step('DOCUMENT', 'Generated local download URL');
       }
-    } catch (error) {
-      Logger.storage.error(`Failed to get URLs for ${document.filename}`, error as Error);
+    } else {
+      Logger.api.warn('DOCUMENT', `Storage file not found: ${document.filename}`);
     }
     
     return { downloadUrl, storageMetadata };
-  }
+  }, 'GET_DOCUMENT_URLS'),
+
+  /**
+   * Validate if a document can be deleted (DRY: centralize deletion validation)
+   */
+  async validateDocumentDeletion(
+    userEmail: string,
+    documentId: number
+  ): Promise<DocumentDeletionValidation> {
+    Logger.api.step('DOCUMENT', `Validating deletion for document ${documentId}`);
+    
+    const blockers: string[] = [];
+    
+    // Check if document is used in any comparisons
+    const allComparisons = await comparisonDb.findByUser(userEmail);
+    const relatedComparisons = allComparisons.filter(comp => 
+      comp.document1_id === documentId || comp.document2_id === documentId
+    );
+
+    if (relatedComparisons.length > 0) {
+      blockers.push(`Document is used in ${relatedComparisons.length} comparison(s)`);
+    }
+
+    const canDelete = blockers.length === 0;
+    
+    Logger.api.step('DOCUMENT', `Deletion validation result`, {
+      documentId,
+      canDelete,
+      blockers: blockers.length,
+      relatedComparisons: relatedComparisons.length
+    });
+
+    return {
+      canDelete,
+      blockers,
+      relatedComparisons: relatedComparisons.length
+    };
+  },
+
+  /**
+   * Delete document with complete cleanup (DRY: centralize deletion logic)
+   */
+  async deleteDocument(
+    userEmail: string,
+    documentId: number
+  ): Promise<{ deleted: boolean; error?: string }> {
+    Logger.api.step('DOCUMENT', `Starting deletion for document ${documentId}`);
+    
+    // Validate document ownership
+    const validation = await this.getUserDocumentById(userEmail, documentId);
+    if (!validation.isValid || !validation.document) {
+      return { deleted: false, error: validation.error };
+    }
+
+    const document = validation.document;
+
+    // Validate deletion is allowed
+    const deletionValidation = await this.validateDocumentDeletion(userEmail, documentId);
+    if (!deletionValidation.canDelete) {
+      return { 
+        deleted: false, 
+        error: `Cannot delete document: ${deletionValidation.blockers.join(', ')}` 
+      };
+    }
+
+    try {
+      // Delete from storage first
+      const exists = await storage.exists(document.filename);
+      if (exists) {
+        await storage.delete(document.filename);
+        Logger.api.step('DOCUMENT', `Storage file deleted: ${document.filename}`);
+      }
+
+      // Delete from database
+      const deleted = await documentDb.delete(documentId);
+      if (!deleted) {
+        Logger.api.error('DOCUMENT', `Failed to delete document ${documentId} from database`);
+        return { deleted: false, error: 'Failed to delete document from database' };
+      }
+
+      Logger.api.success('DOCUMENT', `Document ${documentId} deleted successfully`);
+      return { deleted: true };
+
+    } catch (error) {
+      Logger.api.error('DOCUMENT', `Error deleting document ${documentId}`, error as Error);
+      return { deleted: false, error: `Deletion failed: ${(error as Error).message}` };
+    }
+  },
+
+  /**
+   * Get enhanced document with all metadata (DRY: centralize document enrichment)
+   */
+  async getEnhancedDocument(
+    userEmail: string,
+    documentId: number
+  ): Promise<DocumentEnhanced | null> {
+    const validation = await this.getUserDocumentById(userEmail, documentId);
+    if (!validation.isValid || !validation.document) {
+      return null;
+    }
+
+    const document = validation.document;
+    
+    // Get URLs and storage metadata
+    const urlResult = await this.getDocumentUrls(document);
+    const { downloadUrl, storageMetadata } = urlResult.success 
+      ? urlResult.data || { downloadUrl: null, storageMetadata: null }
+      : { downloadUrl: null, storageMetadata: null };
+    
+    // Get comparisons count
+    const allComparisons = await comparisonDb.findByUser(userEmail);
+    const relatedComparisons = allComparisons.filter(comp => 
+      comp.document1_id === document.id || comp.document2_id === document.id
+    );
+
+    // Calculate enhanced properties
+    const fileType = document.filename.split('.').pop()?.toLowerCase() || 'unknown';
+    const sizeMB = document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : null;
+    const hasExtractedText = !!document.extracted_text;
+    const extractedTextLength = document.extracted_text ? document.extracted_text.length : 0;
+
+    return {
+      ...document,
+      fileType,
+      hasExtractedText,
+      extractedTextLength,
+      relatedComparisons: relatedComparisons.length,
+      canCompare: !document.is_standard, // Can compare if it's not a standard doc
+      canSetAsStandard: !document.is_standard, // Can set as standard if not already
+      sizeMB,
+      downloadUrl,
+      storageMetadata
+    };
+  },
+
+  /**
+   * File validation using centralized validation logic (DRY: consolidate file checks)
+   * Uses validation error handling decorator for consistent validation error handling
+   */
+  validateFile: withValidationErrorHandling(async (file: File): Promise<boolean> => {
+    Logger.api.step('DOCUMENT', 'Validating uploaded file', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    // Import FileValidation dynamically to avoid circular dependencies
+    const { FileValidation } = await import('@/lib/utils');
+    
+    const validationError = FileValidation.getValidationError(file);
+    if (validationError) {
+      throw new Error(validationError.error || 'File validation failed');
+    }
+
+    Logger.api.step('DOCUMENT', 'File validation passed');
+    return true;
+  }, 'VALIDATE_FILE')
 };

@@ -14,33 +14,24 @@ export const GET = withDocumentAccess<{ id: string }>(async (
   context
 ) => {
   try {
-
-    // Use centralized URL generation
-    const { downloadUrl, storageMetadata } = await DocumentService.getDocumentUrls(document);
-
-    // Get related comparisons count
-    const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === document.id || comp.document2_id === document.id
-    );
+    // Use centralized enhanced document getter (DRY principle)
+    const enhancedDocument = await DocumentService.getEnhancedDocument(userEmail, document.id);
+    
+    if (!enhancedDocument) {
+      return ApiErrors.notFound('Document not found');
+    }
 
     // Return enhanced document data
     return ApiResponse.operation('document.get', {
       result: {
-        ...document,
-        downloadUrl,
-        storageMetadata,
-        fileType: document.filename.split('.').pop()?.toLowerCase() || 'unknown',
-        sizeMB: document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : null,
-        comparisonsCount: relatedComparisons.length,
-        canCompare: !document.is_standard, // Can compare if it's not a standard doc
-        canSetAsStandard: !document.is_standard, // Can set as standard if not already
+        ...enhancedDocument,
+        comparisonsCount: enhancedDocument.relatedComparisons, // Alias for backward compatibility
       },
       metadata: {
         documentId: document.id,
-        hasStorage: !!storageMetadata,
-        hasDownloadUrl: !!downloadUrl,
-        relatedComparisons: relatedComparisons.length
+        hasStorage: !!enhancedDocument.storageMetadata,
+        hasDownloadUrl: !!enhancedDocument.downloadUrl,
+        relatedComparisons: enhancedDocument.relatedComparisons
       }
     });
 
@@ -58,35 +49,11 @@ export const DELETE = withDocumentAccess<{ id: string }>(async (
   context
 ) => {
   try {
+    // Use centralized deletion logic (DRY principle)
+    const result = await DocumentService.deleteDocument(userEmail, document.id);
 
-    // Check if document is used in any comparisons
-    const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === document.id || comp.document2_id === document.id
-    );
-
-    if (relatedComparisons.length > 0) {
-      return ApiErrors.validation('Cannot delete document that has been used in comparisons', {
-        comparisonsCount: relatedComparisons.length
-      });
-    }
-
-    // Delete from storage
-    try {
-      const exists = await storage.exists(document.filename);
-      if (exists) {
-        await storage.delete(document.filename);
-      }
-    } catch (error) {
-      Logger.storage.error(`Failed to delete file from storage: ${document.filename}`, error as Error);
-      // Continue with database deletion even if storage deletion fails
-    }
-
-    // Delete from database
-    const deleted = await documentDb.delete(document.id);
-
-    if (!deleted) {
-      return ApiErrors.serverError('Failed to delete document');
+    if (!result.deleted) {
+      return ApiErrors.validation(result.error || 'Failed to delete document');
     }
 
     return ApiResponse.operation('document.delete', {

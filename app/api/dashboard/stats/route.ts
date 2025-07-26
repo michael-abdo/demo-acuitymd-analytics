@@ -5,12 +5,15 @@ import { ApiErrors } from '@/lib/utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { DocumentStatus, ComparisonStatus } from '@/types/nda';
 import { DashboardStats, DashboardStatsResponse } from '@/types/dashboard';
-import { Logger } from '@/lib/services/logger';
+import { withApiLogging, ApiLoggerContext } from '@/lib/decorators/api-logger';
 import { DocumentService } from '@/lib/services/document-service';
 
-export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
-  Logger.api.start('DASHBOARD-STATS', userEmail);
-  
+// Use the new logging decorator (DRY principle)
+export const GET = withAuth(withApiLogging('DASHBOARD-STATS', async (
+  request: NextRequest, 
+  userEmail: string, 
+  logger: ApiLoggerContext
+) => {
   try {
     const errors: Array<{ metric: string; error: string }> = [];
 
@@ -21,16 +24,18 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
     const exportsCount = 0; // Not implemented yet
 
     // Fetch documents count (only processed ones count as "analyzed")
+    logger.step('Fetching user documents for stats calculation');
     try {
       const documents = await DocumentService.getUserDocuments(userEmail);
       documentsCount = documents.filter(doc => doc.status === DocumentStatus.PROCESSED).length;
-      Logger.db.found('processed documents', documentsCount, { userEmail });
+      logger.step('Documents count calculated', { total: documents.length, processed: documentsCount });
     } catch (error) {
-      Logger.db.error('Error fetching documents for stats', error as Error);
+      logger.error('Failed to fetch documents for stats', error as Error);
       errors.push({ metric: 'documents', error: 'Failed to fetch documents' });
     }
 
     // Fetch comparisons count (only completed ones)
+    logger.step('Fetching user comparisons for stats calculation');
     try {
       const comparisons = await comparisonDb.findByUser(userEmail);
       comparisonsCount = comparisons.filter(comp => comp.status === ComparisonStatus.COMPLETED).length;
@@ -39,8 +44,14 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
       suggestionsCount = comparisons.reduce((total, comp) => {
         return total + (comp.ai_suggestions?.length || 0);
       }, 0);
+      
+      logger.step('Comparisons and suggestions calculated', { 
+        total: comparisons.length, 
+        completed: comparisonsCount,
+        suggestions: suggestionsCount 
+      });
     } catch (error) {
-      Logger.db.error('Error fetching comparisons for stats', error as Error);
+      logger.error('Failed to fetch comparisons for stats', error as Error);
       errors.push({ metric: 'comparisons', error: 'Failed to fetch comparisons' });
       errors.push({ metric: 'suggestions', error: 'Failed to calculate suggestions' });
     }
@@ -56,6 +67,13 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
       lastUpdated: new Date().toISOString()
     };
 
+    // Log final stats
+    logger.step('Dashboard stats compiled', { 
+      stats, 
+      errorsCount: errors.length,
+      hasErrors: errors.length > 0 
+    });
+
     // Use ApiResponse with cache headers
     const responseData = errors.length > 0 
       ? { ...stats, errors } 
@@ -67,7 +85,8 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
     );
 
   } catch (error) {
-    Logger.api.error('DASHBOARD-STATS', 'Failed to fetch dashboard statistics', error as Error);
+    // This catch block is now redundant due to decorator, but kept for explicit error handling
+    logger.error('Failed to fetch dashboard statistics', error as Error);
     return ApiErrors.serverError('Failed to fetch dashboard statistics');
   }
-});
+}));

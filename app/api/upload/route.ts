@@ -4,15 +4,15 @@ import { withAuthAndStorage, ApiResponse } from '@/lib/auth-utils';
 import { FileValidation, ApiErrors } from '@/lib/utils';
 import { DocumentService } from '@/lib/services/document-service';
 import { storage } from '@/lib/storage';
-import { Logger } from '@/lib/services/logger';
+import { withDetailedLogging, ApiLoggerContext } from '@/lib/decorators/api-logger';
 import { APP_CONSTANTS } from '@/lib/config';
 
-export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: string) => {
-  Logger.api.start('UPLOAD', userEmail, {
-    method: request.method,
-    url: request.url
-  });
-
+// Use detailed logging decorator for file uploads (DRY principle)
+export const POST = withAuthAndStorage(withDetailedLogging('UPLOAD', async (
+  request: NextRequest, 
+  userEmail: string, 
+  logger: ApiLoggerContext
+) => {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -20,11 +20,11 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
     const isStandard = formData.get('isStandard') === 'true';
 
     if (!file) {
-      Logger.api.error('UPLOAD', 'No file provided in request', new Error('Missing file'));
+      logger.error('No file provided in request', new Error('Missing file'));
       return ApiErrors.badRequest(APP_CONSTANTS.MESSAGES.UPLOAD.NO_FILE);
     }
 
-    Logger.api.step('UPLOAD', 'File received', {
+    logger.step('File received', {
       filename: file.name,
       size: file.size,
       type: file.type,
@@ -32,14 +32,14 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       isStandard
     });
 
-    // Validate file using centralized utilities
-    const validationError = FileValidation.getValidationError(file);
-    if (validationError) {
-      Logger.api.error('UPLOAD', 'File validation failed', new Error('Validation error'));
-      return validationError;
+    // Use centralized file validation (DRY principle)
+    const fileValidation = await DocumentService.validateFile(file);
+    if (!fileValidation.valid) {
+      logger.error('File validation failed', new Error('Validation error'));
+      return ApiErrors.validation(fileValidation.errors?.join(', ') || 'File validation failed');
     }
 
-    Logger.api.step('UPLOAD', 'File validation passed');
+    logger.step('File validation passed');
 
     // Use DocumentService for DRY processing
     const result = await DocumentService.processDocument({
@@ -53,7 +53,7 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
 
     // Handle duplicate file case
     if (result.duplicate) {
-      Logger.api.success('UPLOAD', 'Duplicate file detected', {
+      logger.success('Duplicate file detected', {
         documentId: result.document.id,
         originalHash: result.document.file_hash
       });
@@ -89,7 +89,7 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       extractionQueued: result.queued
     };
     
-    Logger.api.success('UPLOAD', 'Document uploaded successfully', {
+    logger.success('Document uploaded successfully', {
       documentId: result.document.id,
       filename: result.document.original_name,
       size: result.document.file_size,
@@ -111,9 +111,7 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
     });
 
   } catch (error: any) {
-    Logger.api.error('UPLOAD', 'Upload failed', error);
-    
-    // Provide specific error messages based on error type
+    // Enhanced error handling with specific error types
     let errorMessage = 'Upload failed';
     let errorCode = 'UPLOAD_ERROR';
     
@@ -131,6 +129,12 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
       errorCode = error.code;
     }
     
+    // Log detailed error for debugging
+    logger.error('Upload failed with specific error', error, {
+      errorCode,
+      storageProvider: storage.getProvider?.() || 'unknown'
+    });
+    
     return process.env.NODE_ENV === 'development' 
       ? ApiErrors.validation(errorMessage, {
           code: errorCode,
@@ -140,4 +144,4 @@ export const POST = withAuthAndStorage(async (request: NextRequest, userEmail: s
         })
       : ApiErrors.serverError(errorMessage);
   }
-}, { allowDevBypass: true });
+}), { allowDevBypass: true });

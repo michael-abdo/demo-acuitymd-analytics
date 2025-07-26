@@ -1,13 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
+import { AuthGuard, useAuth } from '@/components/auth-guard';
 import { getFilenameFromPath } from '@/lib/utils';
 import { NDADocument, ComparisonResult, Comparison } from '@/types/nda';
 import { useApiData, useAsyncOperation } from '@/lib/hooks';
@@ -16,7 +13,7 @@ import { useApiData, useAsyncOperation } from '@/lib/hooks';
 type Document = NDADocument;
 
 export default function ComparePage() {
-  const { data: session } = useSession();
+  const { session } = useAuth();
   const [selectedStandard, setSelectedStandard] = useState<string>('');
   const [selectedThirdParty, setSelectedThirdParty] = useState<string>('');
   const [currentComparison, setCurrentComparison] = useState<Comparison | null>(null);
@@ -85,23 +82,12 @@ export default function ComparePage() {
     }
   };
 
-  if (!session) {
-    return (
-      <PageContainer>
-        <Card>
-          <CardHeader>
-            <CardTitle>Document Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Please sign in to compare documents.</p>
-          </CardContent>
-        </Card>
-      </PageContainer>
-    );
-  }
-
   return (
-    <PageContainer className="space-y-8">
+    <AuthGuard 
+      title="Document Comparison" 
+      message="Please sign in to compare documents."
+    >
+      <PageContainer className="space-y-8">
       <h1 className="text-3xl font-bold">Compare NDAs</h1>
 
       {/* Document Selection */}
@@ -331,6 +317,7 @@ export default function ComparePage() {
           </CardContent>
         </Card>
       )}
-    </PageContainer>
+      </PageContainer>
+    </AuthGuard>
   );
 }

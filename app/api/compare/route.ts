@@ -35,7 +35,7 @@ export const POST = withRateLimit(
     Logger.api.step('COMPARE', 'Fetching documents from database');
     
     // First check what documents exist for this user
-    const userDocuments = await DocumentService.getUserDocuments(userEmail);
+    const userDocuments = await DocumentService.getUserDocuments(userEmail) || [];
     Logger.api.step('COMPARE', 'User documents retrieved', { 
       count: userDocuments.length, 
       documentIds: userDocuments.map(d => d.id) 
@@ -146,7 +146,7 @@ export const POST = withRateLimit(
       
       // Refresh document objects after extraction to get updated extracted_text
       Logger.api.step('COMPARE', 'Refreshing document objects after extraction');
-      const refreshedUserDocs = await DocumentService.getUserDocuments(userEmail);
+      const refreshedUserDocs = await DocumentService.getUserDocuments(userEmail) || [];
       const refreshedStandardDoc = refreshedUserDocs.find(doc => doc.id === parseInt(standardDocId));
       const refreshedThirdPartyDoc = refreshedUserDocs.find(doc => doc.id === parseInt(thirdPartyDocId));
 

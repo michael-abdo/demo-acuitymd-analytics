@@ -1,18 +1,16 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, useToast } from "@/components/ui";
 import { FileUp, FileText, GitCompare, Download, Loader2, RefreshCw } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
+import { useAuth } from "@/components/auth-guard";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
 import { useApiData } from "@/lib/hooks";
 
 export default function DashboardClient() {
-  const { data: session, status } = useSession();
+  const { session, isAuthenticated, user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -23,7 +21,7 @@ export default function DashboardClient() {
     error, 
     reload: fetchStats 
   } = useApiData<DashboardStats | null>('/api/dashboard/stats', {
-    autoLoad: status === "authenticated",
+    autoLoad: isAuthenticated,
     transform: (response: DashboardStatsResponse) => response.data || null,
     onError: (error) => {
       toast({
@@ -32,13 +30,13 @@ export default function DashboardClient() {
         variant: "destructive"
       });
     },
-    deps: [status]
+    deps: [isAuthenticated]
   });
 
   return (
     <PageContainer>
       <div className="flex items-center justify-between mb-6">
-        <PageTitle description={`Welcome, ${session?.user?.name || "User"}!`}>
+        <PageTitle description={`Welcome, ${user?.name || "User"}!`}>
           Dashboard
         </PageTitle>
         <Button

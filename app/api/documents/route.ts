@@ -41,7 +41,10 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
     const enhancedDocuments = await Promise.all(
       paginatedDocuments.map(async (doc) => {
         // Use centralized URL generation
-        const { downloadUrl } = await DocumentService.getDocumentUrls(doc);
+        const urlResult = await DocumentService.getDocumentUrls(doc);
+        const { downloadUrl } = urlResult.success 
+          ? urlResult.data || { downloadUrl: null }
+          : { downloadUrl: null };
 
         return {
           ...doc,
