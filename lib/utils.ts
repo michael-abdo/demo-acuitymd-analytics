@@ -165,3 +165,188 @@ export const FileValidation = {
     return FileValidation.extensionToMimeType[ext] || 'application/octet-stream';
   }
 };
+
+/**
+ * Timestamp Utilities - Consolidated date/time formatting patterns
+ * Eliminates scattered new Date().toISOString() calls across the codebase
+ */
+export const TimestampUtils = {
+  /**
+   * Get current timestamp in ISO format
+   */
+  now: () => new Date().toISOString(),
+  
+  /**
+   * Get current timestamp in UTC ISO format (alias for consistency)
+   */
+  nowUTC: () => new Date().toISOString(),
+  
+  /**
+   * Format a date for database storage
+   */
+  formatForDB: (date: Date = new Date()) => date.toISOString(),
+  
+  /**
+   * Format a date for logging purposes
+   */
+  formatForLog: (date: Date = new Date()) => date.toISOString(),
+  
+  /**
+   * Format a date for API responses
+   */
+  formatForAPI: (date: Date = new Date()) => date.toISOString(),
+  
+  /**
+   * Common timestamp patterns for object creation
+   */
+  createTimestamp: () => ({ createdAt: TimestampUtils.now() }),
+  updateTimestamp: () => ({ updatedAt: TimestampUtils.now() }),
+  auditTimestamp: () => ({ 
+    createdAt: TimestampUtils.now(),
+    updatedAt: TimestampUtils.now()
+  }),
+  
+  /**
+   * Create timestamp with metadata
+   */
+  withMetadata: (metadata?: Record<string, any>) => ({
+    timestamp: TimestampUtils.now(),
+    ...metadata
+  }),
+  
+  /**
+   * Parse timestamp from various formats
+   */
+  parse: (timestamp: string | Date | number): Date => {
+    if (timestamp instanceof Date) return timestamp;
+    if (typeof timestamp === 'number') return new Date(timestamp);
+    return new Date(timestamp);
+  },
+  
+  /**
+   * Check if timestamp is recent (within specified minutes)
+   */
+  isRecent: (timestamp: string | Date, withinMinutes: number = 5): boolean => {
+    const date = TimestampUtils.parse(timestamp);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
+    return diffMinutes <= withinMinutes;
+  },
+  
+  /**
+   * Format for human-readable display
+   */
+  formatHuman: (date: Date = new Date(), locale: string = 'en-US'): string => {
+    return date.toLocaleString(locale);
+  },
+  
+  /**
+   * Format for file names (no special characters)
+   */
+  formatForFilename: (date: Date = new Date()): string => {
+    return date.toISOString().replace(/[:.]/g, '-').split('.')[0];
+  },
+  
+  /**
+   * Common duration calculations
+   */
+  duration: {
+    seconds: (start: Date | string, end: Date | string = new Date()) => {
+      const startDate = TimestampUtils.parse(start);
+      const endDate = TimestampUtils.parse(end);
+      return Math.floor((endDate.getTime() - startDate.getTime()) / 1000);
+    },
+    
+    minutes: (start: Date | string, end: Date | string = new Date()) => {
+      return Math.floor(TimestampUtils.duration.seconds(start, end) / 60);
+    },
+    
+    milliseconds: (start: Date | string, end: Date | string = new Date()) => {
+      const startDate = TimestampUtils.parse(start);
+      const endDate = TimestampUtils.parse(end);
+      return endDate.getTime() - startDate.getTime();
+    },
+    
+    humanReadable: (start: Date | string, end: Date | string = new Date()) => {
+      const ms = TimestampUtils.duration.milliseconds(start, end);
+      if (ms < 1000) return `${ms}ms`;
+      if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+      if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
+      return `${(ms / 3600000).toFixed(1)}h`;
+    }
+  },
+  
+  /**
+   * Relative time helpers
+   */
+  relative: {
+    from: (date: Date | string, reference: Date = new Date()) => {
+      const targetDate = TimestampUtils.parse(date);
+      const diffMs = reference.getTime() - targetDate.getTime();
+      
+      if (diffMs < 60000) return 'just now';
+      if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)} minutes ago`;
+      if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)} hours ago`;
+      if (diffMs < 604800000) return `${Math.floor(diffMs / 86400000)} days ago`;
+      return targetDate.toLocaleDateString();
+    },
+    
+    to: (date: Date | string, reference: Date = new Date()) => {
+      const targetDate = TimestampUtils.parse(date);
+      const diffMs = targetDate.getTime() - reference.getTime();
+      
+      if (diffMs < 0) return TimestampUtils.relative.from(date, reference);
+      if (diffMs < 60000) return 'in a moment';
+      if (diffMs < 3600000) return `in ${Math.floor(diffMs / 60000)} minutes`;
+      if (diffMs < 86400000) return `in ${Math.floor(diffMs / 3600000)} hours`;
+      if (diffMs < 604800000) return `in ${Math.floor(diffMs / 86400000)} days`;
+      return targetDate.toLocaleDateString();
+    }
+  }
+};
+
+/**
+ * Performance Timing Utilities - Consolidated timing patterns
+ */
+export const TimingUtils = {
+  /**
+   * Create a simple performance timer
+   */
+  createTimer: () => {
+    const start = Date.now();
+    return {
+      elapsed: () => Date.now() - start,
+      elapsedMs: () => Date.now() - start,
+      elapsedSeconds: () => (Date.now() - start) / 1000,
+      elapsedFormatted: () => TimestampUtils.duration.humanReadable(new Date(start)),
+      end: (label?: string) => {
+        const elapsed = Date.now() - start;
+        return {
+          label: label || 'operation',
+          elapsed,
+          formatted: TimestampUtils.duration.humanReadable(new Date(start))
+        };
+      }
+    };
+  },
+  
+  /**
+   * Measure async function execution time
+   */
+  measure: async <T>(fn: () => Promise<T>, label?: string): Promise<{ result: T; timing: { elapsed: number; formatted: string; label: string } }> => {
+    const timer = TimingUtils.createTimer();
+    const result = await fn();
+    const timing = timer.end(label);
+    return { result, timing };
+  },
+  
+  /**
+   * Measure sync function execution time
+   */
+  measureSync: <T>(fn: () => T, label?: string): { result: T; timing: { elapsed: number; formatted: string; label: string } } => {
+    const timer = TimingUtils.createTimer();
+    const result = fn();
+    const timing = timer.end(label);
+    return { result, timing };
+  }
+};

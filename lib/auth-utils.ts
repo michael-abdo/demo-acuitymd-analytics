@@ -601,3 +601,304 @@ export function withRateLimit(
   }, options);
 }
 
+/**
+ * HTTP Status Codes - Consolidated constants for consistency
+ */
+export const StatusCodes = {
+  OK: 200,
+  CREATED: 201,
+  ACCEPTED: 202,
+  NO_CONTENT: 204,
+  PARTIAL_CONTENT: 206,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  RATE_LIMITED: 429,
+  INTERNAL_ERROR: 500,
+  BAD_GATEWAY: 502,
+  SERVICE_UNAVAILABLE: 503,
+} as const;
+
+/**
+ * Standardized API response patterns for consistency across routes
+ */
+export const StandardResponses = {
+  created: <T>(data: T, message?: string, headers?: HeadersInit) => 
+    new Response(JSON.stringify({
+      success: true,
+      message: message || 'Resource created successfully',
+      data,
+      timestamp: new Date().toISOString()
+    }), { 
+      status: StatusCodes.CREATED, 
+      headers: { 'Content-Type': 'application/json', ...headers }
+    }),
+    
+  badRequest: (message: string, details?: any) =>
+    new Response(JSON.stringify({
+      success: false,
+      error: message,
+      details,
+      timestamp: new Date().toISOString()
+    }), { 
+      status: StatusCodes.BAD_REQUEST,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    
+  unauthorized: (message: string = 'Unauthorized') =>
+    new Response(JSON.stringify({
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString()
+    }), { 
+      status: StatusCodes.UNAUTHORIZED,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    
+  forbidden: (message: string = 'Access forbidden') =>
+    new Response(JSON.stringify({
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString()
+    }), {
+      status: StatusCodes.FORBIDDEN,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    
+  notFound: (resource: string = 'Resource') =>
+    new Response(JSON.stringify({
+      success: false,
+      error: `${resource} not found`,
+      timestamp: new Date().toISOString()
+    }), {
+      status: StatusCodes.NOT_FOUND,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    
+  conflict: (message: string, details?: any) =>
+    new Response(JSON.stringify({
+      success: false,
+      error: message,
+      details,
+      timestamp: new Date().toISOString()
+    }), {
+      status: StatusCodes.CONFLICT,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    
+  rateLimited: (resetTime?: Date, message?: string) =>
+    new Response(JSON.stringify({
+      success: false,
+      error: message || 'Rate limit exceeded',
+      resetTime: resetTime?.toISOString(),
+      timestamp: new Date().toISOString()
+    }), {
+      status: StatusCodes.RATE_LIMITED,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    
+  serverError: (message: string = 'Internal server error', details?: any) =>
+    new Response(JSON.stringify({
+      success: false,
+      error: message,
+      details: config.IS_DEVELOPMENT ? details : undefined,
+      timestamp: new Date().toISOString()
+    }), {
+      status: StatusCodes.INTERNAL_ERROR,
+      headers: { 'Content-Type': 'application/json' }
+    }),
+};
+
+/**
+ * API Route Handler type definitions for consistency
+ */
+export interface ApiRouteHandler<T = any> {
+  (request: NextRequest, userEmail: string, params?: T): Promise<Response>;
+}
+
+export interface ApiRouteHandlerDynamic<T = any> {
+  (request: NextRequest, userEmail: string, context: { params: Promise<T> }): Promise<Response>;
+}
+
+/**
+ * Create API route with standardized patterns - consolidates boilerplate
+ */
+export function createApiRoute<T = any>(
+  handler: ApiRouteHandler<T>,
+  options: {
+    requireAuth?: boolean;
+    rateLimiter?: RateLimiter;
+    allowDevBypass?: boolean;
+    trackTiming?: boolean;
+    requireStorage?: boolean;
+  } = {}
+): (request: NextRequest, context?: { params: T }) => Promise<Response> {
+  
+  // Build the middleware chain
+  let wrappedHandler = handler;
+  
+  // Add storage initialization if required
+  if (options.requireStorage) {
+    wrappedHandler = withStorage(wrappedHandler);
+  }
+  
+  // Add rate limiting if specified
+  if (options.rateLimiter) {
+    wrappedHandler = withRateLimit(options.rateLimiter, wrappedHandler, {
+      allowDevBypass: options.allowDevBypass,
+      trackTiming: options.trackTiming
+    });
+  } else if (options.requireAuth) {
+    // Add auth if required and no rate limiter (rate limiter includes auth)
+    wrappedHandler = withAuth(wrappedHandler, {
+      allowDevBypass: options.allowDevBypass,
+      trackTiming: options.trackTiming
+    });
+  }
+  
+  // Add error handling
+  wrappedHandler = withErrorHandler(wrappedHandler);
+  
+  return async (request: NextRequest, context?: { params: T }) => {
+    // Set dynamic behavior for all routes
+    const response = await wrappedHandler(request, '', context?.params);
+    
+    // Ensure consistent response headers
+    if (!response.headers.get('Content-Type')) {
+      response.headers.set('Content-Type', 'application/json');
+    }
+    
+    return response;
+  };
+}
+
+/**
+ * Create dynamic API route with standardized patterns - consolidates boilerplate
+ */
+export function createDynamicApiRoute<T = any>(
+  handler: ApiRouteHandlerDynamic<T>,
+  options: {
+    requireAuth?: boolean;
+    rateLimiter?: RateLimiter;
+    allowDevBypass?: boolean;
+    trackTiming?: boolean;
+    requireStorage?: boolean;
+  } = {}
+): (request: NextRequest, context: { params: Promise<T> }) => Promise<Response> {
+  
+  return async (request: NextRequest, context: { params: Promise<T> }) => {
+    const startTime = Date.now();
+    
+    try {
+      // Initialize storage if required
+      if (options.requireStorage) {
+        await ensureStorageInitialized();
+      }
+      
+      // Handle authentication
+      if (options.requireAuth) {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.email) {
+          return StandardResponses.unauthorized();
+        }
+        
+        // Handle rate limiting if specified
+        if (options.rateLimiter && !options.rateLimiter.checkLimit(session.user.email)) {
+          const resetTime = options.rateLimiter.getResetTime(session.user.email);
+          return StandardResponses.rateLimited(resetTime ? new Date(resetTime) : undefined);
+        }
+        
+        const response = await handler(request, session.user.email, context);
+        
+        // Add timing header if tracking is enabled
+        if (options.trackTiming !== false) {
+          response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+        }
+        
+        return response;
+      } else {
+        // Non-auth route
+        const response = await handler(request, '', context);
+        
+        // Add timing header if tracking is enabled
+        if (options.trackTiming !== false) {
+          response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+        }
+        
+        return response;
+      }
+      
+    } catch (error) {
+      // Consistent error handling
+      if (error instanceof NextResponse) {
+        return error;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+      return StandardResponses.serverError(errorMessage, config.IS_DEVELOPMENT ? error : undefined);
+    }
+  };
+}
+
+/**
+ * Export declarations for Next.js API routes - eliminates repetitive exports
+ */
+export const createExports = {
+  /**
+   * Standard exports for non-dynamic routes
+   */
+  standard: (handlers: {
+    GET?: ApiRouteHandler;
+    POST?: ApiRouteHandler;
+    PUT?: ApiRouteHandler;
+    PATCH?: ApiRouteHandler;
+    DELETE?: ApiRouteHandler;
+  }, options?: {
+    requireAuth?: boolean;
+    rateLimiter?: RateLimiter;
+    allowDevBypass?: boolean;
+    trackTiming?: boolean;
+    requireStorage?: boolean;
+  }) => {
+    const exports: any = { dynamic: "force-dynamic" };
+    
+    Object.entries(handlers).forEach(([method, handler]) => {
+      if (handler) {
+        exports[method] = createApiRoute(handler, options);
+      }
+    });
+    
+    return exports;
+  },
+  
+  /**
+   * Standard exports for dynamic routes
+   */
+  dynamic: <T = any>(handlers: {
+    GET?: ApiRouteHandlerDynamic<T>;
+    POST?: ApiRouteHandlerDynamic<T>;
+    PUT?: ApiRouteHandlerDynamic<T>;
+    PATCH?: ApiRouteHandlerDynamic<T>;
+    DELETE?: ApiRouteHandlerDynamic<T>;
+  }, options?: {
+    requireAuth?: boolean;
+    rateLimiter?: RateLimiter;
+    allowDevBypass?: boolean;
+    trackTiming?: boolean;
+    requireStorage?: boolean;
+  }) => {
+    const exports: any = { dynamic: "force-dynamic" };
+    
+    Object.entries(handlers).forEach(([method, handler]) => {
+      if (handler) {
+        exports[method] = createDynamicApiRoute(handler, options);
+      }
+    });
+    
+    return exports;
+  }
+};
+
