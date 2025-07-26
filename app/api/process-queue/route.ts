@@ -76,10 +76,7 @@ export const POST = async (request: NextRequest) => {
         completedAt: new Date()
       };
       
-      return ApiResponse.success(
-        processedTask,
-        `Processed ${task.task_type} task for document ${task.document_id}`
-      );
+      return ApiResponse.queue.processed(processedTask, Date.now() - startTime);
 
     } catch (error) {
       // Update task with error

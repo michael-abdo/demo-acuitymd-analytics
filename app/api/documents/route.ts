@@ -66,22 +66,10 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
       pages
     });
     
-    return ApiResponse.operation('document.list', {
-      result: enhancedDocuments,
-      metadata: {
-        pagination: {
-          page: pagination.page,
-          pageSize: pagination.pageSize,
-          total,
-          totalPages: pages
-        },
-        filters: {
-          type: filters.type || 'all',
-          search: filters.search || null
-        },
-        count: enhancedDocuments.length,
-        hasSignedUrls: enhancedDocuments.some(doc => doc.downloadUrl?.startsWith('https://'))
-      }
+    return ApiResponse.document.listed(enhancedDocuments, {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total
     });
 
   } catch (error) {

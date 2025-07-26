@@ -1,18 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, useToast } from "@/components/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@/components/ui";
 import { FileUp, FileText, GitCompare, Download, Loader2, RefreshCw } from "lucide-react";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
 import { useAuth } from "@/components/auth-guard";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
 import { useApiData } from "@/lib/hooks";
+import { toast } from "@/lib/utils/toast";
 
 export default function DashboardClient() {
   const { session, isAuthenticated, user } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
 
   // Use consolidated API data hook
   const { 
@@ -24,11 +24,7 @@ export default function DashboardClient() {
     autoLoad: isAuthenticated,
     transform: (response: DashboardStatsResponse) => response.data || null,
     onError: (error) => {
-      toast({
-        title: "Error loading statistics",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error.load("statistics", error.message);
     },
     deps: [isAuthenticated]
   });
@@ -166,10 +162,7 @@ export default function DashboardClient() {
               size="lg" 
               variant="outline"
               onClick={() => {
-                toast({
-                  title: "Feature coming soon", 
-                  description: "Export functionality is being developed."
-                })
+                toast.info.custom("Feature coming soon", "Export functionality is being developed.");
               }}
             >
               <Download className="mr-2 h-5 w-5" />

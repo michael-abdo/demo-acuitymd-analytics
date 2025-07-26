@@ -37,11 +37,15 @@ export const POST = withDocumentAccess<{ id: string }>(async (
     // Return updated document
     const updatedDocument = await documentDb.findById(document.id);
     
-    return ApiResponse.successWithMeta(
-      updatedDocument,
-      { previousStandardCount: currentStandardDocs.length },
-      'Document marked as standard template'
-    );
+    return ApiResponse.operation('document.update', {
+      result: updatedDocument,
+      metadata: { 
+        previousStandardCount: currentStandardDocs.length,
+        isStandard: true
+      },
+      message: 'Document marked as standard template',
+      status: 'updated'
+    });
 
   } catch (error) {
     Logger.api.error('SET_STANDARD', 'Error setting document as standard', error as Error);

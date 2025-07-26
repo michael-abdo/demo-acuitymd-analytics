@@ -187,6 +187,40 @@ export function withDocumentAccess<T extends { id: string }>(
 }
 
 /**
+ * Operation types for type-safe API responses
+ */
+export type ApiOperationType = 
+  | 'document.upload' | 'document.list' | 'document.get' | 'document.update' | 'document.delete' | 'document.extract'
+  | 'comparison.create' | 'comparison.list' | 'comparison.get' | 'comparison.update' | 'comparison.delete'
+  | 'queue.process' | 'queue.list' | 'queue.retry'
+  | 'auth.login' | 'auth.logout' | 'auth.verify'
+  | 'health.check' | 'health.db' | 'health.storage'
+  | 'admin.seed' | 'admin.migrate' | 'admin.stats';
+
+/**
+ * Operation status types
+ */
+export type ApiOperationStatus = 'success' | 'created' | 'updated' | 'deleted' | 'partial' | 'queued';
+
+/**
+ * Standard operation response structure
+ */
+export interface ApiOperationResponse<T = any> {
+  success: boolean;
+  operation: ApiOperationType;
+  status: ApiOperationStatus;
+  message: string;
+  timestamp: string;
+  data?: T;
+  metadata?: Record<string, any>;
+  warnings?: string[];
+  timing?: {
+    duration: string;
+    operations?: Record<string, number>;
+  };
+}
+
+/**
  * Standard API response helpers
  */
 export const ApiResponse = {
@@ -304,17 +338,17 @@ export const ApiResponse = {
    * });
    */
   operation<T = any>(
-    operationName: string, 
+    operationName: ApiOperationType, 
     options: {
       result?: T;
       metadata?: Record<string, any>;
       message?: string;
-      status?: 'success' | 'created' | 'updated' | 'deleted' | 'partial';
+      status?: ApiOperationStatus;
       httpStatus?: number;
       timing?: { start: number; operations?: Record<string, number> };
       warnings?: string[];
     } = {}
-  ): NextResponse {
+  ): NextResponse<ApiOperationResponse<T>> {
     const {
       result,
       metadata = {},
@@ -361,6 +395,114 @@ export const ApiResponse = {
     const statusCode = httpStatus || getHttpStatusForOperation(status);
 
     return NextResponse.json(response, { status: statusCode });
+  },
+
+  /**
+   * Document-specific response helpers
+   */
+  document: {
+    uploaded<T>(document: T, metadata?: Record<string, any>): NextResponse<ApiOperationResponse<T>> {
+      return ApiResponse.operation('document.upload', {
+        result: document,
+        metadata,
+        status: 'created'
+      });
+    },
+    
+    listed<T>(documents: T[], pagination?: { page: number; pageSize: number; total: number }): NextResponse<ApiOperationResponse<T[]>> {
+      return ApiResponse.operation('document.list', {
+        result: documents,
+        metadata: pagination ? {
+          pagination: {
+            ...pagination,
+            totalPages: Math.ceil(pagination.total / pagination.pageSize)
+          },
+          count: documents.length
+        } : { count: documents.length }
+      });
+    },
+    
+    extracted<T>(document: T, extractedText: string): NextResponse<ApiOperationResponse<T>> {
+      return ApiResponse.operation('document.extract', {
+        result: document,
+        metadata: {
+          textLength: extractedText.length,
+          hasContent: extractedText.length > 0
+        }
+      });
+    }
+  },
+
+  /**
+   * Comparison-specific response helpers
+   */
+  comparison: {
+    created<T>(comparison: T, metadata?: Record<string, any>): NextResponse<ApiOperationResponse<T>> {
+      return ApiResponse.operation('comparison.create', {
+        result: comparison,
+        metadata,
+        status: 'created'
+      });
+    },
+    
+    completed<T>(comparison: T, differences: number): NextResponse<ApiOperationResponse<T>> {
+      return ApiResponse.operation('comparison.update', {
+        result: comparison,
+        metadata: {
+          differencesFound: differences,
+          status: 'completed'
+        },
+        status: 'updated'
+      });
+    }
+  },
+
+  /**
+   * Queue-specific response helpers
+   */
+  queue: {
+    processed<T>(task: T, processingTime: number): NextResponse<ApiOperationResponse<T>> {
+      return ApiResponse.operation('queue.process', {
+        result: task,
+        metadata: {
+          processingTime: `${processingTime}ms`
+        }
+      });
+    },
+    
+    queued<T>(task: T, queuePosition?: number): NextResponse<ApiOperationResponse<T>> {
+      return ApiResponse.operation('queue.process', {
+        result: task,
+        metadata: queuePosition ? { queuePosition } : {},
+        status: 'queued'
+      });
+    }
+  },
+
+  /**
+   * Health check response helpers
+   */
+  health: {
+    ok(service: string, metadata?: Record<string, any>): NextResponse<ApiOperationResponse<void>> {
+      return ApiResponse.operation('health.check', {
+        metadata: {
+          service,
+          status: 'healthy',
+          ...metadata
+        }
+      });
+    },
+    
+    degraded(service: string, issues: string[]): NextResponse<ApiOperationResponse<void>> {
+      return ApiResponse.operation('health.check', {
+        metadata: {
+          service,
+          status: 'degraded'
+        },
+        warnings: issues,
+        status: 'partial'
+      });
+    }
   }
 };
 
@@ -376,14 +518,16 @@ function getOperationMessage(operationName: string, status: string): string {
       created: 'Document uploaded successfully',
       updated: 'Document updated successfully',
       deleted: 'Document deleted successfully',
-      partial: 'Document operation partially completed'
+      partial: 'Document operation partially completed',
+      queued: 'Document operation queued for processing'
     },
     comparison: {
       success: 'Comparison completed successfully',
       created: 'Comparison created successfully',
       updated: 'Comparison updated successfully',
       deleted: 'Comparison deleted successfully',
-      partial: 'Comparison partially completed'
+      partial: 'Comparison partially completed',
+      queued: 'Comparison queued for processing'
     },
     extraction: {
       success: 'Text extraction completed successfully',
@@ -414,6 +558,8 @@ function getHttpStatusForOperation(status: string): number {
       return 200; // Could be 204, but we return JSON body
     case 'partial':
       return 206;
+    case 'queued':
+      return 202; // Accepted
     case 'success':
     case 'updated':
     default:

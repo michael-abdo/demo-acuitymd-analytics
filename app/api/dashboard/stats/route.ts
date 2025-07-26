@@ -78,10 +78,16 @@ export const GET = withAuth(withApiLogging('DASHBOARD-STATS', async (
       ? { ...stats, errors } 
       : stats;
       
-    return ApiResponse.successWithHeaders(
-      responseData,
-      { 'Cache-Control': 'private, max-age=60' }
-    );
+    const response = ApiResponse.operation('admin.stats', {
+      result: responseData,
+      metadata: {
+        hasDatabase: HAS_DB_ACCESS,
+        source: HAS_DB_ACCESS ? 'database' : 'memory'
+      }
+    });
+    
+    response.headers.set('Cache-Control', 'private, max-age=60');
+    return response;
 
   } catch (error) {
     // This catch block is now redundant due to decorator, but kept for explicit error handling

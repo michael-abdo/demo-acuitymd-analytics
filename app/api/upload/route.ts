@@ -97,17 +97,13 @@ export const POST = withAuthAndStorage(withDetailedLogging('UPLOAD', async (
       queued: result.queued
     });
 
-    return ApiResponse.operation('document.upload', {
-      result: documentWithMeta,
-      metadata: {
-        fileSize: file.size,
-        fileType: file.type,
-        storageProvider: result.storageInfo.provider,
-        extractionQueued: result.queued,
-        docType,
-        isStandard
-      },
-      status: 'created'
+    return ApiResponse.document.uploaded(documentWithMeta, {
+      fileSize: file.size,
+      fileType: file.type,
+      storageProvider: result.storageInfo.provider,
+      extractionQueued: result.queued,
+      docType,
+      isStandard
     });
 
   } catch (error: any) {

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { TimestampUtils } from '@/lib/auth-utils';
+import { TimestampUtils, ApiResponse } from '@/lib/auth-utils';
 
 /**
  * Health check endpoint for monitoring systems (Docker, PM2, load balancers)
@@ -9,36 +9,22 @@ import { TimestampUtils } from '@/lib/auth-utils';
 export async function GET(request: NextRequest) {
   try {
     // Basic health check - verify the app is running
-    const response = {
-      status: 'healthy',
-      timestamp: TimestampUtils.now(),
+    return ApiResponse.health.ok('vvg-template', {
       environment: process.env.NODE_ENV || 'development',
       version: process.env.npm_package_version || '0.1.0',
-      service: '${PROJECT_NAME}',
       uptime: process.uptime(),
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
         unit: 'MB'
-      }
-    };
-
-    return NextResponse.json(response, { 
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Health-Check': 'passed'
-      }
+      },
+      timestamp: TimestampUtils.now()
     });
   } catch (error) {
     // If we can't even return a basic response, something is very wrong
-    return NextResponse.json(
-      { 
-        status: 'unhealthy', 
-        timestamp: TimestampUtils.now(),
-        error: 'Health check failed'
-      }, 
-      { status: 503 }
-    );
+    return ApiResponse.health.degraded('vvg-template', [
+      'Health check failed',
+      error instanceof Error ? error.message : 'Unknown error'
+    ]);
   }
 }
