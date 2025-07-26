@@ -1,11 +1,10 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
-import { Logger } from '@/lib/services/logger';
 import { DocumentService } from '@/lib/services/document-service';
-import { withAuth, ApiResponse } from '@/lib/auth-utils';
+import { withAuth, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { config } from '@/lib/config';
-import { FileValidation, ApiErrors } from '@/lib/utils';
+import { FileValidation } from '@/lib/utils';
 import fs from 'fs';
 import path from 'path';
 

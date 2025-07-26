@@ -1,10 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { withDocumentAccess, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
 import { config, APP_CONSTANTS } from '@/lib/config';
-import { Logger } from '@/lib/services/logger';
 
 // POST /api/documents/[id]/extract - Manually trigger text extraction
 export const POST = withDocumentAccess<{ id: string }>(async (

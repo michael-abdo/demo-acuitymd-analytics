@@ -1,9 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { withComparisonAccess, ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { withComparisonAccess, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { comparisonDb, ComparisonStatus } from '@/lib/nda';
-import { Logger } from '@/lib/services/logger';
 import { getTextStats, findSections, calculateSimilarity } from '@/lib/text-extraction';
 
 // POST /api/compare/simple - Create a simple text comparison

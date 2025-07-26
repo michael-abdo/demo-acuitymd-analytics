@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { ApiResponse, ApiErrors, TimestampUtils } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
   // Production guard - FAIL FAST
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     result: {
       message: "This is protected API data",
       userId: token.id,
-      timestamp: new Date().toISOString(),
+      timestamp: TimestampUtils.now(),
     },
     status: 'success'
   });
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
         message: "Data received successfully",
         receivedData: body,
         userId: token.id,
-        timestamp: new Date().toISOString(),
+        timestamp: TimestampUtils.now(),
       },
       status: 'created'
     });

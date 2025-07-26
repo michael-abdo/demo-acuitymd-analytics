@@ -1,11 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server'
-import { withRateLimit, ApiResponse } from '@/lib/auth-utils'
+import { withRateLimit, ApiResponse, ApiErrors, Logger, TimestampUtils } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
-import { ApiErrors } from '@/lib/utils'
 import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
-import { Logger } from '@/lib/services/logger'
 import { compareRateLimiter } from '@/lib/rate-limiter'
 import { config, APP_CONSTANTS } from '@/lib/config'
 import { DocumentService } from '@/lib/services/document-service'
@@ -193,7 +191,7 @@ export const POST = withRateLimit(
         pages: standardDoc.metadata?.extraction?.pages || 1,
         confidence: standardDoc.metadata?.extraction?.confidence || APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE,
         metadata: {
-          extractedAt: standardDoc.metadata?.extraction?.extractedAt || new Date().toISOString(),
+          extractedAt: standardDoc.metadata?.extraction?.extractedAt || TimestampUtils.now(),
           method: standardDoc.metadata?.extraction?.method || 'pdf-parse',
           fileHash: standardDoc.file_hash
         }
@@ -204,7 +202,7 @@ export const POST = withRateLimit(
         pages: thirdPartyDoc.metadata?.extraction?.pages || 1,
         confidence: thirdPartyDoc.metadata?.extraction?.confidence || APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE,
         metadata: {
-          extractedAt: thirdPartyDoc.metadata?.extraction?.extractedAt || new Date().toISOString(),
+          extractedAt: thirdPartyDoc.metadata?.extraction?.extractedAt || TimestampUtils.now(),
           method: thirdPartyDoc.metadata?.extraction?.method || 'pdf-parse',
           fileHash: thirdPartyDoc.file_hash
         }
@@ -260,7 +258,7 @@ export const POST = withRateLimit(
           result: formattedResult,
           status: 'completed',
           createdAt: comparison.created_date.toISOString(),
-          completedAt: new Date().toISOString()
+          completedAt: TimestampUtils.now()
         },
         metadata: {
           differenceCount: comparisonResult.differences.length,

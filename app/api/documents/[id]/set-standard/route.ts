@@ -1,9 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { withDocumentAccess, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { documentDb, DocumentService } from '@/lib/constants';
-import { Logger } from '@/lib/services/logger';
 
 // POST /api/documents/[id]/set-standard - Mark document as standard template
 export const POST = withDocumentAccess<{ id: string }>(async (

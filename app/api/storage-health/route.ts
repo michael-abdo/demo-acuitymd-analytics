@@ -2,9 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { config } from '@/lib/config';
-import { Logger } from '@/lib/services/logger';
-import { ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { ApiResponse, ApiErrors, Logger, TimestampUtils } from '@/lib/auth-utils';
 
 export async function GET() {
   try {
@@ -16,7 +14,7 @@ export async function GET() {
     
     // Create a test file
     const testKey = `health-check/${Date.now()}-test.txt`;
-    const testContent = `Storage health check - ${new Date().toISOString()}`;
+    const testContent = `Storage health check - ${TimestampUtils.now()}`;
     const testBuffer = Buffer.from(testContent, 'utf-8');
     
     // Test upload
@@ -64,7 +62,7 @@ export async function GET() {
       result: {
         status: 'healthy',
         provider,
-        timestamp: new Date().toISOString(),
+        timestamp: TimestampUtils.now(),
         tests: {
           upload: uploadResult.key === testKey,
           exists: exists === true,
@@ -114,7 +112,7 @@ export async function GET() {
     
     return ApiErrors.serverError('Storage health check failed', {
       provider: storage.isLocal?.() ? 'local' : storage.isS3?.() ? 's3' : 'unknown',
-      timestamp: new Date().toISOString(),
+      timestamp: TimestampUtils.now(),
       error: errorDetails,
       suggestion: getErrorSuggestion(error)
     });

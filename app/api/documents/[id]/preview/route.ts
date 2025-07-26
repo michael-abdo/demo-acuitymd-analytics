@@ -1,8 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
-import { Logger } from '@/lib/services/logger';
+import { withDocumentAccess, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 
 // GET /api/documents/[id]/preview - Preview extracted text
 export const GET = withDocumentAccess<{ id: string }>(async (

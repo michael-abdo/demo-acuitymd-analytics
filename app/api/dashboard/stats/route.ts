@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest } from 'next/server';
-import { withAuth, ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { withAuth, ApiResponse, ApiErrors, TimestampUtils } from '@/lib/auth-utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
 import { DocumentStatus, ComparisonStatus } from '@/types/nda';
 import { DashboardStats, DashboardStatsResponse } from '@/types/dashboard';
@@ -64,7 +63,7 @@ export const GET = withAuth(withApiLogging('DASHBOARD-STATS', async (
       comparisons: comparisonsCount,
       suggestions: suggestionsCount,
       exports: exportsCount,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: TimestampUtils.now()
     };
 
     // Log final stats

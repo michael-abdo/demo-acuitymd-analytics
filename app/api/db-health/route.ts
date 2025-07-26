@@ -2,9 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { documentDb, DocumentStatus } from '@/lib/nda';
 import { config } from '@/lib/config';
-import { Logger } from '@/lib/services/logger';
-import { ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { ApiResponse, ApiErrors, Logger, TimestampUtils } from '@/lib/auth-utils';
 
 export async function GET() {
   try {
@@ -37,7 +35,7 @@ export async function GET() {
       result: {
         status: 'healthy',
         mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
-        timestamp: new Date().toISOString(),
+        timestamp: TimestampUtils.now(),
         tests: {
           create: testDoc.id > 0,
           read: found?.id === testDoc.id,
@@ -58,7 +56,7 @@ export async function GET() {
     
     return ApiErrors.serverError('Database health check failed', {
       mode: config.DB_CREATE_ACCESS ? 'mysql' : 'memory',
-      timestamp: new Date().toISOString(),
+      timestamp: TimestampUtils.now(),
       error: error.message,
       stack: config.IS_DEVELOPMENT ? error.stack : undefined
     });

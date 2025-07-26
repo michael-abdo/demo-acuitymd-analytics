@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
+import { TimestampUtils } from '@/lib/auth-utils';
 
 /**
  * Health check endpoint for monitoring systems (Docker, PM2, load balancers)
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     // Basic health check - verify the app is running
     const response = {
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: TimestampUtils.now(),
       environment: process.env.NODE_ENV || 'development',
       version: process.env.npm_package_version || '0.1.0',
       service: '${PROJECT_NAME}',
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         status: 'unhealthy', 
-        timestamp: new Date().toISOString(),
+        timestamp: TimestampUtils.now(),
         error: 'Health check failed'
       }, 
       { status: 503 }

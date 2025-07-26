@@ -1,12 +1,10 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiErrors } from '@/lib/utils';
-import { ApiResponse } from '@/lib/auth-utils';
+import { ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { ensureStorageInitialized } from '@/lib/storage';
 import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
 import { processTextExtraction } from '@/lib/text-extraction';
 import { config } from '@/lib/config';
-import { Logger } from '@/lib/services/logger';
 
 /**
  * Process queue endpoint - handles background tasks like text extraction

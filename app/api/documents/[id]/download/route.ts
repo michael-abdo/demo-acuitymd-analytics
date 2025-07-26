@@ -1,9 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess } from '@/lib/auth-utils';
-import { ApiErrors, FileValidation, getFilenameFromPath } from '@/lib/utils';
+import { withDocumentAccess, ApiErrors, Logger } from '@/lib/auth-utils';
+import { FileValidation, getFilenameFromPath } from '@/lib/utils';
 import { storage } from '@/lib/storage';
-import { Logger } from '@/lib/services/logger';
 
 // GET /api/documents/[id]/download - Download document file
 export const GET = withDocumentAccess<{ id: string }>(async (

@@ -1,8 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
-import { Logger } from '@/lib/services/logger';
+import { ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 
 /**
  * API endpoint that checks if a URL is valid or if it redirects

@@ -12,6 +12,14 @@ import { RequestParser } from './services/request-parser';
 import type { RateLimiter } from './rate-limiter';
 
 /**
+ * Consolidated API imports - eliminates duplicate import statements across API routes
+ * Re-exports commonly used utilities to create single import source
+ */
+export { ApiErrors, TimestampUtils, FileValidation } from './utils';
+export { Logger } from './services/logger';
+export { APP_CONSTANTS, config } from './config';
+
+/**
  * Server-side authentication check for server components.
  * Redirects to the sign-in page if the user is not authenticated.
  */

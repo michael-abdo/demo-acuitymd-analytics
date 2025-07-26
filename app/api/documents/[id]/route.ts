@@ -1,9 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
-import { withDocumentAccess, ApiResponse } from '@/lib/auth-utils';
-import { ApiErrors } from '@/lib/utils';
+import { withDocumentAccess, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { documentDb, comparisonDb } from '@/lib/nda/database';
-import { Logger } from '@/lib/services/logger';
 import { DocumentService } from '@/lib/services/document-service';
 
 // GET /api/documents/[id] - Get document details

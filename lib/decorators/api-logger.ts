@@ -35,7 +35,7 @@ export function withApiLogging<T = any>(
       method: request.method,
       url: request.url,
       userAgent: request.headers.get('user-agent'),
-      timestamp: new Date().toISOString()
+      timestamp: TimestampUtils.now()
     });
 
     // Create logging context
