@@ -6,22 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, FileText, Loader2 } from 'lucide-react'
-import { useToast } from '@/components/ui/use-toast'
 import { NDADocument, UploadNDAProps } from '@/types/nda'
 import { useFileUpload } from '@/lib/hooks'
+import { toast } from '@/lib/utils/toast'
 
 export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
   const [file, setFile] = useState<File | null>(null)
   const [docType, setDocType] = useState<string>('THIRD_PARTY')
-  const { toast } = useToast()
 
   // Use consolidated file upload hook
   const { upload, uploading } = useFileUpload('/api/upload', {
     onSuccess: (result) => {
-      toast({
-        title: "Upload successful",
-        description: "Your NDA document has been uploaded successfully."
-      });
+      toast.success.upload(file?.name);
       
       setFile(null);
       onUploadComplete?.(result.document);
@@ -31,11 +27,7 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
       if (fileInput) fileInput.value = '';
     },
     onError: (error) => {
-      toast({
-        title: "Upload failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error.upload(error.message);
     }
   })
 
@@ -50,11 +42,7 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
       ]
       
       if (!allowedTypes.includes(selectedFile.type)) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select a PDF, DOCX, DOC, or TXT file.",
-          variant: "destructive"
-        })
+        toast.warning.fileType(["PDF", "DOCX", "DOC", "TXT"]);
         return
       }
       setFile(selectedFile)
@@ -63,11 +51,7 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
 
   const handleUpload = async () => {
     if (!file) {
-      toast({
-        title: "No file selected",
-        description: "Please select a file to upload.",
-        variant: "destructive"
-      })
+      toast.warning.noFile();
       return
     }
 

@@ -11,6 +11,7 @@ import { executeQuery, getConnection } from '@/lib/db';
 // Re-export database utilities for migration scripts and special cases
 export { executeQuery, getConnection };
 import { config } from '@/lib/config';
+import { documentRepository } from './repositories';
 import { 
   NDADocument, 
   NDAComparison, 
@@ -216,191 +217,32 @@ async function safeDelete(
 
 /**
  * Database operations for NDA Documents
+ * Now uses DocumentRepository to eliminate ~200 lines of duplicated CRUD code
  */
 export const documentDb = {
-  async create(data: Omit<NDADocument, 'id' | 'created_at' | 'updated_at'>): Promise<NDADocument> {
-    if (HAS_DB_ACCESS) {
-      const result = await safeInsert(
-        `INSERT INTO nda_documents (
-          filename, original_name, file_hash, s3_url, file_size,
-          user_id, status, extracted_text, is_standard, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.filename,
-          data.original_name,
-          data.file_hash,
-          data.s3_url,
-          data.file_size,
-          data.user_id,
-          data.status,
-          data.extracted_text || null,
-          data.is_standard,
-          data.metadata ? JSON.stringify(data.metadata) : null
-        ],
-        'document',
-        data.user_id
-      );      
-      const created = await this.findById(result.insertId);
-      if (!created) {
-        throw new Error('Failed to retrieve created record');
-      }
-      return created;
-    } else {
-      // In-memory implementation
-      const id = memoryStore.nextId.documents++;
-      const now = new Date();
-      const document: NDADocument = {
-        ...data,
-        id,
-        created_at: now,
-        updated_at: now
-      };
-      memoryStore.documents.set(id, document);
-      return document;
-    }
-  },
-
-  async findById(id: number): Promise<NDADocument | null> {
-    if (HAS_DB_ACCESS) {
-      const rows = await safeQuery<NDADocumentRow[]>(
-        'SELECT * FROM nda_documents WHERE id = ?',
-        [id],
-        { entity: 'document', operation: 'findById' }
-      );      return rows.length > 0 ? rowToDocument(rows[0]) : null;
-    } else {
-      return memoryStore.documents.get(id) || null;
-    }
-  },
-
-  async findByHash(hash: string): Promise<NDADocument | null> {
-    if (HAS_DB_ACCESS) {
-      const rows = await safeQuery<NDADocumentRow[]>(
-        'SELECT * FROM nda_documents WHERE file_hash = ?',
-        [hash],
-        { entity: 'document', operation: 'findByHash' }
-      );
-      return rows.length > 0 ? rowToDocument(rows[0]) : null;
-    } else {
-      for (const doc of memoryStore.documents.values()) {
-        if (doc.file_hash === hash) return doc;
-      }
-      return null;
-    }
-  },
-
-  async findByUser(userId: string, options?: QueryOptions): Promise<NDADocument[]> {
-    if (HAS_DB_ACCESS) {
-      let query = 'SELECT * FROM nda_documents WHERE user_id = ?';
-      const values: any[] = [userId];
-      
-      if (options?.orderBy) {
-        query += ' ORDER BY ' + options.orderBy
-          .map(o => `${o.column} ${o.order}`)
-          .join(', ');
-      }
-      
-      if (options?.limit) {
-        query += ' LIMIT ?';
-        values.push(options.limit);
-        if (options.offset) {
-          query += ' OFFSET ?';
-          values.push(options.offset);
-        }
-      }
-      
-      const rows = await safeQuery<NDADocumentRow[]>(
-        query,
-        values,
-        { entity: 'document', operation: 'findByUser', userId }
-      );
-      return rows.map(rowToDocument);
-    } else {
-      let documents = Array.from(memoryStore.documents.values())
-        .filter(doc => doc.user_id === userId);
-      
-      if (options?.orderBy) {
-        // Simple in-memory sorting
-        documents.sort((a, b) => {
-          const order = options.orderBy![0];
-          const aVal = (a as any)[order.column];
-          const bVal = (b as any)[order.column];
-          return order.order === 'ASC' ? 
-            (aVal > bVal ? 1 : -1) : 
-            (aVal < bVal ? 1 : -1);
-        });
-      }
-      
-      if (options?.limit) {
-        const start = options.offset || 0;
-        documents = documents.slice(start, start + options.limit);
-      }
-      
-      return documents;
-    }
-  },
-
-  async update(id: number, data: Partial<NDADocument>): Promise<boolean> {
-    if (HAS_DB_ACCESS) {
-      const fields = Object.keys(data).filter(k => k !== 'id');
-      const values = fields.map(k => {
-        const val = (data as any)[k];
-        return (k === 'metadata' && val) ? JSON.stringify(val) : val;
-      });
-      values.push(id);
-      
-      const query = `
-        UPDATE nda_documents 
-        SET ${fields.map(f => `${f} = ?`).join(', ')}
-        WHERE id = ?
-      `;
-      
-      const result = await safeUpdate(
-        query,
-        values,
-        'document'
-      );
-      return result.affectedRows > 0;
-    } else {
-      const doc = memoryStore.documents.get(id);
-      if (!doc) return false;
-      
-      Object.assign(doc, data, { updated_at: new Date() });
-      return true;
-    }
-  },
-
-  async delete(id: number): Promise<boolean> {
-    if (HAS_DB_ACCESS) {
-      const result = await safeDelete(
-        'DELETE FROM nda_documents WHERE id = ?',
-        [id],
-        'document'
-      );
-      return result.affectedRows > 0;
-    } else {
-      return memoryStore.documents.delete(id);
-    }
-  },
-
-  async getStandardDocument(userId: string): Promise<NDADocument | null> {
-    if (HAS_DB_ACCESS) {
-      const rows = await safeQuery<NDADocumentRow[]>(
-        'SELECT * FROM nda_documents WHERE user_id = ? AND is_standard = TRUE LIMIT 1',
-        [userId],
-        { entity: 'document', operation: 'getStandardDocument', userId }
-      );
-      return rows.length > 0 ? rowToDocument(rows[0]) : null;
-    } else {
-      for (const doc of memoryStore.documents.values()) {
-        if (doc.user_id === userId && doc.is_standard) return doc;
-      }
-      return null;
-    }
-  },
-
-  async updateStatus(id: number, status: DocumentStatus): Promise<boolean> {
-    return this.update(id, { status });
-  }
+  create: (data: Omit<NDADocument, 'id' | 'created_at' | 'updated_at'>) => 
+    documentRepository.create(data),
+  
+  findById: (id: number) => 
+    documentRepository.findById(id),
+  
+  findByHash: (hash: string) => 
+    documentRepository.findByHash(hash),
+  
+  findByUser: (userId: string, options?: QueryOptions) => 
+    documentRepository.findByUser(userId, options),
+  
+  update: (id: number, data: Partial<NDADocument>) => 
+    documentRepository.update(id, data),
+  
+  delete: (id: number) => 
+    documentRepository.delete(id),
+  
+  getStandardDocument: (userId: string) => 
+    documentRepository.getStandardDocument(userId),
+  
+  updateStatus: (id: number, status: DocumentStatus) => 
+    documentRepository.update(id, { status })
 };
 
 /**
