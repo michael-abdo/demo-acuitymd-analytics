@@ -4,6 +4,7 @@ import mammoth from 'mammoth';
 import { OpenAI } from 'openai';
 import { TextExtractionResult, DocumentMetadata } from '@/lib/nda/types';
 import { config, APP_CONSTANTS } from '@/lib/config';
+import { ConfigValidatorService } from '@/lib/services/config-validator';
 
 export interface DocumentContent {
   text: string
@@ -316,11 +317,13 @@ export async function compareDocuments(
   }>
   summary: string
 }> {
-  // Get OpenAI API key from config (DRY - centralized configuration)
+  // Use centralized configuration validation (DRY: eliminates ~4 lines of duplicated config checking)
+  ConfigValidatorService.validateOpenAI({
+    throwOnError: true,
+    loggerKey: 'api',
+    operation: 'Document comparison'
+  });
   const apiKey = config.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OpenAI API key not configured');
-  }
 
   console.log('🤖 [OPENAI] Starting document comparison...');
   

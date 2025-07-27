@@ -6,6 +6,7 @@ import { DocumentService } from '@/lib/services/document-service';
 import { storage } from '@/lib/storage';
 import { withDetailedLogging, ApiLoggerContext } from '@/lib/decorators/api-logger';
 import { APP_CONSTANTS } from '@/lib/config';
+import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
 
 // Use detailed logging decorator for file uploads (DRY principle)
 export const POST = withAuthAndStorage(withDetailedLogging('UPLOAD', async (
@@ -107,37 +108,27 @@ export const POST = withAuthAndStorage(withDetailedLogging('UPLOAD', async (
     });
 
   } catch (error: any) {
-    // Enhanced error handling with specific error types
-    let errorMessage = 'Upload failed';
-    let errorCode = 'UPLOAD_ERROR';
-    
-    if (error.code === 'AccessDenied') {
-      errorMessage = 'Storage access denied. Please check permissions.';
-      errorCode = 'STORAGE_ACCESS_DENIED';
-    } else if (error.code === 'NoSuchBucket') {
-      errorMessage = 'Storage bucket not found. Please check configuration.';
-      errorCode = 'STORAGE_BUCKET_NOT_FOUND';
-    } else if (error.code === 'ENOSPC') {
-      errorMessage = 'Insufficient storage space.';
-      errorCode = 'STORAGE_QUOTA_EXCEEDED';
-    } else if (error.name === 'StorageError') {
-      errorMessage = error.message;
-      errorCode = error.code;
-    }
+    // Use centralized error suggestion service (DRY: eliminates ~17 lines of duplicated error mapping)
+    const errorSuggestion = ErrorSuggestionService.getErrorSuggestion(error, {
+      operation: 'upload',
+      resource: 'file'
+    });
     
     // Log detailed error for debugging
     logger.error('Upload failed with specific error', error, {
-      errorCode,
-      storageProvider: storage.getProvider?.() || 'unknown'
+      errorCode: errorSuggestion.errorCode,
+      storageProvider: storage.getProvider?.() || 'unknown',
+      suggestion: errorSuggestion.suggestion
     });
     
     return process.env.NODE_ENV === 'development' 
-      ? ApiErrors.validation(errorMessage, {
-          code: errorCode,
+      ? ApiErrors.validation(`Upload failed: ${errorSuggestion.userMessage}`, {
+          code: errorSuggestion.errorCode,
           error: error.message,
+          suggestion: errorSuggestion.suggestion,
           storageProvider: storage.getProvider?.() || 'unknown',
           stack: error.stack
         })
-      : ApiErrors.serverError(errorMessage);
+      : ApiErrors.serverError(`Upload failed: ${errorSuggestion.userMessage}`);
   }
 }), { allowDevBypass: true });

@@ -2,11 +2,13 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server'
 import { withRateLimit, ApiResponse, ApiErrors, Logger, TimestampUtils } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
-import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
+import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus, TaskType } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 import { compareRateLimiter } from '@/lib/rate-limiter'
 import { config, APP_CONSTANTS } from '@/lib/config'
 import { DocumentService } from '@/lib/services/document-service'
+import { ConfigValidatorService } from '@/lib/services/config-validator'
+import { QueueService } from '@/lib/services/queue-service'
 
 export const POST = withRateLimit(
   compareRateLimiter,
@@ -21,13 +23,12 @@ export const POST = withRateLimit(
     const { doc1Id: standardDocId, doc2Id: thirdPartyDocId } = await RequestParser.parseComparisonRequest(request);
     Logger.api.step('COMPARE', 'Parsed document IDs', { standardDocId, thirdPartyDocId });
 
-    // Check if OpenAI API key is configured
-    Logger.api.step('COMPARE', 'Checking OpenAI API key configuration');
-    if (!config.OPENAI_API_KEY) {
-      Logger.api.error('COMPARE', 'OpenAI API key not configured', new Error('Missing OPENAI_API_KEY'));
-      return ApiErrors.configurationError(['OPENAI_API_KEY']);
-    }
-    Logger.api.step('COMPARE', 'OpenAI API key found');
+    // Use centralized configuration validation (DRY: eliminates ~6 lines of duplicated config checking)
+    const configError = ConfigValidatorService.requireOpenAI({
+      loggerKey: 'api',
+      operation: 'COMPARE'
+    });
+    if (configError) return configError;
 
     // Fetch documents from database
     Logger.api.step('COMPARE', 'Fetching documents from database');
@@ -91,52 +92,40 @@ export const POST = withRateLimit(
         }
       }
       
-      // Add documents to extraction queue (DRY principle - handle common failure case)
-      const { queueDb, TaskType } = await import('@/lib/nda');
-      
+      // Use centralized queue service (DRY: eliminates ~40 lines of duplicated queue management)
       try {
-        const queuePromises = [];
+        const tasksToQueue = [];
         
         if (!standardDoc.extracted_text) {
-          queuePromises.push(
-            queueDb.enqueue({
-              document_id: standardDoc.id,
-              task_type: TaskType.EXTRACT_TEXT,
-              priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY,
-              max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
-              scheduled_at: new Date()
-            })
-          );
+          tasksToQueue.push({
+            taskType: TaskType.EXTRACT_TEXT,
+            documentId: standardDoc.id,
+            userId: userEmail,
+            priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY
+          });
         }
         
         if (!thirdPartyDoc.extracted_text) {
-          queuePromises.push(
-            queueDb.enqueue({
-              document_id: thirdPartyDoc.id,
-              task_type: TaskType.EXTRACT_TEXT,
-              priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY,
-              max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
-              scheduled_at: new Date()
-            })
-          );
+          tasksToQueue.push({
+            taskType: TaskType.EXTRACT_TEXT,
+            documentId: thirdPartyDoc.id,
+            userId: userEmail,
+            priority: APP_CONSTANTS.QUEUE.DEFAULT_PRIORITY
+          });
         }
         
-        await Promise.all(queuePromises);
-        Logger.api.success('COMPARE', 'Documents added to extraction queue');
-        
-        // Now trigger the queue processing
-        const response = await fetch(`${request.nextUrl.origin}/api/process-queue`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            [APP_CONSTANTS.QUEUE.SYSTEM_TOKEN_HEADER]: `Bearer ${config.QUEUE_SYSTEM_TOKEN}`
+        if (tasksToQueue.length > 0) {
+          await QueueService.queueBatch(tasksToQueue);
+          
+          // Trigger queue processing
+          const triggered = await QueueService.triggerProcessing(
+            request.nextUrl.origin,
+            config.QUEUE_SYSTEM_TOKEN
+          );
+          
+          if (!triggered) {
+            Logger.api.warn('COMPARE', 'Queue processing trigger failed, but tasks were queued');
           }
-        });
-        
-        if (response.ok) {
-          Logger.api.success('COMPARE', 'Queue processing triggered');
-        } else {
-          Logger.api.error('COMPARE', `Queue processing trigger failed: ${response.status}`);
         }
       } catch (error) {
         Logger.api.error('COMPARE', 'Queue setup error', error as Error);

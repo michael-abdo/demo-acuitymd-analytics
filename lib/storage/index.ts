@@ -10,6 +10,7 @@ import { LocalStorageProvider } from './local-provider';
 import { S3StorageProvider } from './s3-provider';
 import { config, APP_CONSTANTS } from '@/lib/config';
 import { Logger } from '@/lib/services/logger';
+import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
 import { 
   IStorageProvider, 
   StorageProvider, 
@@ -158,38 +159,11 @@ async function executeWithRetry<T>(
 }
 
 /**
- * Check if an error is retryable
+ * Check if an error is retryable using centralized error suggestion utility
+ * (DRY: eliminates ~30 lines of duplicated retry logic)
  */
 function isRetryableError(error: any): boolean {
-  // Network errors
-  if (error.code === 'ECONNREFUSED' || 
-      error.code === 'ETIMEDOUT' || 
-      error.code === 'ENOTFOUND') {
-    return true;
-  }
-  
-  // AWS S3 throttling errors
-  if (error.code === 'SlowDown' || 
-      error.code === 'RequestLimitExceeded' ||
-      error.code === 'ServiceUnavailable' ||
-      error.code === 'RequestTimeout') {
-    return true;
-  }
-  
-  // Don't retry access denied or not found errors
-  if (error.code === 'AccessDenied' || 
-      error.code === 'NoSuchKey' || 
-      error.code === 'NoSuchBucket' ||
-      error.code === 'Forbidden') {
-    return false;
-  }
-  
-  // Retry 5xx errors but not 4xx
-  if (error.statusCode >= 500 && error.statusCode < 600) {
-    return true;
-  }
-  
-  return false;
+  return ErrorSuggestionService.isRetryableError(error);
 }
 
 /**

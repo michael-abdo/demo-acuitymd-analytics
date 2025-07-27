@@ -1,4 +1,5 @@
 import { Logger } from '@/lib/services/logger';
+import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
 
 export interface ErrorHandlerOptions {
   operation: string;
@@ -226,26 +227,12 @@ export function withStorageErrorHandling<T extends any[], R>(
       
       Logger.storage.error(`Storage operation failed: ${operation}`, errorObj, errorDetails);
       
-      // Map common storage errors to user-friendly messages
-      let userMessage = 'Storage operation failed';
-      
-      switch (errorObj.code) {
-        case 'NoSuchBucket':
-          userMessage = 'Storage bucket not found';
-          break;
-        case 'AccessDenied':
-          userMessage = 'Storage access denied';
-          break;
-        case 'NoSuchKey':
-          userMessage = 'File not found in storage';
-          break;
-        case 'ENOSPC':
-          userMessage = 'Insufficient storage space';
-          break;
-        case 'ENOENT':
-          userMessage = 'File or directory not found';
-          break;
-      }
+      // Use centralized error suggestion service (DRY: eliminates ~18 lines of duplicated error mapping)
+      const errorSuggestion = ErrorSuggestionService.getErrorSuggestion(errorObj, {
+        operation,
+        resource: errorDetails.key || errorDetails.path
+      });
+      const userMessage = errorSuggestion.userMessage;
       
       return {
         success: false,

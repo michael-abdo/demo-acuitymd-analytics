@@ -2,8 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { ensureStorageInitialized } from '@/lib/storage';
-import { queueDb, TaskType, QueueStatus } from '@/lib/nda';
-import { processTextExtraction } from '@/lib/text-extraction';
+import { QueueService } from '@/lib/services/queue-service';
 import { config } from '@/lib/config';
 
 /**
@@ -25,11 +24,14 @@ export const POST = async (request: NextRequest) => {
     }
     
     Logger.api.start('QUEUE', 'system', { method: request.method, url: request.url });
-    // Get the next queued task
-    const task = await queueDb.getNext();
     
-    if (!task) {
-      Logger.api.step('QUEUE', 'No tasks in queue - idle');
+    // Use centralized queue service (DRY: eliminates ~55 lines of duplicated queue processing)
+    const taskResult = await QueueService.processNext({
+      loggerKey: 'api',
+      timeoutMs: 30000
+    });
+    
+    if (!taskResult) {
       return ApiResponse.operation('queue.process', {
         result: {
           status: 'idle',
@@ -39,58 +41,11 @@ export const POST = async (request: NextRequest) => {
       });
     }
     
-    Logger.api.step('QUEUE', 'Found task to process', {
-      taskId: task.id,
-      taskType: task.task_type,
-      documentId: task.document_id
-    });
-
-    // Mark task as processing
-    await queueDb.updateStatus(task.id, QueueStatus.PROCESSING);
-    
-    try {
-      switch (task.task_type) {
-        case TaskType.EXTRACT_TEXT:
-          await processTextExtraction(task.document_id);
-          break;
-        
-        case TaskType.COMPARE:
-          // TODO: Implement comparison processing
-          throw new Error('Comparison processing not yet implemented');
-        
-        case TaskType.EXPORT:
-          // TODO: Implement export processing
-          throw new Error('Export processing not yet implemented');
-        
-        default:
-          throw new Error(`Unknown task type: ${task.task_type}`);
-      }
-
-      // Mark task as completed
-      await queueDb.updateStatus(task.id, QueueStatus.COMPLETED);
-      
-      const processedTask = {
-        id: task.id,
-        type: task.task_type,
-        documentId: task.document_id,
-        completedAt: new Date()
-      };
-      
-      return ApiResponse.queue.processed(processedTask, Date.now() - startTime);
-
-    } catch (error) {
-      // Update task with error
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await queueDb.updateError(task.id, errorMessage);
-      
-      // Check if we should retry
-      if (task.attempts < task.max_attempts - 1) {
-        await queueDb.retry(task.id);
-      } else {
-        await queueDb.updateStatus(task.id, QueueStatus.FAILED);
-      }
-      
-      throw error;
+    if (taskResult.status === 'completed') {
+      return ApiResponse.queue.processed(taskResult, Date.now() - startTime);
+    } else {
+      // Task failed or is retrying
+      throw new Error(taskResult.errorMessage || 'Task processing failed');
     }
 
   } catch (error) {
@@ -102,62 +57,25 @@ export const POST = async (request: NextRequest) => {
 // GET endpoint to check queue status
 export async function GET(request: NextRequest) {
   try {
-    // For now, let's implement basic queue stats manually
-    // since getStats might not be implemented
-    const allTasks = await queueDb.findAll?.() || [];
-    
-    const stats = {
-      queued: 0,
-      processing: 0,
-      completed: 0,
-      failed: 0,
-      total: allTasks.length,
-      tasks: [] as any[]
-    };
-    
-    // Count tasks by status and get details
-    allTasks.forEach((task: any) => {
-      switch (task.status) {
-        case QueueStatus.QUEUED:
-          stats.queued++;
-          stats.tasks.push({
-            id: task.id,
-            document_id: task.document_id,
-            task_type: task.task_type,
-            status: task.status,
-            created_at: task.created_at
-          });
-          break;
-        case QueueStatus.PROCESSING:
-          stats.processing++;
-          break;
-        case QueueStatus.COMPLETED:
-          stats.completed++;
-          break;
-        case QueueStatus.FAILED:
-          stats.failed++;
-          stats.tasks.push({
-            id: task.id,
-            document_id: task.document_id,
-            task_type: task.task_type,
-            status: task.status,
-            error_message: task.error_message,
-            attempts: task.attempts
-          });
-          break;
-      }
-    });
+    // Use centralized queue service (DRY: eliminates ~80 lines of duplicated statistics logic)
+    const stats = await QueueService.getStats();
     
     return ApiResponse.operation('queue.status', {
       result: {
         status: 'ok',
-        stats,
-        pendingTasks: stats.tasks.filter((t: any) => t.status === QueueStatus.QUEUED),
-        failedTasks: stats.tasks.filter((t: any) => t.status === QueueStatus.FAILED)
+        stats: {
+          queued: stats.pending,
+          processing: stats.processing,
+          completed: stats.completed,
+          failed: stats.failed,
+          total: stats.total
+        },
+        pendingTasks: stats.pendingTasks,
+        failedTasks: stats.failedTasks
       },
       metadata: {
         totalTasks: stats.total,
-        queuedCount: stats.queued,
+        queuedCount: stats.pending,
         processingCount: stats.processing,
         completedCount: stats.completed,
         failedCount: stats.failed
@@ -166,10 +84,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     Logger.api.error('QUEUE', 'Queue stats error', error as Error);
     
-    // If findAll doesn't exist, return minimal stats
     return ApiResponse.operation('queue.status', {
       result: {
-        status: 'ok',
+        status: 'error',
         stats: {
           queued: 0,
           processing: 0,
@@ -177,12 +94,12 @@ export async function GET(request: NextRequest) {
           failed: 0,
           total: 0
         },
-        message: 'Queue stats not fully implemented'
+        message: 'Failed to retrieve queue statistics'
       },
       metadata: {
         error: error instanceof Error ? error.message : 'Unknown error'
       },
-      status: 'success'
+      status: 'partial'
     });
   }
 }
