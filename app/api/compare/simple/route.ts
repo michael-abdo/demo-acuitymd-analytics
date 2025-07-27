@@ -3,16 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withComparisonAccess, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
 import { comparisonDb, ComparisonStatus } from '@/lib/nda';
 import { getTextStats, findSections, calculateSimilarity } from '@/lib/text-extraction';
+import { DocumentService } from '@/lib/services/document-service';
 
 // POST /api/compare/simple - Create a simple text comparison
 export const POST = withComparisonAccess(async (request: NextRequest, userEmail: string, doc1, doc2) => {
   try {
     
-    // Check if text has been extracted
-    if (!doc1.extracted_text || !doc2.extracted_text) {
+    // Use centralized document validation (DRY: eliminates duplicated extraction checks)
+    const validationResult = DocumentService.validateDocumentsReady([doc1, doc2]);
+    if (!validationResult.ready) {
       return ApiErrors.validation('Both documents must have extracted text before comparison', {
-        doc1HasText: !!doc1.extracted_text,
-        doc2HasText: !!doc2.extracted_text
+        missingExtraction: validationResult.missingExtraction,
+        extractionStatus: validationResult.hasExtractionStatus
       });
     }
     

@@ -1,13 +1,9 @@
 export const dynamic = "force-dynamic";
 import { executeQuery } from '@/lib/db'
 import { NextResponse } from 'next/server'
-import { ApiResponse, ApiErrors } from '@/lib/auth-utils'
+import { ApiResponse, ApiErrors, withDevOnlyAccess } from '@/lib/auth-utils'
 
-export async function POST() {
-  // Production guard - FAIL FAST
-  if (process.env.NODE_ENV === 'production') {
-    return new Response(null, { status: 404 });
-  }
+export const POST = withDevOnlyAccess(async () => {
 
   try {
     // Create NDA documents table
@@ -128,4 +124,4 @@ export async function POST() {
       error: error instanceof Error ? error.message : String(error)
     })
   }
-}
+});

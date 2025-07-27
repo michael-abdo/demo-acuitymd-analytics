@@ -634,5 +634,99 @@ export const DocumentService = {
 
     Logger.api.step('DOCUMENT', 'File validation passed');
     return true;
-  }, 'VALIDATE_FILE')
+  }, 'VALIDATE_FILE'),
+
+  /**
+   * Validate documents for text extraction readiness (DRY: consolidates extraction checks)
+   * Eliminates ~15 lines of duplicated validation logic across comparison routes
+   */
+  validateDocumentsReady(documents: NDADocument[]): {
+    ready: boolean;
+    missingExtraction: { id: number; name: string }[];
+    hasExtractionStatus: { id: number; hasText: boolean }[];
+  } {
+    const missingExtraction: { id: number; name: string }[] = [];
+    const hasExtractionStatus: { id: number; hasText: boolean }[] = [];
+
+    for (const doc of documents) {
+      const hasText = !!(doc.extracted_text && doc.extracted_text.length > 0);
+      hasExtractionStatus.push({ id: doc.id, hasText });
+      
+      if (!hasText) {
+        missingExtraction.push({ 
+          id: doc.id, 
+          name: doc.original_name || `Document ${doc.id}` 
+        });
+      }
+    }
+
+    return {
+      ready: missingExtraction.length === 0,
+      missingExtraction,
+      hasExtractionStatus
+    };
+  },
+
+  /**
+   * Ensure documents have extracted text, queue extraction if needed (DRY: consolidates queue logic)
+   * Eliminates ~20 lines of duplicated queue management across comparison routes
+   */
+  async ensureExtractionQueued(
+    documentIds: number[],
+    userEmail: string,
+    options: { priority?: number; triggerProcessing?: boolean } = {}
+  ): Promise<{ queued: number[]; existing: number[]; queueTasks: any[] }> {
+    const { priority = 1, triggerProcessing = false } = options;
+    const queued: number[] = [];
+    const existing: number[] = [];
+    const queueTasks: any[] = [];
+
+    Logger.api.step('DOCUMENT', `Ensuring extraction queued for ${documentIds.length} documents`, {
+      documentIds,
+      priority,
+      triggerProcessing
+    });
+
+    for (const documentId of documentIds) {
+      // Check if already in queue
+      const existingTasks = await queueDb.findByDocumentId(documentId);
+      const hasActiveTask = existingTasks.some(task => 
+        task.task_type === TaskType.EXTRACT_TEXT && 
+        [QueueStatus.PENDING, QueueStatus.PROCESSING].includes(task.status)
+      );
+
+      if (hasActiveTask) {
+        existing.push(documentId);
+        Logger.api.step('DOCUMENT', `Document ${documentId} already has active extraction task`);
+      } else {
+        // Queue new extraction task
+        const queueTask = await queueDb.enqueue({
+          document_id: documentId,
+          task_type: TaskType.EXTRACT_TEXT,
+          user_id: userEmail,
+          priority,
+          max_attempts: 3
+        });
+        
+        queued.push(documentId);
+        queueTasks.push(queueTask);
+        Logger.api.step('DOCUMENT', `Queued extraction task for document ${documentId}`);
+      }
+    }
+
+    // Optionally trigger processing
+    if (triggerProcessing && queued.length > 0) {
+      Logger.api.step('DOCUMENT', 'Triggering queue processing');
+      try {
+        // Trigger processing without waiting
+        fetch('/api/process-queue', { method: 'POST' }).catch(() => {
+          Logger.api.warn('DOCUMENT', 'Failed to trigger queue processing (non-critical)');
+        });
+      } catch (error) {
+        Logger.api.warn('DOCUMENT', 'Failed to trigger queue processing', error as Error);
+      }
+    }
+
+    return { queued, existing, queueTasks };
+  }
 };

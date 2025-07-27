@@ -568,6 +568,22 @@ function getHttpStatusForOperation(status: string): number {
 }
 
 /**
+ * Development-only access wrapper (DRY: consolidates dev environment guards)
+ * Ensures consistent production protection across development endpoints
+ */
+export function withDevOnlyAccess<T extends any[]>(
+  handler: (...args: T) => Promise<NextResponse>
+) {
+  return async (...args: T): Promise<NextResponse> => {
+    // FAIL FAST: Block access in production
+    if (process.env.NODE_ENV === 'production') {
+      return new NextResponse(null, { status: 404 });
+    }
+    return handler(...args);
+  };
+}
+
+/**
  * Wrap any handler with consistent error handling
  */
 export function withErrorHandler<T extends any[]>(

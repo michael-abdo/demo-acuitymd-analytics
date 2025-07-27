@@ -1,13 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { ApiResponse, ApiErrors, TimestampUtils } from '@/lib/auth-utils';
+import { ApiResponse, ApiErrors, TimestampUtils, withDevOnlyAccess } from '@/lib/auth-utils';
 
-export async function GET(request: NextRequest) {
-  // Production guard - FAIL FAST
-  if (process.env.NODE_ENV === 'production') {
-    return new Response(null, { status: 404 });
-  }
+export const GET = withDevOnlyAccess(async (request: NextRequest) => {
 
   // Get the JWT token to verify authentication server-side
   const token = await getToken({ req: request });
@@ -26,13 +22,9 @@ export async function GET(request: NextRequest) {
     },
     status: 'success'
   });
-}
+});
 
-export async function POST(request: NextRequest) {
-  // Production guard - FAIL FAST
-  if (process.env.NODE_ENV === 'production') {
-    return new Response(null, { status: 404 });
-  }
+export const POST = withDevOnlyAccess(async (request: NextRequest) => {
 
   // Get the JWT token to verify authentication server-side
   const token = await getToken({ req: request });
@@ -59,4 +51,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return ApiErrors.badRequest('Invalid JSON data');
   }
-} 
+}); 
