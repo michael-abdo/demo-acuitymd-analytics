@@ -5,7 +5,7 @@ import { FileValidation } from '@/lib/utils';
 import { DocumentService } from '@/lib/services/document-service';
 import { storage } from '@/lib/storage';
 import { withDetailedLogging, ApiLoggerContext } from '@/lib/decorators/api-logger';
-import { APP_CONSTANTS } from '@/lib/config';
+import { APP_CONSTANTS, EnvironmentHelpers } from '@/lib/config';
 import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
 
 // Use detailed logging decorator for file uploads (DRY principle)
@@ -121,7 +121,7 @@ export const POST = withAuthAndStorage(withDetailedLogging('UPLOAD', async (
       suggestion: errorSuggestion.suggestion
     });
     
-    return process.env.NODE_ENV === 'development' 
+    return EnvironmentHelpers.isDevelopment() 
       ? ApiErrors.validation(`Upload failed: ${errorSuggestion.userMessage}`, {
           code: errorSuggestion.errorCode,
           error: error.message,

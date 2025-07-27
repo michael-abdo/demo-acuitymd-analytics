@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Suspense } from "react";
 import { LoadingPage } from "@/components/ui/loading";
+import { CenteredFormLayout } from "@/components/ui";
+import { ClientLogger } from "@/lib/services/logger";
 
 // Client component that uses useSearchParams
 function SignInRedirect() {
@@ -23,12 +25,12 @@ function SignInRedirect() {
         if (providers && providers["azure-ad"]) {
           await signIn("azure-ad", { callbackUrl });
         } else {
-          console.error("Azure AD provider not configured");
+          ClientLogger.error("SIGN_IN", "Azure AD provider not configured");
           // Fallback to dashboard if provider is not available
           window.location.href = callbackUrl;
         }
       } catch (error) {
-        console.error("Sign-in error:", error);
+        ClientLogger.error("SIGN_IN", "Sign-in error", error);
         // Fallback to dashboard on error
         window.location.href = callbackUrl;
       }
@@ -40,18 +42,16 @@ function SignInRedirect() {
   }, [callbackUrl]);
   
   return (
-    <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md text-center">
-      <div className="flex flex-col items-center mb-8">
-        <h1 className="text-2xl font-bold">
-          {isRedirecting ? "Redirecting to Sign In" : "Preparing Sign In"}
-        </h1>
-        <p className="text-gray-500 mt-2">
-          {isRedirecting 
-            ? "You are being redirected to Microsoft for authentication..."
-            : "Please wait while we prepare your authentication..."
-          }
-        </p>
-      </div>
+    <div className="flex flex-col items-center mb-8">
+      <h1 className="text-2xl font-bold">
+        {isRedirecting ? "Redirecting to Sign In" : "Preparing Sign In"}
+      </h1>
+      <p className="text-gray-500 mt-2">
+        {isRedirecting 
+          ? "You are being redirected to Microsoft for authentication..."
+          : "Please wait while we prepare your authentication..."
+        }
+      </p>
       
       <LoadingPage message="" className="mt-6" />
     </div>
@@ -61,12 +61,10 @@ function SignInRedirect() {
 // Loading fallback for Suspense
 function SignInLoading() {
   return (
-    <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md text-center">
-      <div className="flex flex-col items-center mb-8">
-        <div className="w-[120px] h-[120px] bg-gray-200 rounded-md animate-pulse mb-4" />
-        <div className="h-8 bg-gray-200 rounded w-3/4 animate-pulse mx-auto" />
-        <div className="h-4 bg-gray-200 rounded w-1/2 mt-2 animate-pulse mx-auto" />
-      </div>
+    <div className="flex flex-col items-center mb-8">
+      <div className="w-[120px] h-[120px] bg-gray-200 rounded-md animate-pulse mb-4" />
+      <div className="h-8 bg-gray-200 rounded w-3/4 animate-pulse mx-auto" />
+      <div className="h-4 bg-gray-200 rounded w-1/2 mt-2 animate-pulse mx-auto" />
       <LoadingPage message="" className="mt-6" />
     </div>
   );
@@ -75,11 +73,11 @@ function SignInLoading() {
 // Main page component with Suspense
 export default function SignIn() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+    <CenteredFormLayout>
       <Suspense fallback={<SignInLoading />}>
         <SignInRedirect />
       </Suspense>
-    </div>
+    </CenteredFormLayout>
   );
 }
 

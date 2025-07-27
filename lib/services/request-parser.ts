@@ -6,6 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { JsonUtils } from '@/lib/utils';
 
 export interface PaginationParams {
   page: number;
@@ -95,8 +96,7 @@ export const RequestParser = {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const isStandard = formData.get('isStandard') === 'true';
-    const metadata = formData.get('metadata') ? 
-      JSON.parse(formData.get('metadata') as string) : {};
+    const metadata = JsonUtils.safeParse(formData.get('metadata') as string, {});
 
     if (!file) {
       throw new Error('No file provided in upload request');

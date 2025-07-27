@@ -6,6 +6,7 @@ import { DocumentStatus, ComparisonStatus } from '@/types/nda';
 import { DashboardStats, DashboardStatsResponse } from '@/types/dashboard';
 import { withApiLogging, ApiLoggerContext } from '@/lib/decorators/api-logger';
 import { DocumentService } from '@/lib/services/document-service';
+import { EnvironmentHelpers } from '@/lib/config';
 
 // Use the new logging decorator (DRY principle)
 export const GET = withAuth(withApiLogging('DASHBOARD-STATS', async (
@@ -81,17 +82,12 @@ export const GET = withAuth(withApiLogging('DASHBOARD-STATS', async (
     const response = ApiResponse.operation('admin.stats', {
       result: responseData,
       metadata: {
-        hasDatabase: HAS_DB_ACCESS,
-        source: HAS_DB_ACCESS ? 'database' : 'memory'
+        hasDatabase: EnvironmentHelpers.hasDbAccess(),
+        source: EnvironmentHelpers.hasDbAccess() ? 'database' : 'memory'
       }
     });
     
     response.headers.set('Cache-Control', 'private, max-age=60');
     return response;
 
-  } catch (error) {
-    // This catch block is now redundant due to decorator, but kept for explicit error handling
-    logger.error('Failed to fetch dashboard statistics', error as Error);
-    return ApiErrors.serverError('Failed to fetch dashboard statistics');
-  }
 }));

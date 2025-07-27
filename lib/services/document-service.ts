@@ -11,6 +11,7 @@ import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda';
 import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
 import { APP_CONSTANTS } from '@/lib/config';
 import { storage } from '@/lib/storage';
+import { TimestampUtils } from '@/lib/utils';
 import { withDatabaseErrorHandling, withStorageErrorHandling, withValidationErrorHandling } from '@/lib/decorators/error-handler';
 
 export interface DocumentWithMetadata extends NDADocument {
@@ -78,19 +79,11 @@ export const DocumentService = {
     let filteredDocuments = allDocuments;
 
     if (options.type) {
-      filteredDocuments = filteredDocuments.filter(doc => {
-        if (options.type === 'standard') return doc.is_standard;
-        if (options.type === 'third_party') return !doc.is_standard;
-        return true;
-      });
+      filteredDocuments = this.filterDocuments.byType(filteredDocuments, options.type);
     }
 
     if (options.search) {
-      const searchLower = options.search.toLowerCase();
-      filteredDocuments = filteredDocuments.filter(doc => 
-        doc.filename.toLowerCase().includes(searchLower) ||
-        doc.original_name.toLowerCase().includes(searchLower)
-      );
+      filteredDocuments = this.filterDocuments.bySearch(filteredDocuments, options.search);
     }
 
     // Sort by created_at descending
@@ -106,15 +99,16 @@ export const DocumentService = {
     const allComparisons = await comparisonDb.findByUser(userEmail);
     
     // Enhance with metadata
-    const documentsWithMetadata: DocumentWithMetadata[] = paginatedDocuments.map(doc => ({
-      ...doc,
-      fileType: doc.filename.split('.').pop()?.toLowerCase() || 'unknown',
-      hasExtractedText: !!doc.extracted_text,
-      extractedTextLength: doc.extracted_text ? doc.extracted_text.length : 0,
-      relatedComparisons: allComparisons.filter(comp => 
-        comp.document1_id === doc.id || comp.document2_id === doc.id
-      ).length
-    }));
+    const documentsWithMetadata: DocumentWithMetadata[] = paginatedDocuments.map(doc => {
+      const metadata = this.extractDocumentMetadata(doc);
+      return {
+        ...doc,
+        fileType: metadata.fileType,
+        hasExtractedText: metadata.hasExtractedText,
+        extractedTextLength: metadata.extractedTextLength,
+        relatedComparisons: this.filterRelatedComparisons(allComparisons, doc.id).length
+      };
+    });
 
     const total = filteredDocuments.length;
     const pages = Math.ceil(total / options.pageSize);
@@ -303,15 +297,14 @@ export const DocumentService = {
     
     // Get comparisons count
     const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === document.id || comp.document2_id === document.id
-    );
+    const relatedComparisons = this.filterRelatedComparisons(allComparisons, document.id);
 
+    const metadata = this.extractDocumentMetadata(document);
     return {
       ...document,
-      fileType: document.filename.split('.').pop()?.toLowerCase() || 'unknown',
-      hasExtractedText: !!document.extracted_text,
-      extractedTextLength: document.extracted_text ? document.extracted_text.length : 0,
+      fileType: metadata.fileType,
+      hasExtractedText: metadata.hasExtractedText,
+      extractedTextLength: metadata.extractedTextLength,
       relatedComparisons: relatedComparisons.length
     };
   },
@@ -378,7 +371,7 @@ export const DocumentService = {
           updateData.metadata = {
             ...document.metadata,
             ...metadata,
-            lastStatusUpdate: new Date().toISOString()
+            lastStatusUpdate: TimestampUtils.now()
           };
         }
       }
@@ -493,9 +486,7 @@ export const DocumentService = {
     
     // Check if document is used in any comparisons
     const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === documentId || comp.document2_id === documentId
-    );
+    const relatedComparisons = this.filterRelatedComparisons(allComparisons, documentId);
 
     if (relatedComparisons.length > 0) {
       blockers.push(`Document is used in ${relatedComparisons.length} comparison(s)`);
@@ -589,15 +580,11 @@ export const DocumentService = {
     
     // Get comparisons count
     const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === document.id || comp.document2_id === document.id
-    );
+    const relatedComparisons = this.filterRelatedComparisons(allComparisons, document.id);
 
     // Calculate enhanced properties
-    const fileType = document.filename.split('.').pop()?.toLowerCase() || 'unknown';
-    const sizeMB = document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : null;
-    const hasExtractedText = !!document.extracted_text;
-    const extractedTextLength = document.extracted_text ? document.extracted_text.length : 0;
+    const metadata = this.extractDocumentMetadata(document);
+    const { fileType, sizeMB, hasExtractedText, extractedTextLength } = metadata;
 
     return {
       ...document,
@@ -728,5 +715,217 @@ export const DocumentService = {
     }
 
     return { queued, existing, queueTasks };
+  },
+
+  /**
+   * Filter comparisons related to a specific document
+   * Consolidates duplicated filtering logic (DRY: eliminates 4 exact duplicates)
+   */
+  filterRelatedComparisons(
+    comparisons: any[], 
+    documentId: number
+  ): any[] {
+    return comparisons.filter(comp => 
+      comp.document1_id === documentId || comp.document2_id === documentId
+    );
+  },
+
+  /**
+   * Get the other document ID in a comparison
+   * Useful for finding related documents in comparison results
+   */
+  getRelatedDocumentId(comparison: any, currentDocId: number): number | null {
+    if (comparison.document1_id === currentDocId) {
+      return comparison.document2_id;
+    }
+    if (comparison.document2_id === currentDocId) {
+      return comparison.document1_id;
+    }
+    return null;
+  },
+
+  /**
+   * Get all documents related to a specific document through comparisons
+   */
+  async getRelatedDocuments(
+    documentId: number,
+    userEmail: string
+  ): Promise<NDADocument[]> {
+    const comparisons = await comparisonDb.findByUser(userEmail);
+    const relatedComparisons = this.filterRelatedComparisons(comparisons, documentId);
+    
+    const relatedDocIds = new Set<number>();
+    relatedComparisons.forEach(comp => {
+      const relatedId = this.getRelatedDocumentId(comp, documentId);
+      if (relatedId) relatedDocIds.add(relatedId);
+    });
+    
+    const relatedDocuments = [];
+    for (const docId of relatedDocIds) {
+      const doc = await documentDb.findById(docId);
+      if (doc) relatedDocuments.push(doc);
+    }
+    
+    return relatedDocuments;
+  },
+
+  /**
+   * Extract metadata from a document
+   * Consolidates metadata extraction patterns (DRY: eliminates 3 instances)
+   */
+  extractDocumentMetadata(document: NDADocument): {
+    fileType: string;
+    fileExtension: string;
+    hasExtractedText: boolean;
+    extractedTextLength: number;
+    sizeMB: string | null;
+    isStandard: boolean;
+    isPDF: boolean;
+    isWord: boolean;
+    canExtract: boolean;
+  } {
+    const fileExtension = document.filename.split('.').pop()?.toLowerCase() || 'unknown';
+    const fileType = fileExtension;
+    const hasExtractedText = !!document.extracted_text;
+    const extractedTextLength = document.extracted_text ? document.extracted_text.length : 0;
+    const sizeMB = document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : null;
+    
+    return {
+      fileType,
+      fileExtension,
+      hasExtractedText,
+      extractedTextLength,
+      sizeMB,
+      isStandard: document.is_standard,
+      isPDF: fileExtension === 'pdf',
+      isWord: ['doc', 'docx'].includes(fileExtension),
+      canExtract: ['pdf', 'doc', 'docx'].includes(fileExtension)
+    };
+  },
+
+  /**
+   * Calculate document statistics
+   * Useful for dashboards and summaries
+   */
+  calculateDocumentStats(documents: NDADocument[]): {
+    total: number;
+    withExtractedText: number;
+    withoutExtractedText: number;
+    standardDocuments: number;
+    thirdPartyDocuments: number;
+    byFileType: Record<string, number>;
+    totalSizeMB: number;
+  } {
+    const stats = {
+      total: documents.length,
+      withExtractedText: 0,
+      withoutExtractedText: 0,
+      standardDocuments: 0,
+      thirdPartyDocuments: 0,
+      byFileType: {} as Record<string, number>,
+      totalSizeMB: 0
+    };
+    
+    documents.forEach(doc => {
+      const metadata = this.extractDocumentMetadata(doc);
+      
+      // Text extraction stats
+      if (metadata.hasExtractedText) {
+        stats.withExtractedText++;
+      } else {
+        stats.withoutExtractedText++;
+      }
+      
+      // Document type stats
+      if (doc.is_standard) {
+        stats.standardDocuments++;
+      } else {
+        stats.thirdPartyDocuments++;
+      }
+      
+      // File type stats
+      stats.byFileType[metadata.fileType] = (stats.byFileType[metadata.fileType] || 0) + 1;
+      
+      // Size stats
+      if (doc.file_size) {
+        stats.totalSizeMB += doc.file_size / 1024 / 1024;
+      }
+    });
+    
+    return stats;
+  },
+
+  /**
+   * Document filtering utilities
+   * Consolidates common filtering patterns (DRY: eliminates ~4 instances)
+   */
+  filterDocuments: {
+    /**
+     * Filter by document type (standard vs third-party)
+     */
+    byType: (documents: NDADocument[], type: 'standard' | 'third_party'): NDADocument[] => {
+      if (type === 'standard') {
+        return documents.filter(doc => doc.is_standard);
+      }
+      return documents.filter(doc => !doc.is_standard);
+    },
+    
+    /**
+     * Filter by text extraction status
+     */
+    byExtraction: (documents: NDADocument[], hasText: boolean): NDADocument[] => {
+      return documents.filter(doc => !!doc.extracted_text === hasText);
+    },
+    
+    /**
+     * Filter by file type
+     */
+    byFileType: (documents: NDADocument[], fileTypes: string[]): NDADocument[] => {
+      const normalizedTypes = fileTypes.map(t => t.toLowerCase());
+      return documents.filter(doc => {
+        const ext = doc.filename.split('.').pop()?.toLowerCase() || '';
+        return normalizedTypes.includes(ext);
+      });
+    },
+    
+    /**
+     * Filter by search term (case-insensitive)
+     */
+    bySearch: (documents: NDADocument[], searchTerm: string): NDADocument[] => {
+      if (!searchTerm) return documents;
+      const term = searchTerm.toLowerCase();
+      return documents.filter(doc => 
+        doc.filename.toLowerCase().includes(term) ||
+        doc.original_name.toLowerCase().includes(term)
+      );
+    },
+    
+    /**
+     * Filter by date range
+     */
+    byDateRange: (documents: NDADocument[], startDate?: Date, endDate?: Date): NDADocument[] => {
+      return documents.filter(doc => {
+        const docDate = new Date(doc.created_at);
+        if (startDate && docDate < startDate) return false;
+        if (endDate && docDate > endDate) return false;
+        return true;
+      });
+    },
+    
+    /**
+     * Filter documents ready for comparison
+     */
+    readyForComparison: (documents: NDADocument[]): NDADocument[] => {
+      return documents.filter(doc => 
+        doc.extracted_text && doc.extracted_text.length > 0
+      );
+    },
+    
+    /**
+     * Combine multiple filters
+     */
+    combine: (documents: NDADocument[], filters: Array<(docs: NDADocument[]) => NDADocument[]>): NDADocument[] => {
+      return filters.reduce((docs, filter) => filter(docs), documents);
+    }
   }
 };

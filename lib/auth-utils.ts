@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth-options";
 import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
-import { parseDocumentId, isDocumentOwner, ApiErrors } from './utils';
+import { isDocumentOwner, ApiErrors } from './utils';
 import { documentDb } from './nda/database';
 import type { NDADocument } from '@/types/nda';
 import { ensureStorageInitialized } from './storage';
@@ -158,7 +158,7 @@ export function withDocumentAccess<T extends { id: string }>(
     
     // Parse and validate document ID
     const params = await context.params;
-    const documentId = parseDocumentId(params.id);
+    const documentId = RequestParser.parseDocumentId(params.id);
     if (!documentId) {
       return ApiErrors.badRequest('Invalid document ID');
     }

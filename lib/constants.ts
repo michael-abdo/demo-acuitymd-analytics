@@ -44,11 +44,13 @@ export {
 
 // Utility functions
 export { 
-  parseDocumentId, 
   isDocumentOwner, 
   getFilenameFromPath,
   cn
 } from './utils';
+
+// Request parsing utilities (consolidated to avoid duplication)
+export { RequestParser } from './services/request-parser';
 
 // Text extraction
 export { 

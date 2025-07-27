@@ -128,29 +128,33 @@ export function LoadingPage({
 
 /**
  * Button loading state
- * Consolidates the pattern from upload component
+ * Consolidates the pattern from upload component and compare page
  */
 export function LoadingButton({ 
   loading, 
   children, 
   className,
   disabled,
+  loadingText,
   ...props 
 }: {
   loading: boolean;
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
+  loadingText?: string;
   [key: string]: any;
 }) {
+  const { Button } = require('./button');
+  
   return (
-    <button 
+    <Button 
       className={className}
       disabled={disabled || loading}
       {...props}
     >
       {loading && <LoadingSpinner size="sm" className="mr-2" />}
-      {children}
-    </button>
+      {loading ? (loadingText || children) : children}
+    </Button>
   );
 }

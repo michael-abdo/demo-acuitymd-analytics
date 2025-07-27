@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { ResponseUtils } from './utils';
 
 /**
  * Configuration for API calls
@@ -106,12 +107,9 @@ export function useApiData<T>(
         ) : undefined,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
+      // Use centralized error handling
+      await ResponseUtils.checkResponse(response);
+      const responseData = await ResponseUtils.parseJsonSafely(response);
       const finalData = transform ? transform(responseData) : responseData;
 
       setState({
@@ -271,12 +269,10 @@ export function useFileUpload<T = any>(
         body
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
-      }
+      // Use centralized error handling
+      await ResponseUtils.checkResponse(response);
 
-      const responseData = await response.json();
+      const responseData = await ResponseUtils.parseJsonSafely(response);
       setResult(responseData);
       setProgress(100);
       
@@ -390,6 +386,64 @@ export function useAsyncOperation<TArgs extends any[], TResult>(
     hasError: error !== null,
     isComplete: result !== null && !loading
   };
+}
+
+/**
+ * Centralized API call hook with standardized error handling
+ * Consolidates fetch + response.ok + error handling pattern (DRY: eliminates ~45-60 lines)
+ */
+export function useApiCall() {
+  const [loading, setLoading] = useState(false);
+  
+  const apiCall = useCallback(async (
+    url: string, 
+    options: RequestInit = {},
+    errorContext?: string
+  ) => {
+    setLoading(true);
+    try {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        }
+      });
+      
+      // Use centralized error handling
+      await ResponseUtils.checkResponse(response);
+      
+      return await ResponseUtils.parseJsonSafely(response);
+    } catch (error) {
+      console.error(`🔴 API Error${errorContext ? ` (${errorContext})` : ''}:`, error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  return { apiCall, loading };
+}
+
+/**
+ * Hook for loading state management with async operation wrapper
+ * Consolidates useState + setLoading patterns (DRY: eliminates ~15-20 lines per component)
+ */
+export function useLoadingState(initialState = false) {
+  const [loading, setLoading] = useState(initialState);
+  
+  const withLoading = useCallback(async <T>(asyncFn: () => Promise<T>): Promise<T> => {
+    setLoading(true);
+    try {
+      const result = await asyncFn();
+      return result;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  return { loading, setLoading, withLoading };
 }
 
 /**

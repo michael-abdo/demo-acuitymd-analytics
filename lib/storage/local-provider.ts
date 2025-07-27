@@ -8,6 +8,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
 import {
   IStorageProvider,
   StorageProvider,
@@ -129,7 +130,7 @@ export class LocalStorageProvider implements IStorageProvider {
         lastModified: metadata?.uploadedAt
       };
     } catch (error: any) {
-      if (error.code === 'ENOENT') {
+      if (ErrorSuggestionService.isFileNotFoundError(error)) {
         throw new FileNotFoundError(key);
       }
       throw new StorageError(`Failed to download file: ${error.message}`, 'DOWNLOAD_ERROR');
@@ -158,7 +159,7 @@ export class LocalStorageProvider implements IStorageProvider {
       
       return { deleted: true };
     } catch (error: any) {
-      if (error.code === 'ENOENT') {
+      if (ErrorSuggestionService.isFileNotFoundError(error)) {
         return { deleted: false };
       }
       
@@ -292,7 +293,7 @@ export class LocalStorageProvider implements IStorageProvider {
         metadata: metadata || undefined
       };
     } catch (error: any) {
-      if (error.code === 'ENOENT') {
+      if (ErrorSuggestionService.isFileNotFoundError(error)) {
         return null;
       }
       throw new StorageError(`Failed to get file info: ${error.message}`, 'HEAD_ERROR');
@@ -339,7 +340,7 @@ export class LocalStorageProvider implements IStorageProvider {
         metadata: sourceMetadata || undefined
       };
     } catch (error: any) {
-      if (error.code === 'ENOENT') {
+      if (ErrorSuggestionService.isFileNotFoundError(error)) {
         throw new FileNotFoundError(sourceKey);
       }
       throw new StorageError(`Failed to copy file: ${error.message}`, 'COPY_ERROR');

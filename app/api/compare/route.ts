@@ -274,8 +274,12 @@ export const POST = withRateLimit(
     }
 
   } catch (error) {
-    Logger.api.error('COMPARE', 'Comparison error', error as Error);
-    return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed');
+    Logger.api.error('COMPARE', 'Unexpected comparison error', error as Error, { 
+      userEmail,
+      timestamp: TimestampUtils.now(),
+      operation: 'document_comparison'
+    });
+    return ApiErrors.serverError('Failed to process comparison request');
   }
   },
   { allowDevBypass: true, includeHeaders: true }

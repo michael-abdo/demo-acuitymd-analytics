@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@/components/ui";
-import { FileUp, FileText, GitCompare, Download, Loader2, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, StatNumber } from "@/components/ui";
+import { LoadingCard } from "@/components/ui/loading";
+import { FileUp, FileText, GitCompare, Download, RefreshCw } from "lucide-react";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
 import { useAuth } from "@/components/auth-guard";
@@ -53,13 +54,10 @@ export default function DashboardClient() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-2">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-              </div>
+              <LoadingCard showDescription={true} />
             ) : (
               <>
-                <div className="text-2xl font-bold">{stats?.documents || 0}</div>
+                <StatNumber>{stats?.documents || 0}</StatNumber>
                 <p className="text-xs text-muted-foreground">Documents analyzed</p>
               </>
             )}
@@ -75,7 +73,7 @@ export default function DashboardClient() {
               <LoadingCard showDescription={true} />
             ) : (
               <>
-                <div className="text-2xl font-bold">{stats?.comparisons || 0}</div>
+                <StatNumber>{stats?.comparisons || 0}</StatNumber>
                 <p className="text-xs text-muted-foreground">NDAs compared</p>
               </>
             )}
@@ -91,7 +89,7 @@ export default function DashboardClient() {
               <LoadingCard showDescription={true} />
             ) : (
               <>
-                <div className="text-2xl font-bold">{stats?.suggestions || 0}</div>
+                <StatNumber>{stats?.suggestions || 0}</StatNumber>
                 <p className="text-xs text-muted-foreground">AI suggestions generated</p>
               </>
             )}
@@ -104,13 +102,10 @@ export default function DashboardClient() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-2">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-              </div>
+              <LoadingCard showDescription={true} />
             ) : (
               <>
-                <div className="text-2xl font-bold">{stats?.exports || 0}</div>
+                <StatNumber>{stats?.exports || 0}</StatNumber>
                 <p className="text-xs text-muted-foreground">Documents exported</p>
               </>
             )}

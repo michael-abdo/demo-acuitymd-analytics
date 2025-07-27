@@ -123,3 +123,10 @@ export { Progress } from './progress';
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
 export { Switch } from './switch';
+
+// Layout components
+export { CenteredFormLayout } from './centered-form-layout';
+
+// Typography components
+export { SectionTitle, StatNumber, ErrorTitle, CenteredTitle } from './typography';
+export { PageTitle } from '../page-title';

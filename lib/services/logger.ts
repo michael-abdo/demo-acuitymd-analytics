@@ -237,3 +237,38 @@ export const Logger = {
     }
   }
 };
+
+/**
+ * Frontend logging utilities for consistent client-side logging
+ * Consolidates mixed console.error/console.log usage (DRY: eliminates ~25-30 lines)
+ */
+export const ClientLogger = {
+  error: (context: string, message: string, error?: any) => {
+    console.error(`🔴 [${context}] ${message}`, error);
+    // In production, could send to logging service
+  },
+  
+  warn: (context: string, message: string, data?: any) => {
+    console.warn(`🟡 [${context}] ${message}`, data);
+  },
+  
+  info: (context: string, message: string, data?: any) => {
+    console.info(`🔵 [${context}] ${message}`, data);
+  },
+  
+  debug: (context: string, message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`🟢 [${context}] ${message}`, data);
+    }
+  },
+  
+  apiError: (operation: string, error: any) => {
+    console.error(`🔴 [API] ${operation} failed:`, error);
+  },
+  
+  userAction: (action: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.info(`👤 [USER] ${action}`, data);
+    }
+  }
+};

@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import { config } from "@/lib/config";
+import { CenteredFormLayout, ErrorTitle } from "@/components/ui";
 
 function ErrorContent() {
   const searchParams = useSearchParams();
@@ -31,10 +32,9 @@ function ErrorContent() {
   const errorInfo = errorMessages[error || "Default"] || errorMessages.Default;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">{errorInfo.title}</h1>
+    <CenteredFormLayout>
+      <div>
+          <ErrorTitle className="mb-4">{errorInfo.title}</ErrorTitle>
           <p className="text-gray-600 mb-6">{errorInfo.description}</p>
           {error === "OAuthCallback" && (
             <div className="mt-4 p-4 bg-gray-100 rounded text-sm text-gray-700">
@@ -51,9 +51,8 @@ function ErrorContent() {
           >
             Try Again
           </Link>
-        </div>
       </div>
-    </div>
+    </CenteredFormLayout>
   );
 }
 

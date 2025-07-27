@@ -1,13 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, PageTitle } from '@/components/ui';
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
+import { LoadingSpinner, LoadingButton } from '@/components/ui/loading';
 import { PageContainer } from '@/components/page-container';
 import { AuthGuard, useAuth } from '@/components/auth-guard';
-import { getFilenameFromPath } from '@/lib/utils';
+import { StringUtils, UrlBuilder, ResponseUtils, StatusStyles } from '@/lib/utils';
+import { toast } from '@/lib/utils/toast';
+import { ClientLogger } from '@/lib/services/logger';
 import { NDADocument, ComparisonResult, Comparison } from '@/types/nda';
-import { useApiData, useAsyncOperation } from '@/lib/hooks';
+import { useApiData, useApiCall } from '@/lib/hooks';
 
 // Using NDADocument directly since this page doesn't need UI-specific fields
 type Document = NDADocument;
@@ -23,62 +26,47 @@ export default function ComparePage() {
   const { data: documents } = useApiData<NDADocument[]>('/${PROJECT_NAME}/api/documents', {
     autoLoad: !!session,
     initialData: [],
-    transform: (response) => response.data || [],
+    transform: (response) => ResponseUtils.extractList(response),
     deps: [session]
   });
 
-  // Use async operation hook for comparison
-  const { execute: startComparison, loading: comparing } = useAsyncOperation(
-    async (standardDocId: string, thirdPartyDocId: string) => {
-      const response = await fetch('/${PROJECT_NAME}/api/compare', {
+  // Use centralized API call hook for comparison (DRY: eliminates ~15 lines of fetch + error handling)
+  const { apiCall, loading: comparing } = useApiCall();
+  
+  const startComparison = async (standardDocId: string, thirdPartyDocId: string) => {
+    try {
+      const response = await apiCall(UrlBuilder.apiEndpoint('api/compare'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ standardDocId, thirdPartyDocId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Comparison failed');
-      }
-
-      return response.json();
-    },
-    {
-      onSuccess: (data) => {
-        setCurrentComparison(data.data);
-        setRecentComparisons(prev => [data.data, ...prev.slice(0, 4)]);
-      },
-      onError: (error) => {
-        alert(`Comparison failed: ${error.message}`);
-      }
+        body: JSON.stringify({ standardDocId, thirdPartyDocId })
+      }, 'document comparison');
+      
+      const comparisonData = ResponseUtils.extractData(response);
+      setCurrentComparison(comparisonData);
+      setRecentComparisons(prev => [comparisonData, ...prev.slice(0, 4)]);
+    } catch (error) {
+      ClientLogger.apiError('document comparison', error);
+      toast.error.compare(error instanceof Error ? error.message : 'Unknown error');
     }
-  );
-
-  const handleStartComparison = async () => {
-    if (!selectedStandard || !selectedThirdParty) return;
-    
-    setCurrentComparison(null);
-    await startComparison(selectedStandard, selectedThirdParty);
+  };
+  
+  const handleStartComparison = () => {
+    if (selectedStandard && selectedThirdParty) {
+      setCurrentComparison(null);
+      startComparison(selectedStandard, selectedThirdParty);
+    }
   };
 
   const standardDocuments = documents?.filter(doc => doc.is_standard) || [];
   const thirdPartyDocuments = documents?.filter(doc => !doc.is_standard) || [];
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'low': return 'text-green-600 bg-green-50 border-green-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
-
+  // Use centralized status styling utilities
   const getRiskIcon = (risk: string) => {
-    switch (risk) {
-      case 'low': return <CheckCircle className="h-4 w-4" />;
-      case 'medium': return <Clock className="h-4 w-4" />;
-      case 'high': return <AlertCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+    const iconConfig = StatusStyles.getRiskIcon(risk);
+    switch (iconConfig.type) {
+      case 'CheckCircle': return <CheckCircle className={iconConfig.className} />;
+      case 'Clock': return <Clock className={iconConfig.className} />;
+      case 'AlertCircle': return <AlertCircle className={iconConfig.className} />;
+      default: return <Clock className={iconConfig.className} />;
     }
   };
 
@@ -88,7 +76,7 @@ export default function ComparePage() {
       message="Please sign in to compare documents."
     >
       <PageContainer className="space-y-8">
-      <h1 className="text-3xl font-bold">Compare NDAs</h1>
+      <PageTitle>Compare NDAs</PageTitle>
 
       {/* Document Selection */}
       <Card>
@@ -110,7 +98,7 @@ export default function ComparePage() {
                     <SelectItem key={doc.id} value={doc.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Star className="h-3 w-3 text-yellow-500" />
-                        {doc.original_name || getFilenameFromPath(doc.filename)}
+                        {doc.original_name || StringUtils.getFilenameFromPath(doc.filename)}
                       </div>
                     </SelectItem>
                   ))}
@@ -136,7 +124,7 @@ export default function ComparePage() {
                     <SelectItem key={doc.id} value={doc.id.toString()}>
                       <div className="flex items-center gap-2">
                         <FileText className="h-3 w-3" />
-                        {doc.original_name || getFilenameFromPath(doc.filename)}
+                        {doc.original_name || StringUtils.getFilenameFromPath(doc.filename)}
                       </div>
                     </SelectItem>
                   ))}
@@ -151,24 +139,17 @@ export default function ComparePage() {
           </div>
 
           <div className="flex justify-center">
-            <Button
+            <LoadingButton
               onClick={handleStartComparison}
-              disabled={!selectedStandard || !selectedThirdParty || comparing}
+              disabled={!selectedStandard || !selectedThirdParty}
+              loading={comparing}
+              loadingText="Analyzing Documents..."
               size="lg"
               className="px-8"
             >
-              {comparing ? (
-                <>
-                  <Clock className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing Documents...
-                </>
-              ) : (
-                <>
-                  Compare Documents
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
+              Compare Documents
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </LoadingButton>
           </div>
         </CardContent>
       </Card>
@@ -179,7 +160,7 @@ export default function ComparePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Comparison Results
-              <Badge className={getRiskColor(currentComparison.result.overallRisk)}>
+              <Badge className={StatusStyles.getRiskColor(currentComparison.result.overallRisk)}>
                 {getRiskIcon(currentComparison.result.overallRisk)}
                 {currentComparison.result.overallRisk.toUpperCase()} RISK
               </Badge>
@@ -214,7 +195,7 @@ export default function ComparePage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">{section.section}</CardTitle>
-                        <Badge className={getRiskColor(section.severity)}>
+                        <Badge className={StatusStyles.getRiskColor(section.severity)}>
                           {section.severity.toUpperCase()}
                         </Badge>
                       </div>
@@ -295,16 +276,16 @@ export default function ComparePage() {
                   <div className="flex items-center gap-3">
                     <div className="text-sm">
                       <span className="font-medium">
-                        {comparison.standardDocument.original_name || getFilenameFromPath(comparison.standardDocument.filename)}
+                        {comparison.standardDocument.original_name || StringUtils.getFilenameFromPath(comparison.standardDocument.filename)}
                       </span>
                       <span className="text-gray-500 mx-2">vs</span>
                       <span className="font-medium">
-                        {comparison.thirdPartyDocument.original_name || getFilenameFromPath(comparison.thirdPartyDocument.filename)}
+                        {comparison.thirdPartyDocument.original_name || StringUtils.getFilenameFromPath(comparison.thirdPartyDocument.filename)}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={getRiskColor(comparison.result.overallRisk)}>
+                    <Badge className={StatusStyles.getRiskColor(comparison.result.overallRisk)}>
                       {comparison.result.overallRisk.toUpperCase()}
                     </Badge>
                     <span className="text-xs text-gray-500">

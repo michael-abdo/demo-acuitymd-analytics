@@ -10,6 +10,7 @@ import { LoadingButton } from '@/components/ui/loading'
 import { NDADocument, UploadNDAProps } from '@/types/nda'
 import { useFileUpload } from '@/lib/hooks'
 import { toast } from '@/lib/utils/toast'
+import { FormUtils } from '@/lib/utils'
 
 export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
   const [file, setFile] = useState<File | null>(null)
@@ -57,14 +58,14 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
     }
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('isStandard', docType === 'STANDARD' ? 'true' : 'false')
+      const formData = FormUtils.createUploadFormData(file, {
+        isStandard: docType === 'STANDARD'
+      })
 
       await upload(formData)
     } catch (error) {
       // Error handling is done in the hook's onError callback
-      console.error('Upload error:', error)
+      // No additional action needed here
     }
   }
 

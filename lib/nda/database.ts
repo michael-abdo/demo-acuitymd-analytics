@@ -33,6 +33,7 @@ import {
   DeleteResult,
   QueryOptions
 } from './types';
+import { JsonUtils } from '@/lib/utils';
 
 // Check if we have database access using centralized config
 const HAS_DB_ACCESS = config.DB_CREATE_ACCESS;
@@ -80,7 +81,7 @@ function rowToDocument(row: NDADocumentRow): NDADocument {
   return {
     ...row,
     file_size: Number(row.file_size),
-    metadata: row.metadata ? JSON.parse(row.metadata) : null
+    metadata: JsonUtils.safeParse(row.metadata, null)
   };
 }
 
@@ -88,8 +89,8 @@ function rowToComparison(row: NDAComparisonRow): NDAComparison {
   return {
     ...row,
     similarity_score: row.similarity_score ? parseFloat(row.similarity_score) : null,
-    key_differences: row.key_differences ? JSON.parse(row.key_differences) : null,
-    ai_suggestions: row.ai_suggestions ? JSON.parse(row.ai_suggestions) : null
+    key_differences: JsonUtils.safeParse(row.key_differences, null),
+    ai_suggestions: JsonUtils.safeParse(row.ai_suggestions, null)
   };
 }
 
@@ -97,14 +98,14 @@ function rowToExport(row: NDAExportRow): NDAExport {
   return {
     ...row,
     file_size: Number(row.file_size),
-    metadata: row.metadata ? JSON.parse(row.metadata) : null
+    metadata: JsonUtils.safeParse(row.metadata, null)
   };
 }
 
 function rowToQueueItem(row: ProcessingQueueRow): ProcessingQueueItem {
   return {
     ...row,
-    result: row.result ? JSON.parse(row.result) : null
+    result: JsonUtils.safeParse(row.result, null)
   };
 }
 
@@ -264,8 +265,8 @@ export const comparisonDb = {
           data.comparison_result_s3_url || null,
           data.comparison_summary || null,
           data.similarity_score || null,
-          data.key_differences ? JSON.stringify(data.key_differences) : null,
-          data.ai_suggestions ? JSON.stringify(data.ai_suggestions) : null,
+          data.key_differences ? JsonUtils.stringify(data.key_differences) : null,
+          data.ai_suggestions ? JsonUtils.stringify(data.ai_suggestions) : null,
           data.user_id,
           data.status,
           data.error_message || null,
@@ -359,7 +360,7 @@ export const comparisonDb = {
       const values = fields.map(k => {
         const val = (data as any)[k];
         if (k === 'key_differences' || k === 'ai_suggestions') {
-          return val ? JSON.stringify(val) : null;
+          return val ? JsonUtils.stringify(val) : null;
         }
         return val;
       });

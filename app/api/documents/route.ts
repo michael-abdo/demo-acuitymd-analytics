@@ -44,13 +44,15 @@ export const GET = withAuth(async (request: NextRequest, userEmail: string) => {
           ? urlResult.data || { downloadUrl: null }
           : { downloadUrl: null };
 
+        // Use centralized metadata extraction
+        const metadata = DocumentService.extractDocumentMetadata(doc);
+        
         return {
           ...doc,
           downloadUrl,
           canDownload: true,
-          // Add computed properties  
-          sizeMB: doc.file_size ? (doc.file_size / 1024 / 1024).toFixed(2) : null,
-          // Add extraction status
+          // Use centralized computed properties
+          sizeMB: metadata.sizeMB,
           extractionStatus: doc.extracted_text ? 'completed' : 
                           doc.status === 'processing' ? 'processing' : 
                           doc.status === 'error' ? 'failed' : 'pending'

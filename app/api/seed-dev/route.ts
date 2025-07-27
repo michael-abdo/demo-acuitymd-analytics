@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { DocumentService } from '@/lib/services/document-service';
 import { withAuth, ApiResponse, ApiErrors, Logger } from '@/lib/auth-utils';
-import { config } from '@/lib/config';
+import { config, EnvironmentHelpers } from '@/lib/config';
 import { FileValidation } from '@/lib/utils';
 import fs from 'fs';
 import path from 'path';
@@ -163,7 +163,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     Logger.api.error('SEED-DEV', 'Seeding failed', error);
     return ApiErrors.serverError('Seeding failed', {
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: EnvironmentHelpers.isDevelopment() ? error.stack : undefined
     });
   }
 }, { allowDevBypass: true }); // Enable dev bypass for seeding

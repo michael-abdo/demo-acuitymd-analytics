@@ -5,6 +5,7 @@ import { OpenAI } from 'openai';
 import { TextExtractionResult, DocumentMetadata } from '@/lib/nda/types';
 import { config, APP_CONSTANTS } from '@/lib/config';
 import { ConfigValidatorService } from '@/lib/services/config-validator';
+import { TimestampUtils } from '@/lib/utils';
 
 export interface DocumentContent {
   text: string
@@ -81,7 +82,7 @@ export async function extractTextFromPDF(
             pages: 1,
             confidence: 0.7,
             metadata: {
-              extractedAt: new Date().toISOString(),
+              extractedAt: TimestampUtils.now(),
               method: 'enhanced-regex-fallback',
               fileHash
             }
@@ -110,7 +111,7 @@ export async function extractTextFromPDF(
               pages: 1,
               confidence: 0.6, // Lower confidence for basic extraction
               metadata: {
-                extractedAt: new Date().toISOString(),
+                extractedAt: TimestampUtils.now(),
                 method: 'basic-pdf-fallback',
                 fileHash
               }
@@ -131,7 +132,7 @@ export async function extractTextFromPDF(
           pages: 1,
           confidence: 0.4, // Very low confidence for raw extraction
           metadata: {
-            extractedAt: new Date().toISOString(),
+            extractedAt: TimestampUtils.now(),
             method: 'raw-text-fallback',
             fileHash
           }
@@ -152,7 +153,7 @@ export async function extractTextFromPDF(
       pages: data.numpages,
       confidence: APP_CONSTANTS.PROCESSING.DEFAULT_CONFIDENCE, // pdf-parse is reliable for text-based PDFs
       metadata: {
-        extractedAt: new Date().toISOString(),
+        extractedAt: TimestampUtils.now(),
         method: 'pdf-parse',
         fileHash
       }
@@ -220,7 +221,7 @@ export async function extractTextFromDOCX(
       pages: estimatedPages,
       confidence,
       metadata: {
-        extractedAt: new Date().toISOString(),
+        extractedAt: TimestampUtils.now(),
         method: 'mammoth',
         fileHash
       }
@@ -262,7 +263,7 @@ export async function extractTextFromTXT(
       pages: estimatedPages,
       confidence: 1.0, // TXT files are already text
       metadata: {
-        extractedAt: new Date().toISOString(),
+        extractedAt: TimestampUtils.now(),
         method: 'text',
         fileHash
       }

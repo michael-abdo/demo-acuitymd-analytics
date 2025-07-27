@@ -25,6 +25,49 @@ export interface ErrorContext {
  */
 export const ErrorSuggestionService = {
   /**
+   * Check if error is a file not found error
+   * Consolidates ENOENT checks across storage providers
+   */
+  isFileNotFoundError(error: any): boolean {
+    return error?.code === 'ENOENT' || 
+           error?.code === 'NoSuchKey' || 
+           error?.message?.includes('not found') ||
+           error?.statusCode === 404;
+  },
+
+  /**
+   * Check if error is a database connection error
+   * Consolidates connection error checks
+   */
+  isDatabaseConnectionError(error: any): boolean {
+    return error?.code === 'ECONNREFUSED' || 
+           error?.code === 'ER_CON_COUNT_ERROR' ||
+           error?.message?.includes('connection refused');
+  },
+
+  /**
+   * Check if error is a duplicate entry error
+   * Consolidates duplicate detection across databases
+   */
+  isDuplicateError(error: any): boolean {
+    return error?.code === 'ER_DUP_ENTRY' || 
+           error?.code === '23505' || // PostgreSQL duplicate
+           error?.message?.includes('duplicate');
+  },
+
+  /**
+   * Get error category for unified error handling
+   */
+  getErrorCategory(error: any): 'not_found' | 'connection' | 'duplicate' | 'permission' | 'validation' | 'unknown' {
+    if (this.isFileNotFoundError(error)) return 'not_found';
+    if (this.isDatabaseConnectionError(error)) return 'connection';
+    if (this.isDuplicateError(error)) return 'duplicate';
+    if (error?.code === 'AccessDenied' || error?.code === 'Forbidden') return 'permission';
+    if (error?.code?.startsWith('ER_') || error?.name === 'ValidationError') return 'validation';
+    return 'unknown';
+  },
+
+  /**
    * Get comprehensive error suggestion for AWS/storage errors
    */
   getErrorSuggestion(error: any, context: ErrorContext = {}): ErrorSuggestion {

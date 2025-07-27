@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
+import { CenteredFormLayout, CenteredTitle } from "@/components/ui";
 
 export default function SignOut() {
   useEffect(() => {
@@ -10,9 +11,8 @@ export default function SignOut() {
   }, []);
   
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md text-center">
-        <div className="flex flex-col items-center mb-8">
+    <CenteredFormLayout>
+      <div className="flex flex-col items-center mb-8">
           <Image 
             src="/${PROJECT_NAME}/vvg-logo.jpg" 
             alt="Company Logo" 
@@ -20,7 +20,7 @@ export default function SignOut() {
             height={120}
             className="mb-4"
           />
-          <h1 className="text-2xl font-bold">Signing Out</h1>
+          <CenteredTitle>Signing Out</CenteredTitle>
           <p className="text-gray-500 mt-2">You are being signed out...</p>
         </div>
         
@@ -28,6 +28,6 @@ export default function SignOut() {
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
         </div>
       </div>
-    </div>
+    </CenteredFormLayout>
   );
 } 

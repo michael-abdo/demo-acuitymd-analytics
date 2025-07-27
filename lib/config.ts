@@ -174,6 +174,17 @@ export const EnvironmentHelpers = {
     const value = process.env[key];
     if (!value) return defaultValue;
     return value.split(',').map(item => item.trim()).filter(Boolean);
+  },
+  
+  // Database access helper - consolidates DB_CREATE_ACCESS and memory store checks
+  hasDbAccess: () => {
+    // Check if we're using memory store (development mode)
+    const hasMemoryStore = (global as any)._ndaMemoryStore;
+    if (hasMemoryStore) return false;
+    
+    // Check if DB_CREATE_ACCESS is enabled
+    const dbCreateAccess = process.env.DB_CREATE_ACCESS;
+    return dbCreateAccess === 'true' || dbCreateAccess === '1';
   }
 };
 
