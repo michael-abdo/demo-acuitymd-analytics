@@ -1,39 +1,21 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { ApiResponse, ApiErrors, TimestampUtils, withDevOnlyAccess } from '@/lib/auth-utils';
+import { ApiResponse, ApiErrors, TimestampUtils, withDevOnlyAccess, withAuth } from '@/lib/auth-utils';
 
-export const GET = withDevOnlyAccess(async (request: NextRequest) => {
-
-  // Get the JWT token to verify authentication server-side
-  const token = await getToken({ req: request });
-  
-  // If no token exists, the request is not authenticated
-  if (!token) {
-    return ApiErrors.unauthorized('Authentication required');
-  }
-  
-  // Only proceed if the user is authenticated
+export const GET = withDevOnlyAccess(withAuth(async (request: NextRequest, userEmail: string) => {
+  // Use centralized auth wrapper (DRY: eliminates ~6 lines of duplicated auth logic)
   return ApiResponse.operation('protected.get', {
     result: {
       message: "This is protected API data",
-      userId: token.id,
+      userEmail,
       timestamp: TimestampUtils.now(),
     },
     status: 'success'
   });
-});
+}));
 
-export const POST = withDevOnlyAccess(async (request: NextRequest) => {
-
-  // Get the JWT token to verify authentication server-side
-  const token = await getToken({ req: request });
-  
-  // If no token exists, the request is not authenticated
-  if (!token) {
-    return ApiErrors.unauthorized('Authentication required');
-  }
-  
+export const POST = withDevOnlyAccess(withAuth(async (request: NextRequest, userEmail: string) => {
+  // Use centralized auth wrapper (DRY: eliminates ~6 lines of duplicated auth logic)
   try {
     // Parse the request body
     const body = await request.json();
@@ -43,7 +25,7 @@ export const POST = withDevOnlyAccess(async (request: NextRequest) => {
       result: {
         message: "Data received successfully",
         receivedData: body,
-        userId: token.id,
+        userEmail,
         timestamp: TimestampUtils.now(),
       },
       status: 'created'
@@ -51,4 +33,4 @@ export const POST = withDevOnlyAccess(async (request: NextRequest) => {
   } catch (error) {
     return ApiErrors.badRequest('Invalid JSON data');
   }
-}); 
+})); 

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, FileText, Loader2 } from 'lucide-react'
+import { Upload, FileText } from 'lucide-react'
+import { LoadingButton } from '@/components/ui/loading'
 import { NDADocument, UploadNDAProps } from '@/types/nda'
 import { useFileUpload } from '@/lib/hooks'
 import { toast } from '@/lib/utils/toast'
@@ -112,23 +113,15 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
           </div>
         </div>
 
-        <Button 
-          onClick={handleUpload} 
-          disabled={!file || uploading}
+        <LoadingButton 
+          onClick={handleUpload}
+          loading={uploading}
+          disabled={!file}
           className="w-full"
         >
-          {uploading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Uploading...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Document
-            </>
-          )}
-        </Button>
+          {!uploading && <Upload className="mr-2 h-4 w-4" />}
+          {uploading ? 'Uploading...' : 'Upload Document'}
+        </LoadingButton>
       </CardContent>
     </Card>
   )

@@ -5,6 +5,7 @@ import { signIn, getProviders } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Suspense } from "react";
+import { LoadingPage } from "@/components/ui/loading";
 
 // Client component that uses useSearchParams
 function SignInRedirect() {
@@ -52,9 +53,7 @@ function SignInRedirect() {
         </p>
       </div>
       
-      <div className="mt-6">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
-      </div>
+      <LoadingPage message="" className="mt-6" />
     </div>
   );
 }
@@ -68,9 +67,7 @@ function SignInLoading() {
         <div className="h-8 bg-gray-200 rounded w-3/4 animate-pulse mx-auto" />
         <div className="h-4 bg-gray-200 rounded w-1/2 mt-2 animate-pulse mx-auto" />
       </div>
-      <div className="mt-6">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-200 mx-auto"></div>
-      </div>
+      <LoadingPage message="" className="mt-6" />
     </div>
   );
 }

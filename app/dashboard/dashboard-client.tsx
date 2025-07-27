@@ -72,10 +72,7 @@ export default function DashboardClient() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-2">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-              </div>
+              <LoadingCard showDescription={true} />
             ) : (
               <>
                 <div className="text-2xl font-bold">{stats?.comparisons || 0}</div>
@@ -91,10 +88,7 @@ export default function DashboardClient() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-2">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-              </div>
+              <LoadingCard showDescription={true} />
             ) : (
               <>
                 <div className="text-2xl font-bold">{stats?.suggestions || 0}</div>
