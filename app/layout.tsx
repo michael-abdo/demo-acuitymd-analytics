@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s | VVG Template'
   },
   description: 'Production-ready document processing template with upload, extraction, and comparison features',
-  keywords: ['document processing', 'NDA analysis', 'PDF extraction', 'document comparison'],
+  keywords: ['document processing', 'template analysis', 'PDF extraction', 'document comparison'],
   authors: [{ name: 'VVG Team' }],
   openGraph: {
     title: 'VVG Document Processing Template',

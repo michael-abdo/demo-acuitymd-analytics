@@ -43,9 +43,9 @@ export enum QueueStatus {
 }
 
 /**
- * NDA Document type matching nda_documents table
+ * Template Document type matching template_documents table
  */
-export interface NDADocument {
+export interface TemplateDocument {
   id: number;
   filename: string;
   original_name: string;
@@ -63,9 +63,9 @@ export interface NDADocument {
 }
 
 /**
- * NDA Comparison type matching nda_comparisons table
+ * Template Comparison type matching template_comparisons table
  */
-export interface NDAComparison {
+export interface TemplateComparison {
   id: number;
   document1_id: number;
   document2_id: number;
@@ -82,14 +82,14 @@ export interface NDAComparison {
   created_at: Date;
   updated_at: Date;
   // Relations
-  document1?: NDADocument;
-  document2?: NDADocument;
+  document1?: TemplateDocument;
+  document2?: TemplateDocument;
 }
 
 /**
- * NDA Export type matching nda_exports table
+ * Template Export type matching template_exports table
  */
-export interface NDAExport {
+export interface TemplateExport {
   id: number;
   comparison_id: number;
   export_type: ExportType;
@@ -103,7 +103,7 @@ export interface NDAExport {
   created_at: Date;
   updated_at: Date;
   // Relations
-  comparison?: NDAComparison;
+  comparison?: TemplateComparison;
 }
 
 /**
@@ -125,7 +125,7 @@ export interface ProcessingQueueItem {
   created_at: Date;
   updated_at: Date;
   // Relations
-  document?: NDADocument;
+  document?: TemplateDocument;
 }
 
 /**
@@ -178,7 +178,7 @@ export interface DocumentUploadRequest {
  */
 export interface DocumentUploadResponse {
   success: boolean;
-  document?: NDADocument;
+  document?: TemplateDocument;
   error?: string;
   duplicate?: boolean;
   existing_document_id?: number;
@@ -208,7 +208,7 @@ export interface ComparisonOptions {
  */
 export interface ComparisonResponse {
   success: boolean;
-  comparison?: NDAComparison;
+  comparison?: TemplateComparison;
   error?: string;
 }
 
@@ -237,7 +237,7 @@ export interface ExportOptions {
  */
 export interface ExportResponse {
   success: boolean;
-  export?: NDAExport;
+  export?: TemplateExport;
   download_url?: string;
   error?: string;
 }
@@ -281,10 +281,10 @@ export interface APIError {
  */
 
 /**
- * Upload NDA component props
+ * Upload Template component props
  */
-export interface UploadNDAProps {
-  onUploadComplete?: (document: NDADocument) => void;
+export interface UploadTemplateProps {
+  onUploadComplete?: (document: TemplateDocument) => void;
 }
 
 /**
@@ -298,9 +298,9 @@ export interface DocumentCardProps {
 
 /**
  * Document with UI-specific fields
- * Extends NDADocument with additional UI metadata
+ * Extends TemplateDocument with additional UI metadata
  */
-export interface DocumentWithUIFields extends NDADocument {
+export interface DocumentWithUIFields extends TemplateDocument {
   // UI-specific fields only
   downloadUrl?: string;
   fileType?: string;
@@ -331,8 +331,8 @@ export interface ComparisonResult {
  */
 export interface Comparison {
   id: number;
-  standardDocument: NDADocument;
-  thirdPartyDocument: NDADocument;
+  standardDocument: TemplateDocument;
+  thirdPartyDocument: TemplateDocument;
   result: ComparisonResult;
   status: string;
   createdAt: string;

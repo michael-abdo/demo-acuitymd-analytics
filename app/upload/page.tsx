@@ -11,8 +11,8 @@ export default function UploadPage() {
 
   return (
     <PageContainer>
-      <PageTitle description="Upload your NDA documents for analysis and comparison">
-        Upload NDA Document
+      <PageTitle description="Upload your template documents for analysis and comparison">
+        Upload Template Document
       </PageTitle>
 
         <div className="space-y-6">
@@ -21,10 +21,10 @@ export default function UploadPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5" />
-                Upload NDA Document
+                Upload Template Document
               </CardTitle>
               <CardDescription>
-                Upload a PDF or Word document to analyze and compare against your standard NDA
+                Upload a PDF or Word document to analyze and compare against your standard template
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -44,7 +44,7 @@ export default function UploadPage() {
             <CardHeader>
               <CardTitle>How it works</CardTitle>
               <CardDescription>
-                Understanding the NDA analysis process
+                Understanding the template analysis process
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -55,7 +55,7 @@ export default function UploadPage() {
                 <div>
                   <h4 className="font-medium">Upload Documents</h4>
                   <p className="text-sm text-gray-600">
-                    Upload your standard NDA and third-party NDAs for comparison
+                    Upload your standard template and third-party templates for comparison
                   </p>
                 </div>
               </div>

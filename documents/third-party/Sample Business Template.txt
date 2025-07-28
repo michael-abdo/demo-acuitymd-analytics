@@ -1,0 +1,46 @@
+SAMPLE BUSINESS TEMPLATE DOCUMENT
+
+COMPANY: Sample Business Corp
+DOCUMENT TYPE: Standard Business Template
+VERSION: 2.0
+DATE: January 2025
+
+PURPOSE AND SCOPE
+This document serves as a template for business document processing and demonstrates the capabilities of the VVG Template system for handling various document formats and content types.
+
+MAIN SECTIONS
+
+1. DOCUMENT PROCESSING
+   - Text extraction from multiple formats
+   - Metadata preservation
+   - Secure storage and retrieval
+
+2. SYSTEM CAPABILITIES
+   - User authentication via Azure AD
+   - File upload with drag-and-drop interface
+   - Queue-based processing for large files
+   - Health monitoring and error handling
+
+3. SUPPORTED FORMATS
+   The system can process:
+   • PDF files with text and images
+   • Microsoft Word documents (.docx)
+   • Plain text files (.txt)
+   • Various file sizes up to configured limits
+
+4. SECURITY FEATURES
+   - Encrypted file storage
+   - User-based access controls
+   - Audit logging
+   - Secure file sharing
+
+5. INTEGRATION OPTIONS
+   - AWS S3 for cloud storage
+   - Local file system for development
+   - Database integration for metadata
+   - RESTful API endpoints
+
+TECHNICAL IMPLEMENTATION
+The template system is built with Next.js 15, TypeScript, and includes comprehensive error handling, logging, and monitoring capabilities.
+
+This sample document demonstrates the type of content that can be effectively processed by the template system.

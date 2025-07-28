@@ -30,7 +30,7 @@ export default function DocumentsPage() {
             />
             <Button disabled>
               <Upload className="mr-2 h-4 w-4" />
-              Upload NDA (Authentication Required)
+              Upload Template (Authentication Required)
             </Button>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default function DocumentsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Third-Party NDAs (0)
+                Third-Party Templates (0)
               </CardTitle>
             </CardHeader>
             <CardContent>

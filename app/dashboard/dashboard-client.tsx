@@ -77,7 +77,7 @@ export default function DashboardClient() {
             ) : (
               <>
                 <StatNumber>{stats?.comparisons || 0}</StatNumber>
-                <p className="text-xs text-muted-foreground">NDAs compared</p>
+                <p className="text-xs text-muted-foreground">Templates compared</p>
               </>
             )}
           </CardContent>
@@ -120,7 +120,7 @@ export default function DashboardClient() {
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks for NDA analysis</CardDescription>
+            <CardDescription>Common tasks for template analysis</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <Button 
@@ -129,7 +129,7 @@ export default function DashboardClient() {
               onClick={() => router.push('/upload')}
             >
               <FileUp className="mr-2 h-5 w-5" />
-              Upload NDA Document
+              Upload Template Document
             </Button>
             <Button 
               className="w-full justify-start" 
@@ -138,7 +138,7 @@ export default function DashboardClient() {
               onClick={() => router.push('/compare')}
             >
               <GitCompare className="mr-2 h-5 w-5" />
-              Compare NDAs
+              Compare Templates
             </Button>
             <Button 
               className="w-full justify-start" 

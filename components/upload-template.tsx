@@ -7,12 +7,12 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, FileText } from 'lucide-react'
 import { LoadingButton } from '@/components/ui/loading'
-import { NDADocument, UploadNDAProps } from '@/types/nda'
+import { TemplateDocument, UploadTemplateProps } from '@/types/template'
 import { useFileUpload } from '@/lib/hooks'
 import { toast } from '@/lib/utils/toast'
 // import { FormUtils } from '@/lib/utils' // Removed to avoid circular dependencies
 
-export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
+export function UploadTemplate({ onUploadComplete }: UploadTemplateProps) {
   const [file, setFile] = useState<File | null>(null)
   const [docType, setDocType] = useState<string>('THIRD_PARTY')
 
@@ -76,10 +76,10 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Upload className="h-5 w-5" />
-          Upload NDA Document
+          Upload Template Document
         </CardTitle>
         <CardDescription>
-          Upload a PDF or Word document to analyze and compare against your standard NDA
+          Upload a PDF or Word document to analyze and compare against your standard template
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -90,8 +90,8 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="STANDARD">Standard NDA</SelectItem>
-              <SelectItem value="THIRD_PARTY">Third-Party NDA</SelectItem>
+              <SelectItem value="STANDARD">Standard Template</SelectItem>
+              <SelectItem value="THIRD_PARTY">Third-Party Template</SelectItem>
             </SelectContent>
           </Select>
         </div>
