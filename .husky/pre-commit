@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# 1. TypeScript compilation check
+echo "📝 Checking TypeScript compilation..."
+npx tsc --noEmit --skipLibCheck
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript compilation failed"
+  exit 1
+fi
+
+# 2. Build check (quick)
+echo "🏗️ Testing build..."
+npm run build
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed"
+  exit 1
+fi
+
+# 3. ESLint check for imports
+echo "🔍 Checking imports..."
+npx eslint --ext .ts,.tsx --rule 'import/no-unresolved: error' lib/ app/ components/
+if [ $? -ne 0 ]; then
+  echo "❌ Import validation failed"
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"

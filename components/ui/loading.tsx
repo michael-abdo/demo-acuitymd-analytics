@@ -5,7 +5,7 @@
  * Eliminates ~20 lines of duplicated loading code per component.
  */
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils-simple";
 import { Loader2, LucideIcon } from "lucide-react";
 import { Skeleton } from "./skeleton";
 

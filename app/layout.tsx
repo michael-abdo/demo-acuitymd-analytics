@@ -9,8 +9,18 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
-  title: 'Template App',
-  description: 'AI-powered NDA document analysis and comparison tool',
+  title: {
+    default: 'VVG Document Processing Template',
+    template: '%s | VVG Template'
+  },
+  description: 'Production-ready document processing template with upload, extraction, and comparison features',
+  keywords: ['document processing', 'NDA analysis', 'PDF extraction', 'document comparison'],
+  authors: [{ name: 'VVG Team' }],
+  openGraph: {
+    title: 'VVG Document Processing Template',
+    description: 'Production-ready document processing template',
+    type: 'website',
+  }
 }
 
 export default function RootLayout({

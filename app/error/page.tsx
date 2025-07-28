@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
-import { config } from "@/lib/config";
+// import { config } from "@/lib/config"; // Removed to avoid circular dependencies
 import { CenteredFormLayout, ErrorTitle } from "@/components/ui";
 
 function ErrorContent() {
@@ -41,7 +41,7 @@ function ErrorContent() {
               <p className="font-semibold">For administrators:</p>
               <p className="mt-2">Ensure your Azure AD redirect URI is set to:</p>
               <code className="block mt-2 p-2 bg-gray-200 rounded text-xs break-all">
-                {config.template.paths.urls.azureCallback}
+                {typeof window !== 'undefined' ? `${window.location.origin}/api/auth/callback/azure-ad` : '/api/auth/callback/azure-ad'}
               </code>
             </div>
           )}

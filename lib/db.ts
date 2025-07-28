@@ -4,7 +4,7 @@ import { config } from './config'
 // Create a connection pool using centralized config
 const pool = mysql.createPool({
   host: config.MYSQL_HOST,
-  port: config.MYSQL_PORT,
+  port: parseInt(config.MYSQL_PORT),
   user: config.MYSQL_USER,
   password: config.MYSQL_PASSWORD,
   database: config.MYSQL_DATABASE,

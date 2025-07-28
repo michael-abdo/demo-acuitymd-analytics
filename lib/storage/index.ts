@@ -11,6 +11,7 @@ import { S3StorageProvider } from './s3-provider';
 import { config, APP_CONSTANTS } from '@/lib/config';
 import { Logger } from '@/lib/services/logger';
 import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
+import { PerformanceUtils, RetryUtils, PathResolver } from '@/lib/utils';
 import { 
   IStorageProvider, 
   StorageProvider, 
@@ -59,7 +60,7 @@ export async function initializeStorage(storageConfig?: Partial<StorageConfig>):
     // Use local provider with centralized config as default
     const basePath = storageConfig?.local?.basePath || 
       config.LOCAL_STORAGE_PATH || 
-      path.join(process.cwd(), '.storage');
+      PathResolver.getProjectPaths().storage;
     
     console.log(`Initializing local storage provider at: ${basePath}`);
     const localProvider = new LocalStorageProvider(basePath);
@@ -100,71 +101,41 @@ interface StorageOperationResult<T> {
 }
 
 /**
- * Execute storage operation with retry logic
+ * Execute storage operation with unified retry logic
  */
 async function executeWithRetry<T>(
   operation: () => Promise<T>,
   operationName: string,
   metadata?: Record<string, any>
 ): Promise<T> {
-  const startTime = Date.now();
-  const maxRetries = APP_CONSTANTS.STORAGE?.MAX_RETRIES || 3;
-  const retryDelay = APP_CONSTANTS.STORAGE?.RETRY_DELAY || 1000;
-  
-  let lastError: Error | undefined;
-  let attempts = 0;
-
-  while (attempts < maxRetries) {
-    attempts++;
-    
-    try {
-      Logger.storage?.operation?.(
-        `Attempting ${operationName} (attempt ${attempts}/${maxRetries})`,
-        metadata
-      );
-      
-      const data = await operation();
-      
-      const duration = Date.now() - startTime;
-      Logger.storage?.success?.(
-        `${operationName} completed`,
-        { attempts, duration, ...metadata }
-      );
-      
-      return data;
-    } catch (error) {
-      lastError = error as Error;
-      
-      Logger.storage?.error?.(
-        `${operationName} failed (attempt ${attempts}/${maxRetries})`,
-        error as Error
-      );
-      
-      // Check if error is retryable
-      if (!isRetryableError(error)) {
-        break;
-      }
-      
-      // Wait before retrying (exponential backoff)
-      if (attempts < maxRetries) {
-        const delay = retryDelay * Math.pow(2, attempts - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
+  const result = await RetryUtils.forStorage(
+    operation,
+    operationName,
+    {
+      onRetry: (error, attempt, delay) => {
+        Logger.storage?.operation?.(
+          `Attempting ${operationName} (attempt ${attempt})`,
+          { ...metadata, delay }
+        );
+      },
+      onFailure: (error, attempts, duration) => {
+        Logger.storage?.error?.(
+          `${operationName} failed permanently`,
+          error
+        );
       }
     }
-  }
-
-  // If we get here, all retries failed
-  const duration = Date.now() - startTime;
-  throw lastError || new Error(`${operationName} failed after ${attempts} attempts`);
+  );
+  
+  Logger.storage?.success?.(
+    `${operationName} completed`,
+    { attempts: result.attempts, duration: result.totalDuration, ...metadata }
+  );
+  
+  return result.result;
 }
 
-/**
- * Check if an error is retryable using centralized error suggestion utility
- * (DRY: eliminates ~30 lines of duplicated retry logic)
- */
-function isRetryableError(error: any): boolean {
-  return ErrorSuggestionService.isRetryableError(error);
-}
+// isRetryableError is now handled by RetryUtils internally
 
 /**
  * Storage facade for easier use (now with built-in retry logic)
@@ -284,40 +255,32 @@ export const storage = {
 };
 
 /**
- * NDA-specific storage paths
+ * NDA-specific storage paths (DRY: now uses centralized PathResolver)
  */
 export const ndaPaths = {
   /**
    * Get the path for an uploaded document
    */
-  document(userId: string, fileHash: string, filename: string): string {
-    const prefix = config.S3_FOLDER_PREFIX;
-    return `${prefix}users/${userId}/documents/${fileHash}/${filename}`;
-  },
+  document: (userId: string, fileHash: string, filename: string): string =>
+    PathResolver.storage.document(userId, fileHash, filename),
   
   /**
    * Get the path for a comparison result
    */
-  comparison(userId: string, comparisonId: string | number): string {
-    const prefix = config.S3_FOLDER_PREFIX;
-    return `${prefix}users/${userId}/comparisons/${comparisonId}/result.json`;
-  },
+  comparison: (userId: string, comparisonId: string | number): string =>
+    PathResolver.storage.comparison(userId, comparisonId),
   
   /**
    * Get the path for an export
    */
-  export(userId: string, exportId: string | number, format: 'pdf' | 'docx'): string {
-    const prefix = config.S3_FOLDER_PREFIX;
-    return `${prefix}users/${userId}/exports/${exportId}/report.${format}`;
-  },
+  export: (userId: string, exportId: string | number, format: 'pdf' | 'docx'): string =>
+    PathResolver.storage.export(userId, exportId, format),
   
   /**
    * Get the path for temporary files
    */
-  temp(filename: string): string {
-    const prefix = config.S3_FOLDER_PREFIX;
-    return `${prefix}temp/${Date.now()}-${filename}`;
-  }
+  temp: (filename: string): string => 
+    PathResolver.storage.temp(filename)
 };
 
 // Auto-initialize in development

@@ -5,6 +5,8 @@
  * Replaces scattered console.log statements with standardized, categorized logging.
  */
 
+import { EnvironmentHelpers } from '../config';
+
 interface LogContext {
   userEmail?: string;
   documentId?: number;
@@ -219,7 +221,7 @@ export const Logger = {
     console.error(`❌ ${message}`);
     if (error) {
       console.error(`❌ Error:`, error.message);
-      if (process.env.NODE_ENV === 'development') {
+      if (EnvironmentHelpers.isDevelopment()) {
         console.error(`❌ Stack:`, error.stack);
       }
     }
@@ -229,7 +231,7 @@ export const Logger = {
   },
   
   debug: (message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (EnvironmentHelpers.isDevelopment()) {
       console.log(`🐛 [DEBUG] ${message}`);
       if (data) {
         console.log(`🐛 [DEBUG] Data:`, data);
@@ -257,7 +259,7 @@ export const ClientLogger = {
   },
   
   debug: (context: string, message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (EnvironmentHelpers.isDevelopment()) {
       console.debug(`🟢 [${context}] ${message}`, data);
     }
   },
@@ -267,7 +269,7 @@ export const ClientLogger = {
   },
   
   userAction: (action: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (EnvironmentHelpers.isDevelopment()) {
       console.info(`👤 [USER] ${action}`, data);
     }
   }

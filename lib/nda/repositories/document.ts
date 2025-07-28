@@ -8,6 +8,7 @@
 import { BaseRepository } from './base';
 import { NDADocument, DocumentStatus } from '@/types/nda';
 import { NDADocumentRow } from '../types';
+import { JsonUtils } from '@/lib/utils';
 
 // Access config DB_CREATE_ACCESS
 const HAS_DB_ACCESS = (global as any)._ndaMemoryStore ? false : true;
@@ -35,7 +36,7 @@ function rowToDocument(row: NDADocumentRow): NDADocument {
   return {
     ...row,
     file_size: Number(row.file_size),
-    metadata: row.metadata ? JSON.parse(row.metadata) : null
+    metadata: JsonUtils.safeParse(row.metadata, null)
   };
 }
 
@@ -89,74 +90,44 @@ export class DocumentRepository
    * Find document by file hash
    */
   async findByHash(hash: string): Promise<NDADocument | null> {
-    if (HAS_DB_ACCESS) {
-      const rows = await this.executeCustomQuery<NDADocumentRow[]>(
-        'SELECT * FROM nda_documents WHERE file_hash = ?',
-        [hash],
-        'findByHash'
-      );
-      return rows.length > 0 ? rowToDocument(rows[0]) : null;
-    } else {
-      // In-memory search
-      for (const doc of this.config.memoryStore.values()) {
-        if ((doc as NDADocument).file_hash === hash) return doc as NDADocument;
-      }
-      return null;
-    }
+    return this.findByField(
+      'file_hash',
+      hash,
+      (doc) => doc.file_hash === hash,
+      'findByHash'
+    );
   }
   
   /**
    * Get the standard document for a user
    */
   async getStandardDocument(userId: string): Promise<NDADocument | null> {
-    if (HAS_DB_ACCESS) {
-      const rows = await this.executeCustomQuery<NDADocumentRow[]>(
-        'SELECT * FROM nda_documents WHERE user_id = ? AND is_standard = TRUE LIMIT 1',
-        [userId],
-        'getStandardDocument',
-        userId
-      );
-      return rows.length > 0 ? rowToDocument(rows[0]) : null;
-    } else {
-      // In-memory search
-      for (const doc of this.config.memoryStore.values()) {
-        if ((doc as NDADocument).user_id === userId && (doc as NDADocument).is_standard) return doc as NDADocument;
-      }
-      return null;
-    }
+    return this.findFirstByField(
+      'user_id',
+      userId,
+      (doc) => doc.user_id === userId && doc.is_standard,
+      'getStandardDocument'
+    );
   }
   
   /**
    * Find documents by status
    */
   async findByStatus(status: DocumentStatus, userId?: string): Promise<NDADocument[]> {
-    if (HAS_DB_ACCESS) {
-      let query = 'SELECT * FROM nda_documents WHERE status = ?';
-      const values: any[] = [status];
-      
-      if (userId) {
-        query += ' AND user_id = ?';
-        values.push(userId);
-      }
-      
-      const rows = await this.executeCustomQuery<NDADocumentRow[]>(
-        query,
-        values,
-        'findByStatus',
-        userId
-      );
-      return rows.map(rowToDocument);
-    } else {
-      // In-memory filter
-      let documents = Array.from(this.config.memoryStore.values())
-        .filter(doc => (doc as NDADocument).status === status) as NDADocument[];
-      
-      if (userId) {
-        documents = documents.filter(doc => doc.user_id === userId);
-      }
-      
-      return documents;
+    const conditions: Record<string, any> = { status };
+    if (userId) {
+      conditions.user_id = userId;
     }
+    
+    return this.findByFields(
+      conditions,
+      (doc) => {
+        const matchesStatus = doc.status === status;
+        const matchesUser = !userId || doc.user_id === userId;
+        return matchesStatus && matchesUser;
+      },
+      'findByStatus'
+    );
   }
   
   /**

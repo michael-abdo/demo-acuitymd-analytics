@@ -1,7 +1,66 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { NextResponse } from "next/server"
-import { APP_CONSTANTS } from './config'
+import { APP_CONSTANTS, EnvironmentHelpers } from './config'
+
+// Export StatusManager from status-manager utility
+export { StatusManager, StatusUtils } from './utils/status-manager';
+
+// Export InputValidator from input-validator utility
+export { InputValidator, Validators } from './utils/input-validator';
+
+// Export PerformanceTimer from performance-timer decorator
+export { 
+  PerformanceTimer, 
+  withPerformanceTiming, 
+  measureAsync, 
+  measureSync, 
+  PerformanceTracked, 
+  BatchTimer, 
+  PerformanceUtils 
+} from './decorators/performance-timer';
+
+// Export RetryUtils from retry-utils utility
+export { RetryUtils, retry, Retryable } from './utils/retry-utils';
+
+// Export ErrorSanitizer from error-sanitizer utility
+export { ErrorSanitizer, sanitizeError } from './utils/error-sanitizer';
+
+// Export ResponseBuilder from response-builder utility
+export { 
+  ResponseBuilder, 
+  DocumentResponse, 
+  ComparisonResponse, 
+  QueueResponse, 
+  HealthResponse, 
+  Response 
+} from './utils/response-builder';
+
+// Export StorageErrorHandler from storage-error-handler utility
+export { 
+  StorageErrorHandler, 
+  storageErrorHandler 
+} from './utils/storage-error-handler';
+
+// Export TokenValidator from token-validator utility
+export { 
+  TokenValidator, 
+  tokenValidator 
+} from './utils/token-validator';
+
+// Export RowConverter from row-converter utility
+export { 
+  RowConverter, 
+  CommonConverters, 
+  rowConverter 
+} from './utils/row-converter';
+
+// Export PathResolver from path-resolver utility
+export { 
+  PathResolver, 
+  CommonPaths, 
+  pathResolver 
+} from './utils/path-resolver';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -147,9 +206,10 @@ export const DelayUtils = {
 /**
  * Utility function to ensure endpoint is only available in development environment
  * Throws error that can be caught and converted to 403 response
+ * Now uses centralized EnvironmentHelpers (DRY: eliminates direct process.env check)
  */
 export function requireDevelopment() {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!EnvironmentHelpers.isDevelopment()) {
     throw new Error('Not available in production');
   }
 }
@@ -924,6 +984,41 @@ export const JsonUtils = {
         timestamp: new Date().toISOString()
       }
     })
+  },
+  
+  /**
+   * Safe nested property access for metadata
+   */
+  getNestedValue: <T = any>(
+    obj: Record<string, any> | null | undefined,
+    path: string,
+    defaultValue: T
+  ): T => {
+    if (!obj) return defaultValue;
+    
+    const keys = path.split('.');
+    let current: any = obj;
+    
+    for (const key of keys) {
+      if (current?.[key] === undefined) {
+        return defaultValue;
+      }
+      current = current[key];
+    }
+    
+    return current as T;
+  },
+  
+  /**
+   * Safe extraction metadata access
+   */
+  getExtractionMetadata: (metadata: Record<string, any> | null | undefined) => {
+    return {
+      pages: JsonUtils.getNestedValue(metadata, 'extraction.pages', null),
+      confidence: JsonUtils.getNestedValue(metadata, 'extraction.confidence', null),
+      method: JsonUtils.getNestedValue(metadata, 'extraction.method', 'unknown'),
+      extractedAt: JsonUtils.getNestedValue(metadata, 'extraction.extractedAt', null)
+    };
   }
 };
 
@@ -1034,4 +1129,113 @@ export const StatusStyles = {
     className: StatusStyles.getRiskColor(risk),
     variant: "outline" as const
   })
+};
+
+/**
+ * File Utilities - Consolidates repeated file property extraction patterns
+ * Eliminates scattered file.name/size/type access across upload routes and services
+ */
+export const FileUtils = {
+  /**
+   * Extract comprehensive file metadata consistently
+   * Consolidates file property access from 4+ locations
+   */
+  extractFileMetadata: (file: File) => {
+    const filename = file.name;
+    const extension = filename.split('.').pop()?.toLowerCase() || 'unknown';
+    const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+    
+    return {
+      filename,
+      size: file.size,
+      type: file.type,
+      extension,
+      sizeMB: parseFloat(sizeMB),
+      sizeMBFormatted: `${sizeMB} MB`,
+      // Additional computed properties
+      isPDF: extension === 'pdf',
+      isWord: ['doc', 'docx'].includes(extension),
+      isText: extension === 'txt',
+      lastModified: file.lastModified
+    };
+  },
+
+  /**
+   * Create logging-friendly file info object
+   * Standardizes file info for logging across routes
+   */
+  createFileLogInfo: (file: File) => {
+    const metadata = FileUtils.extractFileMetadata(file);
+    return {
+      filename: metadata.filename,
+      size: metadata.size,
+      type: metadata.type,
+      sizeMB: metadata.sizeMBFormatted,
+      lastModified: metadata.lastModified
+    };
+  },
+
+  /**
+   * Create processing-friendly file info object
+   * Standardizes file info for document processing
+   */
+  createProcessingInfo: (file: File) => {
+    const metadata = FileUtils.extractFileMetadata(file);
+    return {
+      filename: metadata.filename,
+      contentType: metadata.type,
+      fileSize: metadata.size,
+      fileType: metadata.type,
+      extension: metadata.extension
+    };
+  }
+};
+
+/**
+ * Metadata Builder Utilities - Centralizes common metadata construction patterns
+ * Eliminates duplicated metadata object creation across API responses
+ */
+export const MetadataBuilder = {
+  /**
+   * Create common API response metadata with timestamp and environment info
+   */
+  createApiMetadata(additionalMeta: Record<string, any> = {}): Record<string, any> {
+    return {
+      timestamp: TimestampUtils.now(),
+      environment: EnvironmentHelpers.isDevelopment() ? 'development' : 'production',
+      ...additionalMeta
+    };
+  },
+
+  /**
+   * Create database source metadata
+   */
+  createDatabaseMetadata(additionalMeta: Record<string, any> = {}): Record<string, any> {
+    return {
+      hasDatabase: EnvironmentHelpers.hasDbAccess(),
+      source: EnvironmentHelpers.hasDbAccess() ? 'database' : 'memory',
+      ...this.createApiMetadata(additionalMeta)
+    };
+  },
+
+  /**
+   * Create file operation metadata
+   */
+  createFileMetadata(file: File, additionalMeta: Record<string, any> = {}): Record<string, any> {
+    return {
+      ...FileUtils.createProcessingInfo(file),
+      ...this.createApiMetadata(additionalMeta)
+    };
+  },
+
+  /**
+   * Create processing operation metadata
+   */
+  createProcessingMetadata(operation: string, additionalMeta: Record<string, any> = {}): Record<string, any> {
+    return {
+      operation,
+      processedAt: TimestampUtils.now(),
+      ...this.createApiMetadata(additionalMeta)
+    };
+  }
 };

@@ -3,6 +3,7 @@
  */
 
 import { config } from './config';
+import { TimestampUtils } from './utils';
 
 export interface ErrorContext {
   userId?: string;
@@ -34,7 +35,7 @@ export const ErrorLogger = {
    * Log an error with context
    */
   log(error: Error | ApiError, context?: ErrorContext): void {
-    const timestamp = new Date().toISOString();
+    const timestamp = TimestampUtils.now();
     const isApiError = error instanceof ApiError;
     const statusCode = isApiError ? error.statusCode : 500;
     
@@ -71,7 +72,7 @@ export const ErrorLogger = {
    * Log a warning
    */
   warn(message: string, context?: ErrorContext): void {
-    const timestamp = new Date().toISOString();
+    const timestamp = TimestampUtils.now();
     
     if (config.IS_DEVELOPMENT) {
       console.warn(`\n[${timestamp}] Warning:`, message, context);
@@ -89,7 +90,7 @@ export const ErrorLogger = {
    * Log info (for important events)
    */
   info(message: string, context?: ErrorContext): void {
-    const timestamp = new Date().toISOString();
+    const timestamp = TimestampUtils.now();
     
     if (config.IS_DEVELOPMENT) {
       console.log(`\n[${timestamp}] Info:`, message, context);

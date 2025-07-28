@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { LoadingPage } from "@/components/ui/loading";
 import { CenteredFormLayout } from "@/components/ui";
-import { ClientLogger } from "@/lib/services/logger";
+// import { ClientLogger } from "@/lib/services/logger"; // Removed to avoid circular dependencies
 
 // Client component that uses useSearchParams
 function SignInRedirect() {
@@ -25,12 +25,12 @@ function SignInRedirect() {
         if (providers && providers["azure-ad"]) {
           await signIn("azure-ad", { callbackUrl });
         } else {
-          ClientLogger.error("SIGN_IN", "Azure AD provider not configured");
+          console.error("Azure AD provider not configured");
           // Fallback to dashboard if provider is not available
           window.location.href = callbackUrl;
         }
       } catch (error) {
-        ClientLogger.error("SIGN_IN", "Sign-in error", error);
+        console.error("Sign-in error", error);
         // Fallback to dashboard on error
         window.location.href = callbackUrl;
       }

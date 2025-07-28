@@ -1,11 +1,11 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { config as appConfig } from "@/lib/config";
+import { config as appConfig, EnvironmentHelpers } from "@/lib/config";
 
 export default withAuth(
   function middleware(req) {
     // Check for dev bypass header in development
-    if (process.env.NODE_ENV === "development" &&
+    if (EnvironmentHelpers.isDevelopment() &&
         req.headers.get("X-Dev-Bypass") === "true") {
       return NextResponse.next();
     }
@@ -17,7 +17,7 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         // Allow dev bypass in development
-        if (process.env.NODE_ENV === "development" &&
+        if (EnvironmentHelpers.isDevelopment() &&
             req.headers.get("X-Dev-Bypass") === "true") {
           return true;
         }

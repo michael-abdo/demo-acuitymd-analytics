@@ -10,17 +10,13 @@ export { config, APP_CONSTANTS } from './config';
 
 // API utilities
 export { ApiErrors, FileValidation } from './utils';
-export { ApiResponse } from './auth-utils';
+export { ApiResponseHelpers } from './auth-utils';
 
 // Database and NDA types
+export type { DocumentStatus, TaskType, QueueStatus } from './nda';
 export { 
   documentDb, 
-  comparisonDb, 
   queueDb, 
-  DocumentStatus,
-  ComparisonStatus,
-  TaskType,
-  QueueStatus,
   executeQuery,
   getConnection
 } from './nda';
@@ -49,15 +45,14 @@ export {
   cn
 } from './utils';
 
-// Request parsing utilities (consolidated to avoid duplication)
-export { RequestParser } from './services/request-parser';
-
-// Text extraction
+// Text extraction (simplified)
 export { 
-  extractText,
   extractTextFromPDF,
-  extractTextFromDOCX,
-  extractTextFromTXT,
-  compareDocuments,
+  extractTextFromWord,
+  processUploadedFile,
   processTextExtraction
 } from './text-extraction';
+
+// Types
+export type { DocumentContent, ProcessFileOptions, ProcessFileResult } from './text-extraction';
+export type { NDADocumentRow } from './nda/types';

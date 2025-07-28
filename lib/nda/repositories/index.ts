@@ -7,15 +7,15 @@
 
 export { BaseRepository, type IRepository, type RepositoryConfig } from './base';
 export { DocumentRepository, type IDocumentRepository } from './document';
-export { ComparisonRepository, type IComparisonRepository, type NDAComparisonExtended } from './comparison';
+// export { ComparisonRepository, type IComparisonRepository, type NDAComparisonExtended } from './comparison'; // Removed - template placeholder
 export { QueueRepository, type IQueueRepository, type QueueItemExtended } from './queue';
 
 // Create singleton instances
 import { DocumentRepository } from './document';
-import { ComparisonRepository } from './comparison';
+// import { ComparisonRepository } from './comparison'; // Removed - template placeholder
 import { QueueRepository } from './queue';
 
 // Export singleton instances to maintain compatibility with existing code
 export const documentRepository = new DocumentRepository();
-export const comparisonRepository = new ComparisonRepository();
+// export const comparisonRepository = new ComparisonRepository(); // Removed - template placeholder
 export const queueRepository = new QueueRepository();

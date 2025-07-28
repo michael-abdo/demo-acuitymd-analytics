@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from '@/lib/config';
 
 export async function GET(request: NextRequest) {
   // Get the search parameters from the incorrect callback URL
@@ -9,7 +8,8 @@ export async function GET(request: NextRequest) {
   const baseUrl = request.headers.get('host') ? 
     `https://${request.headers.get('host')}` : 
     'https://legal.vtc.systems';
-  const correctCallbackUrl = new URL(config.template.paths.api.authCallback, baseUrl);
+  const projectName = process.env.PROJECT_NAME || 'vvg-template';
+  const correctCallbackUrl = new URL(`/${projectName}/api/auth/callback/azure-ad`, baseUrl);
   
   // Copy all query parameters to the correct URL
   searchParams.forEach((value, key) => {

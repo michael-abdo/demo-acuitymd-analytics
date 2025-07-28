@@ -4,9 +4,9 @@ import AzureADProvider from "next-auth/providers/azure-ad";
 export const authOptions: NextAuthOptions = {
   providers: [
     AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID || "",
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET || "",
-      tenantId: process.env.AZURE_AD_TENANT_ID || "",
+      clientId: process.env.AZURE_AD_CLIENT_ID || '',
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET || '',
+      tenantId: process.env.AZURE_AD_TENANT_ID || '',
       authorization: {
         params: {
           scope: "openid profile email"
@@ -51,7 +51,7 @@ export const authOptions: NextAuthOptions = {
       return baseUrl + "/dashboard";
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-build",
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,

@@ -8,7 +8,7 @@
 
 import { executeQuery } from '@/lib/db';
 import { config } from '@/lib/config';
-import { TimestampUtils } from '@/lib/auth-utils';
+import { TimestampUtils } from '@/lib/utils';
 import {
   InsertResult,
   UpdateResult,
@@ -143,7 +143,7 @@ export abstract class BaseRepository<T extends { id: number; created_at?: Date; 
     } else {
       // In-memory implementation
       const id = this.config.nextId();
-      const now = new Date();
+      const now = TimestampUtils.parse(TimestampUtils.now());
       const entity = {
         ...data,
         id,
@@ -256,7 +256,7 @@ export abstract class BaseRepository<T extends { id: number; created_at?: Date; 
       const entity = this.config.memoryStore.get(id);
       if (!entity) return false;
       
-      Object.assign(entity, data, { updated_at: new Date() });
+      Object.assign(entity, data, { updated_at: TimestampUtils.parse(TimestampUtils.now()) });
       return true;
     }
   }
@@ -299,5 +299,85 @@ export abstract class BaseRepository<T extends { id: number; created_at?: Date; 
     userId?: string
   ): Promise<R> {
     return this.safeQuery<R>(query, values, operation, userId);
+  }
+
+  /**
+   * Generic findBy method for single field queries
+   * Eliminates duplicated findBy patterns across repositories
+   */
+  protected async findByField(
+    field: string,
+    value: any,
+    memoryFilter: (entity: T) => boolean,
+    operation: string = `findBy${field}`
+  ): Promise<T | null> {
+    if (HAS_DB_ACCESS) {
+      const rows = await this.executeCustomQuery<TRow[]>(
+        `SELECT * FROM ${this.config.tableName} WHERE ${field} = ?`,
+        [value],
+        operation
+      );
+      return rows.length > 0 ? this.config.rowConverter(rows[0]) : null;
+    } else {
+      // In-memory search
+      for (const entity of this.config.memoryStore.values()) {
+        if (memoryFilter(entity as T)) return entity as T;
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Generic findBy method for multiple field queries
+   * Handles complex WHERE clauses with multiple conditions
+   */
+  protected async findByFields(
+    conditions: Record<string, any>,
+    memoryFilter: (entity: T) => boolean,
+    operation: string = 'findByFields',
+    limit?: number
+  ): Promise<T[]> {
+    if (HAS_DB_ACCESS) {
+      const fields = Object.keys(conditions);
+      const values = Object.values(conditions);
+      const whereClause = fields.map(f => `${f} = ?`).join(' AND ');
+      const limitClause = limit ? ` LIMIT ${limit}` : '';
+      
+      const rows = await this.executeCustomQuery<TRow[]>(
+        `SELECT * FROM ${this.config.tableName} WHERE ${whereClause}${limitClause}`,
+        values,
+        operation
+      );
+      return rows.map(row => this.config.rowConverter(row));
+    } else {
+      // In-memory search with filter
+      let entities = Array.from(this.config.memoryStore.values())
+        .filter(entity => memoryFilter(entity as T)) as T[];
+      
+      if (limit) {
+        entities = entities.slice(0, limit);
+      }
+      
+      return entities;
+    }
+  }
+
+  /**
+   * Generic findBy method for single field queries returning first result
+   * Useful for finding unique records by non-ID fields
+   */
+  protected async findFirstByField(
+    field: string,
+    value: any,
+    memoryFilter: (entity: T) => boolean,
+    operation: string = `findFirstBy${field}`
+  ): Promise<T | null> {
+    const results = await this.findByFields(
+      { [field]: value },
+      memoryFilter,
+      operation,
+      1
+    );
+    return results.length > 0 ? results[0] : null;
   }
 }

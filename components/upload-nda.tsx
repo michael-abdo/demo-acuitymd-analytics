@@ -10,7 +10,7 @@ import { LoadingButton } from '@/components/ui/loading'
 import { NDADocument, UploadNDAProps } from '@/types/nda'
 import { useFileUpload } from '@/lib/hooks'
 import { toast } from '@/lib/utils/toast'
-import { FormUtils } from '@/lib/utils'
+// import { FormUtils } from '@/lib/utils' // Removed to avoid circular dependencies
 
 export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
   const [file, setFile] = useState<File | null>(null)
@@ -58,9 +58,11 @@ export function UploadNDA({ onUploadComplete }: UploadNDAProps) {
     }
 
     try {
-      const formData = FormUtils.createUploadFormData(file, {
-        isStandard: docType === 'STANDARD'
-      })
+      // Create FormData directly to avoid circular dependencies
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('isStandard', docType === 'STANDARD' ? 'true' : 'false')
+      formData.append('docType', docType)
 
       await upload(formData)
     } catch (error) {

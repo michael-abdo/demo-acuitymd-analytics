@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { JsonUtils } from '@/lib/utils';
+import { JsonUtils, TimestampUtils, InputValidator, Validators } from '@/lib/utils';
 
 export interface PaginationParams {
   page: number;
@@ -30,11 +30,12 @@ export const RequestParser = {
    * Ensures safe bounds and defaults
    */
   parsePagination: (searchParams: URLSearchParams): PaginationParams => {
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '10', 10)));
-    const offset = (page - 1) * pageSize;
-    
-    return { page, pageSize, offset };
+    const validation = Validators.pagination(searchParams);
+    return {
+      page: validation.page,
+      pageSize: validation.pageSize,
+      offset: validation.offset
+    };
   },
 
   /**
@@ -55,19 +56,20 @@ export const RequestParser = {
   parseComparisonRequest: async (request: NextRequest): Promise<ComparisonRequest> => {
     const body = await request.json();
     
-    // Handle multiple field name formats for flexibility
-    const doc1Id = parseInt(
-      body.standardDocId || body.doc1Id || body.document1Id, 
-      10
+    // Handle multiple field name formats for flexibility using InputValidator
+    const doc1Validation = Validators.documentId(
+      body.standardDocId || body.doc1Id || body.document1Id
     );
-    const doc2Id = parseInt(
-      body.thirdPartyDocId || body.doc2Id || body.document2Id, 
-      10
+    const doc2Validation = Validators.documentId(
+      body.thirdPartyDocId || body.doc2Id || body.document2Id
     );
 
-    if (isNaN(doc1Id) || isNaN(doc2Id)) {
+    if (!doc1Validation.isValid || !doc2Validation.isValid) {
       throw new Error('Invalid document IDs provided');
     }
+    
+    const doc1Id = doc1Validation.value;
+    const doc2Id = doc2Validation.value;
 
     return { doc1Id, doc2Id };
   },
@@ -77,8 +79,48 @@ export const RequestParser = {
    * Returns null if invalid instead of throwing
    */
   parseDocumentId: (id: string): number | null => {
-    const documentId = parseInt(id, 10);
-    return isNaN(documentId) ? null : documentId;
+    const validation = Validators.documentId(id);
+    return validation.isValid ? validation.value : null;
+  },
+
+  /**
+   * Parse and validate document update request
+   */
+  parseDocumentUpdateRequest: async (request: NextRequest) => {
+    const body = await request.json();
+    
+    const displayNameValidation = InputValidator.validateString(body.display_name, {
+      required: false,
+      trim: true,
+      fieldName: 'display_name',
+      maxLength: 255
+    });
+    
+    const isStandardValidation = InputValidator.validateBoolean(body.is_standard, {
+      fieldName: 'is_standard'
+    });
+    
+    const updates: Record<string, any> = {};
+    
+    if (body.display_name !== undefined) {
+      if (!displayNameValidation.isValid) {
+        throw new Error(displayNameValidation.error!);
+      }
+      updates.display_name = displayNameValidation.value || null;
+    }
+    
+    if (body.is_standard !== undefined) {
+      if (!isStandardValidation.isValid) {
+        throw new Error(isStandardValidation.error!);
+      }
+      updates.is_standard = isStandardValidation.value;
+    }
+    
+    if (Object.keys(updates).length === 0) {
+      throw new Error('No valid updates provided');
+    }
+    
+    return updates;
   },
 
   /**
@@ -144,7 +186,7 @@ export const RequestParser = {
    */
   extractUserContext: (userEmail: string, searchParams?: URLSearchParams) => ({
     userEmail,
-    timestamp: new Date().toISOString(),
+    timestamp: TimestampUtils.now(),
     userAgent: searchParams?.get('userAgent') || 'unknown',
     sessionId: searchParams?.get('sessionId') || null
   }),
