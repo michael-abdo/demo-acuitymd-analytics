@@ -1,18 +1,18 @@
 /**
- * NDA Library Exports
+ * Template Library Exports
  * 
- * Central export point for all NDA-related functionality
+ * Central export point for all template-related functionality
  */
 
 // Export all types
-export * from '@/types/nda';
+export * from '@/types/template';
 export * from './types';
 
 // Export database operations
 export { 
   documentDb, 
-  comparisonDb, 
-  queueDb, 
+  comparisonDb,
+  // queueDb, // TODO: Create when needed
   initializeDatabase,
   executeQuery,
   getConnection
@@ -25,13 +25,13 @@ export {
   ExportType,
   TaskType,
   QueueStatus
-} from '@/types/nda';
+} from '@/types/template';
 
 // Re-export types for convenience (excluding enums which are values)
 export type {
-  NDADocument,
-  NDAComparison,
-  NDAExport,
+  TemplateDocument,
+  TemplateComparison,
+  TemplateExport,
   ProcessingQueueItem,
   KeyDifference,
   AISuggestion,
@@ -41,4 +41,4 @@ export type {
   ComparisonResponse,
   ExportRequest,
   ExportResponse
-} from '@/types/nda';
+} from '@/types/template';

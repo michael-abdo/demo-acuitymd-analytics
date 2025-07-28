@@ -8,7 +8,7 @@
  * valid status transitions and their validation rules.
  */
 
-import { DocumentStatus, ComparisonStatus, QueueStatus } from '@/types/nda';
+import { DocumentStatus, ComparisonStatus, QueueStatus } from '@/types/template';
 
 /**
  * Valid status transitions for each entity type

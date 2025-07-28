@@ -15,8 +15,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "/sign-in",
-    signOut: "/auth/signout",
+    signIn: process.env.SIGNIN_PAGE || "/sign-in",
+    signOut: process.env.SIGNOUT_PAGE || "/auth/signout",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -34,21 +34,28 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      const basePath = process.env.BASE_PATH || '';
+      const defaultRedirect = process.env.DEFAULT_REDIRECT_PATH || "/dashboard";
+      const signinPath = process.env.SIGNIN_PAGE || "/sign-in";
+      const dashboardPath = process.env.DASHBOARD_PATH || "/dashboard";
+      
+      const fullBaseUrl = baseUrl + basePath;
+      
       if (url.includes("/auth/signin")) {
-        return baseUrl + "/sign-in";
+        return fullBaseUrl + signinPath;
       }
-      if (url === "/dashboard" || url.endsWith("/dashboard")) {
-        return baseUrl + "/dashboard";
+      if (url === dashboardPath || url.endsWith(dashboardPath)) {
+        return fullBaseUrl + dashboardPath;
       }
       if (url.startsWith("/")) {
-        return baseUrl + url;
+        return fullBaseUrl + url;
       }
       try {
-        if (new URL(url).origin === baseUrl) return url;
+        if (new URL(url).origin === fullBaseUrl) return url;
       } catch (e) {
         // Invalid URL
       }
-      return baseUrl + "/dashboard";
+      return fullBaseUrl + defaultRedirect;
     },
   },
   secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',

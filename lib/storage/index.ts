@@ -255,9 +255,9 @@ export const storage = {
 };
 
 /**
- * NDA-specific storage paths (DRY: now uses centralized PathResolver)
+ * Template-specific storage paths (DRY: now uses centralized PathResolver)
  */
-export const ndaPaths = {
+export const templatePaths = {
   /**
    * Get the path for an uploaded document
    */

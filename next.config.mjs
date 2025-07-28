@@ -13,6 +13,10 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Production deployment configuration
+  output: 'standalone',
+  basePath: process.env.BASE_PATH || '',
+  
   eslint: {
     ignoreDuringBuilds: true,
   },

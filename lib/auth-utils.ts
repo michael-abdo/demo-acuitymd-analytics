@@ -3,8 +3,8 @@ import { authOptions } from "./auth-options";
 import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { isDocumentOwner, ApiErrors, TimestampUtils } from './utils';
-import { documentDb } from './nda/database';
-import type { NDADocument } from '@/types/nda';
+import { documentDb } from './template/database';
+import type { TemplateDocument } from '@/types/template';
 import { ensureStorageInitialized } from './storage';
 import { ErrorLogger, ApiError } from './error-logger';
 import { APP_CONSTANTS, config, EnvironmentHelpers } from './config';
@@ -142,7 +142,7 @@ export function withDocumentAccess<T extends { id: string }>(
   handler: (
     request: NextRequest,
     userEmail: string,
-    document: NDADocument,
+    document: TemplateDocument,
     context: { params: Promise<T> }
   ) => Promise<NextResponse>,
   options?: { trackTiming?: boolean }

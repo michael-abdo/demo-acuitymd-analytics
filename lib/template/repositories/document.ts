@@ -6,17 +6,18 @@
  */
 
 import { BaseRepository } from './base';
-import { NDADocument, DocumentStatus } from '@/types/nda';
-import { NDADocumentRow } from '../types';
+import { TemplateDocument, DocumentStatus } from '@/types/template';
+import { TemplateDocumentRow } from '../types';
 import { JsonUtils } from '@/lib/utils';
 
 // Access config DB_CREATE_ACCESS
-const HAS_DB_ACCESS = (global as any)._ndaMemoryStore ? false : true;
+const HAS_DB_ACCESS = (global as any)._templateMemoryStore ? false : true;
 
 // Access to in-memory store
 declare global {
-  var _ndaMemoryStore: {
-    documents: Map<number, NDADocument>;
+  // eslint-disable-next-line no-var
+  var _templateMemoryStore: {
+    documents: Map<number, TemplateDocument>;
     comparisons: Map<number, any>;
     exports: Map<number, any>;
     queue: Map<number, any>;
@@ -32,7 +33,7 @@ declare global {
 /**
  * Convert database row to domain model
  */
-function rowToDocument(row: NDADocumentRow): NDADocument {
+function rowToDocument(row: TemplateDocumentRow): TemplateDocument {
   return {
     ...row,
     file_size: Number(row.file_size),
@@ -44,9 +45,9 @@ function rowToDocument(row: NDADocumentRow): NDADocument {
  * Document-specific repository interface
  */
 export interface IDocumentRepository {
-  findByHash(hash: string): Promise<NDADocument | null>;
-  getStandardDocument(userId: string): Promise<NDADocument | null>;
-  findByStatus(status: DocumentStatus, userId?: string): Promise<NDADocument[]>;
+  findByHash(hash: string): Promise<TemplateDocument | null>;
+  getStandardDocument(userId: string): Promise<TemplateDocument | null>;
+  findByStatus(status: DocumentStatus, userId?: string): Promise<TemplateDocument[]>;
 }
 
 /**
@@ -54,17 +55,17 @@ export interface IDocumentRepository {
  */
 export class DocumentRepository 
   extends BaseRepository<
-    NDADocument,
-    NDADocumentRow,
-    Omit<NDADocument, 'id' | 'created_at' | 'updated_at'>
+    TemplateDocument,
+    TemplateDocumentRow,
+    Omit<TemplateDocument, 'id' | 'created_at' | 'updated_at'>
   > 
   implements IDocumentRepository {
   
   constructor() {
     // Initialize memory store if not exists
-    if (!global._ndaMemoryStore) {
-      global._ndaMemoryStore = {
-        documents: new Map<number, NDADocument>(),
+    if (!global._templateMemoryStore) {
+      global._templateMemoryStore = {
+        documents: new Map<number, TemplateDocument>(),
         comparisons: new Map<number, any>(),
         exports: new Map<number, any>(),
         queue: new Map<number, any>(),
@@ -78,18 +79,18 @@ export class DocumentRepository
     }
     
     super({
-      tableName: 'nda_documents',
+      tableName: 'template_documents',
       entityName: 'document',
       rowConverter: rowToDocument,
-      memoryStore: global._ndaMemoryStore.documents,
-      nextId: () => global._ndaMemoryStore!.nextId.documents++
+      memoryStore: global._templateMemoryStore.documents,
+      nextId: () => global._templateMemoryStore!.nextId.documents++
     });
   }
   
   /**
    * Find document by file hash
    */
-  async findByHash(hash: string): Promise<NDADocument | null> {
+  async findByHash(hash: string): Promise<TemplateDocument | null> {
     return this.findByField(
       'file_hash',
       hash,
@@ -101,7 +102,7 @@ export class DocumentRepository
   /**
    * Get the standard document for a user
    */
-  async getStandardDocument(userId: string): Promise<NDADocument | null> {
+  async getStandardDocument(userId: string): Promise<TemplateDocument | null> {
     return this.findFirstByField(
       'user_id',
       userId,
@@ -113,7 +114,7 @@ export class DocumentRepository
   /**
    * Find documents by status
    */
-  async findByStatus(status: DocumentStatus, userId?: string): Promise<NDADocument[]> {
+  async findByStatus(status: DocumentStatus, userId?: string): Promise<TemplateDocument[]> {
     const conditions: Record<string, any> = { status };
     if (userId) {
       conditions.user_id = userId;
@@ -133,7 +134,7 @@ export class DocumentRepository
   /**
    * Override create to handle document-specific fields
    */
-  async create(data: Omit<NDADocument, 'id' | 'created_at' | 'updated_at'>): Promise<NDADocument> {
+  async create(data: Omit<TemplateDocument, 'id' | 'created_at' | 'updated_at'>): Promise<TemplateDocument> {
     // Ensure required fields have defaults
     const documentData = {
       ...data,

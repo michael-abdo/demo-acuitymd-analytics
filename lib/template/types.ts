@@ -1,7 +1,7 @@
 /**
- * NDA Library Type Definitions
+ * Template Library Type Definitions
  * 
- * This file contains internal types used by the NDA library functions.
+ * This file contains internal types used by the template library functions.
  * These types are for internal use and may include database row types,
  * query builders, and utility types.
  */
@@ -12,13 +12,13 @@ import {
   ExportType, 
   TaskType, 
   QueueStatus 
-} from '@/types/nda';
+} from '@/types/template';
 
 /**
  * Database row types (raw from MySQL)
  * These match the exact database schema including snake_case
  */
-export interface NDADocumentRow {
+export interface TemplateDocumentRow {
   id: number;
   filename: string;
   original_name: string;
@@ -35,7 +35,7 @@ export interface NDADocumentRow {
   updated_at: Date;
 }
 
-export interface NDAComparisonRow {
+export interface TemplateComparisonRow {
   id: number;
   document1_id: number;
   document2_id: number;
@@ -53,7 +53,7 @@ export interface NDAComparisonRow {
   updated_at: Date;
 }
 
-export interface NDAExportRow {
+export interface TemplateExportRow {
   id: number;
   comparison_id: number;
   export_type: ExportType;
