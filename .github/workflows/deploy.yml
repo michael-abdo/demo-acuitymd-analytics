@@ -1,0 +1,199 @@
+name: Deploy VVG Template
+
+on:
+  # Deploy to staging on push to main-staging
+  push:
+    branches:
+      - main-staging
+  
+  # Deploy to production on version tags
+  push:
+    tags:
+      - 'v*'
+  
+  # Manual deployment trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      branch: ${{ steps.set-env.outputs.branch }}
+    steps:
+      - name: Determine deployment environment
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            if [[ "${{ github.event.inputs.environment }}" == "production" ]]; then
+              echo "branch=main" >> $GITHUB_OUTPUT
+            else
+              echo "branch=main-staging" >> $GITHUB_OUTPUT
+            fi
+          elif [[ "${{ github.ref }}" == "refs/heads/main-staging" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "branch=main-staging" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "branch=main" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: determine-environment
+    runs-on: ubuntu-latest
+    environment: ${{ needs.determine-environment.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.determine-environment.outputs.branch }}
+      
+      - name: Setup deployment variables
+        id: vars
+        run: |
+          if [[ "${{ needs.determine-environment.outputs.environment }}" == "production" ]]; then
+            echo "port=3000" >> $GITHUB_OUTPUT
+            echo "pm2_app=vvg-template-production" >> $GITHUB_OUTPUT
+            echo "env_file=.env.production" >> $GITHUB_OUTPUT
+          else
+            echo "port=3001" >> $GITHUB_OUTPUT
+            echo "pm2_app=vvg-template-staging" >> $GITHUB_OUTPUT
+            echo "env_file=.env.staging" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat >>~/.ssh/config <<END
+          Host ec2
+            HostName ${{ secrets.EC2_HOST }}
+            User ${{ secrets.EC2_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+          END
+      
+      - name: Test SSH connection
+        run: ssh ec2 "echo 'SSH connection successful'"
+      
+      - name: Deploy to EC2
+        run: |
+          # Set deployment directory
+          DEPLOY_DIR="/home/ubuntu/vvg-template"
+          ENV="${{ needs.determine-environment.outputs.environment }}"
+          
+          echo "🚀 Starting deployment to $ENV environment..."
+          
+          # Create deployment script
+          cat > deploy_remote.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+          
+          DEPLOY_DIR="$1"
+          ENV="$2"
+          PM2_APP="$3"
+          ENV_FILE="$4"
+          BRANCH="$5"
+          
+          echo "📁 Navigating to $DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
+          
+          echo "🔄 Fetching latest code from $BRANCH"
+          git fetch origin
+          git checkout "$BRANCH"
+          git reset --hard "origin/$BRANCH"
+          
+          echo "📦 Installing dependencies"
+          npm ci --production=false
+          
+          echo "🔧 Setting up environment"
+          if [ -f "deployment/$ENV_FILE" ]; then
+            cp "deployment/$ENV_FILE" "$ENV_FILE"
+          else
+            echo "⚠️  Warning: deployment/$ENV_FILE not found"
+          fi
+          
+          echo "🏗️  Building application"
+          npm run build
+          
+          echo "🔄 Restarting PM2 process: $PM2_APP"
+          pm2 reload ecosystem.config.js --only "$PM2_APP" --env "$ENV" || \
+            pm2 start ecosystem.config.js --only "$PM2_APP" --env "$ENV"
+          
+          echo "💾 Saving PM2 configuration"
+          pm2 save
+          
+          echo "✅ Deployment completed successfully!"
+          SCRIPT
+          
+          # Copy and execute deployment script
+          scp deploy_remote.sh ec2:/tmp/
+          ssh ec2 "bash /tmp/deploy_remote.sh '$DEPLOY_DIR' '$ENV' '${{ steps.vars.outputs.pm2_app }}' '${{ steps.vars.outputs.env_file }}' '${{ needs.determine-environment.outputs.branch }}'"
+          
+          # Cleanup
+          ssh ec2 "rm /tmp/deploy_remote.sh"
+      
+      - name: Health check
+        run: |
+          echo "⏳ Waiting for application to start..."
+          sleep 15
+          
+          # Test health endpoint
+          if [[ "${{ needs.determine-environment.outputs.environment }}" == "production" ]]; then
+            HEALTH_URL="http://${{ secrets.EC2_HOST }}:3000/health"
+          else
+            HEALTH_URL="http://${{ secrets.EC2_HOST }}:3001/health"
+          fi
+          
+          echo "🏥 Checking health at $HEALTH_URL"
+          
+          # Retry health check up to 5 times
+          for i in {1..5}; do
+            if ssh ec2 "curl -f -s $HEALTH_URL" > /dev/null; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "⏳ Health check attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+      
+      - name: Show deployment info
+        if: success()
+        run: |
+          ENV="${{ needs.determine-environment.outputs.environment }}"
+          if [[ "$ENV" == "production" ]]; then
+            echo "🎉 Production deployment successful!"
+            echo "🌐 URL: https://legal.vtc.systems/vvg-template"
+          else
+            echo "🎉 Staging deployment successful!"
+            echo "🌐 URL: https://legal.vtc.systems:8443/vvg-template-staging"
+          fi
+          echo "📊 Check status: ssh ec2 'pm2 status'"
+          echo "📋 View logs: ssh ec2 'pm2 logs ${{ steps.vars.outputs.pm2_app }}'"
+      
+      - name: Rollback on failure
+        if: failure() && steps.vars.outputs.pm2_app != ''
+        run: |
+          echo "❌ Deployment failed, attempting rollback..."
+          ssh ec2 "cd /home/ubuntu/vvg-template && pm2 restart ${{ steps.vars.outputs.pm2_app }}"
+          echo "🔄 Rolled back to previous version"
