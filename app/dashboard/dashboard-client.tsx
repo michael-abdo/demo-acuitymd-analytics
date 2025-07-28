@@ -10,6 +10,7 @@ import { useAuth } from "@/components/auth-guard";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
 import { useApiData } from "@/lib/hooks";
 import { toast } from "@/lib/utils/toast";
+import { pagePath } from "@/lib/utils/path-utils";
 
 export default function DashboardClient() {
   const { session, isAuthenticated, user } = useAuth();
@@ -126,7 +127,7 @@ export default function DashboardClient() {
             <Button 
               className="w-full justify-start" 
               size="lg"
-              onClick={() => router.push('/upload')}
+              onClick={() => router.push(pagePath('/upload'))}
             >
               <FileUp className="mr-2 h-5 w-5" />
               Upload Template Document
@@ -135,7 +136,7 @@ export default function DashboardClient() {
               className="w-full justify-start" 
               size="lg" 
               variant="outline"
-              onClick={() => router.push('/compare')}
+              onClick={() => router.push(pagePath('/compare'))}
             >
               <GitCompare className="mr-2 h-5 w-5" />
               Compare Templates
@@ -144,7 +145,7 @@ export default function DashboardClient() {
               className="w-full justify-start" 
               size="lg" 
               variant="outline"
-              onClick={() => router.push('/documents')}
+              onClick={() => router.push(pagePath('/documents'))}
             >
               <FileText className="mr-2 h-5 w-5" />
               View Documents

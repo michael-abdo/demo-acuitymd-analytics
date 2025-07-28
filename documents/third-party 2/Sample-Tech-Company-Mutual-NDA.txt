@@ -1,0 +1,80 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Mutual Non-Disclosure Agreement ("Agreement") is entered into as of __________ ("Effective Date") by and between:
+
+Tech Innovations Inc., a Delaware corporation ("Company"), with its principal place of business at 123 Silicon Valley Way, San Jose, CA 95110, and
+
+_________________________ ("Counterparty"), with its principal place of business at _________________________.
+
+Company and Counterparty may be referred to individually as a "Party" and collectively as the "Parties."
+
+RECITALS
+
+WHEREAS, the Parties wish to explore a potential business relationship concerning _________________________ ("Purpose"); and
+
+WHEREAS, in connection with such discussions, each Party may disclose to the other certain Confidential Information (as defined below).
+
+NOW, THEREFORE, in consideration of the mutual covenants and agreements contained herein, the Parties agree as follows:
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION
+
+"Confidential Information" means any and all non-public information disclosed by one Party ("Disclosing Party") to the other Party ("Receiving Party"), whether orally, in writing, or in any other form, including but not limited to:
+
+(a) Technical information, software, source code, algorithms, and system designs;
+(b) Business information, including customer lists, supplier information, pricing data, and marketing strategies;
+(c) Financial information, including revenue, costs, and projections;
+(d) Any other information that is marked as "Confidential" or that would reasonably be considered confidential.
+
+2. OBLIGATIONS OF RECEIVING PARTY
+
+The Receiving Party agrees to:
+(a) Hold the Confidential Information in strict confidence;
+(b) Not disclose the Confidential Information to any third parties without prior written consent;
+(c) Use the Confidential Information solely for the Purpose;
+(d) Protect the Confidential Information using the same degree of care it uses for its own confidential information, but in no event less than reasonable care.
+
+3. EXCEPTIONS
+
+The obligations in Section 2 shall not apply to information that:
+(a) Was publicly known at the time of disclosure;
+(b) Becomes publicly known through no breach of this Agreement;
+(c) Was rightfully received from a third party without breach of any confidentiality obligation;
+(d) Was independently developed without use of Confidential Information;
+(e) Is required to be disclosed by law or court order, provided that the Receiving Party provides prompt notice to the Disclosing Party.
+
+4. TERM
+
+This Agreement shall remain in effect for two (2) years from the Effective Date, unless earlier terminated by either Party upon thirty (30) days written notice.
+
+5. RETURN OF INFORMATION
+
+Upon termination of this Agreement or upon request, the Receiving Party shall promptly return or destroy all Confidential Information and certify such return or destruction in writing.
+
+6. NO LICENSE
+
+Nothing in this Agreement grants any license or rights in any Confidential Information, except the limited right to use it for the Purpose.
+
+7. NO WARRANTY
+
+All Confidential Information is provided "AS IS" without any warranties, express or implied.
+
+8. REMEDIES
+
+The Parties acknowledge that breach of this Agreement may cause irreparable harm for which monetary damages would be inadequate, and agree that the non-breaching Party shall be entitled to seek injunctive relief.
+
+9. GOVERNING LAW
+
+This Agreement shall be governed by the laws of the State of Delaware, without regard to its conflict of laws principles.
+
+10. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between the Parties regarding the subject matter hereof and supersedes all prior agreements and understandings.
+
+IN WITNESS WHEREOF, the Parties have executed this Agreement as of the date first written above.
+
+TECH INNOVATIONS INC.               COUNTERPARTY
+
+By: _________________________      By: _________________________
+Name: _______________________      Name: _______________________
+Title: ______________________      Title: ______________________
+Date: _______________________      Date: _______________________

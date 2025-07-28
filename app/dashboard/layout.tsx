@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { pagePath } from "@/lib/utils/path-utils";
 
 export default function DashboardLayout({
   children,
@@ -15,7 +16,7 @@ export default function DashboardLayout({
   useEffect(() => {
     // Client-side authentication check for dashboard layout
     if (status === "unauthenticated") {
-      router.push("/sign-in");
+      router.push(pagePath("/sign-in"));
     }
   }, [status, router]);
 

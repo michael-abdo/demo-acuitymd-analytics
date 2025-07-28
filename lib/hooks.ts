@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiPath } from '@/lib/utils/path-utils';
 
 export interface UseApiDataOptions {
   refreshInterval?: number;
@@ -13,11 +14,14 @@ export function useApiData<T>(url: string, options: UseApiDataOptions = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Ensure API URLs have basePath prefix
+  const apiUrl = url.startsWith('/api') ? apiPath(url.replace('/api', '')) : url;
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(url);
+        const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -38,12 +42,12 @@ export function useApiData<T>(url: string, options: UseApiDataOptions = {}) {
     if (options.autoLoad !== false) {
       fetchData();
     }
-  }, [url, ...(options.deps || [])]);
+  }, [apiUrl, ...(options.deps || [])]);
 
   const reload = async () => {
     try {
       setLoading(true);
-      const response = await fetch(url);
+      const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -72,6 +76,9 @@ export interface UseFileUploadOptions {
 export function useFileUpload(endpoint: string, options: UseFileUploadOptions = {}) {
   const [uploading, setUploading] = useState(false);
 
+  // Ensure upload endpoints have basePath prefix
+  const uploadUrl = endpoint.startsWith('/api') ? apiPath(endpoint.replace('/api', '')) : endpoint;
+
   const upload = async (fileOrFormData: File | FormData, additionalData?: Record<string, any>) => {
     try {
       setUploading(true);
@@ -91,7 +98,7 @@ export function useFileUpload(endpoint: string, options: UseFileUploadOptions = 
         }
       }
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });

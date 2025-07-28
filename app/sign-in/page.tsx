@@ -7,12 +7,13 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { LoadingPage } from "@/components/ui/loading";
 import { CenteredFormLayout } from "@/components/ui";
+import { pagePath } from "@/lib/utils/path-utils";
 // import { ClientLogger } from "@/lib/services/logger"; // Removed to avoid circular dependencies
 
 // Client component that uses useSearchParams
 function SignInRedirect() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") || pagePath("/dashboard");
   const [isRedirecting, setIsRedirecting] = useState(false);
   
   useEffect(() => {

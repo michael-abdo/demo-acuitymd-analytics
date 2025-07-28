@@ -10,6 +10,7 @@ import { ErrorLogger, ApiError } from './error-logger';
 import { APP_CONSTANTS, config, EnvironmentHelpers } from './config';
 import { RequestParser } from './services/request-parser';
 import type { RateLimiter } from './rate-limiter';
+import { pagePath } from './utils/path-utils';
 
 /**
  * Consolidated API imports - eliminates duplicate import statements across API routes
@@ -27,7 +28,7 @@ export async function requireAuth() {
   const session = await getServerSession(authOptions);
   
   if (!session) {
-    redirect("/sign-in");
+    redirect(pagePath("/sign-in"));
   }
   
   return session;

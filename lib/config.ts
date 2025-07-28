@@ -24,38 +24,18 @@ export const config = {
   },
   app: {
     name: process.env.PROJECT_NAME || 'vvg-app',
-    basePath: process.env.APP_BASE_PATH || `/${process.env.PROJECT_NAME || 'vvg-app'}`,
+    basePath: process.env.BASE_PATH || '',
   },
   
   template: {
     name: process.env.PROJECT_NAME || 'vvg-template',
     displayName: process.env.PROJECT_DISPLAY_NAME || 'Template App',
-    basePath: process.env.APP_BASE_PATH || `/${process.env.PROJECT_NAME || 'vvg-template'}`,
+    basePath: process.env.BASE_PATH || '',
     domain: process.env.APP_DOMAIN || 'localhost:3000',
     
     paths: {
       nextAuthUrl: process.env.NEXTAUTH_URL || `http://localhost:3000`,
       s3Prefix: `${process.env.PROJECT_NAME || 'vvg-template'}/`,
-      nginxPath: `/${process.env.PROJECT_NAME || 'vvg-template'}`,
-      
-      api: {
-        auth: `/${process.env.PROJECT_NAME || 'vvg-template'}/api/auth`,
-        authCallback: `/${process.env.PROJECT_NAME || 'vvg-template'}/api/auth/callback/azure-ad`,
-        upload: `/${process.env.PROJECT_NAME || 'vvg-template'}/api/upload`,
-        documents: `/${process.env.PROJECT_NAME || 'vvg-template'}/api/documents`,
-        dashboard: `/${process.env.PROJECT_NAME || 'vvg-template'}/api/dashboard`,
-      },
-      
-      urls: {
-        azureCallback: process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api/auth/callback/azure-ad` : `http://localhost:3000/api/auth/callback/azure-ad`,
-      },
-      
-      pages: {
-        signIn: `/${process.env.PROJECT_NAME || 'vvg-template'}/sign-in`,
-        dashboard: `/${process.env.PROJECT_NAME || 'vvg-template'}/dashboard`,
-        documents: `/${process.env.PROJECT_NAME || 'vvg-template'}/documents`,
-        upload: `/${process.env.PROJECT_NAME || 'vvg-template'}/upload`,
-      }
     }
   },
   
