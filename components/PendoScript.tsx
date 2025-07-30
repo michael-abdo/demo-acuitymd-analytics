@@ -14,12 +14,7 @@ export default function PendoScript() {
   const { data: session } = useSession();
   
   useEffect(() => {
-    // Skip Pendo in development to avoid TypeScript issues
-    if (process.env.NODE_ENV === 'development') {
-      return;
-    }
-
-    // Only initialize in production
+    // Only initialize Pendo if we have a session
     try {
       const apiKey = 'f18f48c5-575b-4d19-6112-7ab62b40b73d';
       

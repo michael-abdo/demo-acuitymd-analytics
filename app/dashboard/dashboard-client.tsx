@@ -26,8 +26,8 @@ export default function DashboardClient() {
     autoLoad: isAuthenticated,
     transform: (response: DashboardStatsResponse) => response.data || null,
     onError: (error) => {
-      // Only show error toast in production or if it's not an auth error
-      if (process.env.NODE_ENV === 'production' || !error.message.includes('401')) {
+      // Only show error toast if it's not an auth error
+      if (!error.message.includes('401')) {
         toast.error.load("statistics", error.message);
       }
     },
