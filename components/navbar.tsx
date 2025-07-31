@@ -6,12 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signIn, signOut } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/components/auth-guard';
-import { pagePath, assetPath, withoutBasePath } from '@/lib/utils/path-utils';
+import { useBasePath } from '@/lib/hooks';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { session, user } = useAuth();
+  const { pagePath, assetPath, withoutBasePath } = useBasePath();
   const userName = user?.name || 'Sign In';
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

@@ -4,10 +4,10 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   // Check if database is configured
   const hasDbConfig = !!(
-    process.env.DB_HOST && 
-    process.env.DB_USER && 
-    process.env.DB_PASSWORD && 
-    process.env.DB_NAME
+    process.env.MYSQL_HOST && 
+    process.env.MYSQL_USER && 
+    process.env.MYSQL_PASSWORD && 
+    process.env.MYSQL_DATABASE
   );
 
   if (hasDbConfig) {
@@ -25,7 +25,7 @@ export async function GET() {
       details: {
         hasDbAccess: false,
         mode: 'in-memory',
-        recommendation: 'Configure DB_HOST, DB_USER, DB_PASSWORD, and DB_NAME for production'
+        recommendation: 'Configure MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, and MYSQL_DATABASE for production'
       },
       timestamp: new Date().toISOString()
     }, { status: 503 });

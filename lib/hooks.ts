@@ -120,3 +120,43 @@ export function useFileUpload(endpoint: string, options: UseFileUploadOptions = 
 
   return { upload, uploading };
 }
+
+export interface UseAsyncOperationOptions {
+  onSuccess?: (result: any) => void;
+  onError?: (error: any) => void;
+}
+
+export function useAsyncOperation<T = any>(options: UseAsyncOperationOptions = {}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<T | null>(null);
+
+  const execute = async (operation: () => Promise<T>) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await operation();
+      setData(result);
+      options.onSuccess?.(result);
+      return result;
+    } catch (err: any) {
+      const errorMessage = err.message || 'An error occurred';
+      setError(errorMessage);
+      options.onError?.(err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reset = () => {
+    setData(null);
+    setError(null);
+    setLoading(false);
+  };
+
+  return { execute, loading, error, data, reset };
+}
+
+// Export the useBasePath hook
+export { useBasePath } from './hooks/use-basepath';

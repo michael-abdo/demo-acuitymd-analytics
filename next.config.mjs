@@ -16,12 +16,14 @@ const nextConfig = {
   // Production deployment configuration
   output: 'standalone',
   basePath: process.env.BASE_PATH || '',
+  assetPrefix: process.env.BASE_PATH || '',
+  generateBuildId: async () => 'build-' + Date.now(),
   
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
@@ -30,6 +32,13 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+    forceSwcTransforms: true,
+    ...(process.env.NODE_ENV === 'development' && {
+      allowedDevOrigins: [
+        '.ngrok.io', '.ngrok-free.app',
+        'localhost:3000', '127.0.0.1:3000'
+      ]
+    })
   },
   webpack: (config, { isServer }) => {
     // Fix Node.js module resolution for client-side builds

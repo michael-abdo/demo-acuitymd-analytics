@@ -8,13 +8,13 @@ import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
 import { useAuth } from "@/components/auth-guard";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
-import { useApiData } from "@/lib/hooks";
+import { useApiData, useBasePath } from "@/lib/hooks";
 import { toast } from "@/lib/utils/toast";
-import { pagePath } from "@/lib/utils/path-utils";
 
 export default function DashboardClient() {
   const { session, isAuthenticated, user } = useAuth();
   const router = useRouter();
+  const { pagePath } = useBasePath();
 
   // Use consolidated API data hook
   const { 

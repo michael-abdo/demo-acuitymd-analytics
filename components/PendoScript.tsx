@@ -14,9 +14,13 @@ export default function PendoScript() {
   const { data: session } = useSession();
   
   useEffect(() => {
-    // Only initialize Pendo if we have a session
+    // Only initialize Pendo if we have a session and API key
     try {
-      const apiKey = 'f18f48c5-575b-4d19-6112-7ab62b40b73d';
+      const apiKey = process.env.NEXT_PUBLIC_PENDO_API_KEY;
+      
+      if (!apiKey) {
+        return; // Skip initialization if no API key is configured
+      }
       
       // Type-safe Pendo script injection
       if (typeof window !== 'undefined' && !window.pendo) {
@@ -42,7 +46,9 @@ export default function PendoScript() {
         document.head.appendChild(script);
       }
     } catch (error) {
-      console.warn('Pendo initialization failed:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Pendo initialization failed:', error);
+      }
     }
   }, [session]);
 

@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from "next/navigation";
+import { pagePath } from "@/lib/utils/path-utils";
 import DashboardClient from "./dashboard-client";
 import type { Metadata } from 'next';
 
@@ -13,7 +14,7 @@ export default async function Dashboard() {
   const session = await getServerSession(authOptions);
   
   if (!session) {
-    redirect("/${PROJECT_NAME}/sign-in");
+    redirect(pagePath("/sign-in"));
   }
 
   return <DashboardClient />;

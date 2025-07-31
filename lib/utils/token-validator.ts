@@ -102,7 +102,7 @@ export class TokenValidator {
       valid: true,
       metadata: {
         type: 'bearer',
-        token: token,
+        token,
         validatedAt: new Date().toISOString()
       }
     };
