@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/auth'
+import { authOptions } from '@/lib/auth-options'
 import { emailService } from '@/lib/services/email-service'
 import { config } from '@/lib/config'
 
