@@ -25,6 +25,7 @@ export const config = {
   app: {
     name: process.env.PROJECT_NAME || 'vvg-app',
     basePath: process.env.BASE_PATH || '',
+    email: process.env.SES_FROM_EMAIL || 'noreply@example.com',
   },
   
   template: {
@@ -55,6 +56,19 @@ export const config = {
   
   database: {
     url: process.env.DATABASE_URL || '',
+  },
+  
+  email: {
+    smtp: {
+      host: process.env.AWS_SES_SMTP_HOST || 'email-smtp.us-west-2.amazonaws.com',
+      port: parseInt(process.env.AWS_SES_SMTP_PORT || '587', 10),
+      username: process.env.AWS_SES_SMTP_USERNAME || '',
+      password: process.env.AWS_SES_SMTP_PASSWORD || '',
+    },
+    from: process.env.SES_FROM_EMAIL || 'noreply@example.com',
+    testRecipient: process.env.SES_TEST_RECIPIENT || '',
+    adminEmail: process.env.ADMIN_EMAIL || '',
+    enableInDev: process.env.ENABLE_EMAIL_IN_DEV === 'true',
   },
   
   // Database configuration
