@@ -45,7 +45,7 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#152C5B] h-14">
-      <div className="container flex h-full max-w-screen-2xl items-center justify-between px-4">
+      <div className="container mx-auto flex h-full max-w-screen-2xl items-center justify-between px-4">
         {/* Left side - Anomaly Detector button */}
         <Link href={pagePath("/dashboard")} className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
           {/* Document icon */}
