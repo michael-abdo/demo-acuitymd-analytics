@@ -130,7 +130,7 @@ jobs:
             echo "⚠️  Warning: deployment/$ENV_FILE not found"
           fi
           
-          echo "🏗️  Building application"
+          echo "🏗️  Building application (with memory check)"
           npm run build
           
           echo "🔄 Restarting PM2 process: $PM2_APP"

@@ -38,6 +38,8 @@ ENV NODE_ENV=production
 RUN echo "module.exports = { typescript: { ignoreBuildErrors: true }, eslint: { ignoreDuringBuilds: true } }" > next.config.js
 ENV SKIP_ENV_VALIDATION=true
 ENV WEBPACK_BUILD=true
+# Install bc for memory calculations
+RUN apk add --no-cache bc
 RUN npm run build && ls -la .next
 
 # Production stage
