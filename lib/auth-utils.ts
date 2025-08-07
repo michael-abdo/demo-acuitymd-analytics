@@ -380,6 +380,106 @@ export const StatusCodes = {
   SERVICE_UNAVAILABLE: 503,
 } as const;
 
+/**
+ * Wrapper that adds comparison access control to routes
+ * Validates document ownership for both documents in a comparison
+ */
+export function withComparisonAccess(
+  handler: (
+    request: NextRequest,
+    userEmail: string,
+    doc1: any,
+    doc2: any
+  ) => Promise<NextResponse>,
+  options?: { trackTiming?: boolean }
+) {
+  return withAuth(async (request: NextRequest, userEmail: string) => {
+    const startTime = Date.now();
+    
+    try {
+      // Parse comparison request
+      const { doc1Id, doc2Id } = await RequestParser.parseComparisonRequest(request);
+      
+      // Validate not comparing document with itself
+      if (doc1Id === doc2Id) {
+        return ApiErrors.badRequest('Cannot compare a document with itself');
+      }
+      
+      // Fetch both documents in parallel
+      const [doc1, doc2] = await Promise.all([
+        documentDb.findById(doc1Id),
+        documentDb.findById(doc2Id)
+      ]);
+      
+      // Check existence
+      if (!doc1 || !doc2) {
+        return ApiErrors.notFound('One or both documents not found');
+      }
+      
+      // Check ownership of both documents
+      if (!isDocumentOwner(doc1, userEmail) || !isDocumentOwner(doc2, userEmail)) {
+        return ApiErrors.forbidden();
+      }
+      
+      // Call the actual handler with both documents
+      const response = await handler(request, userEmail, doc1, doc2);
+      
+      // Add timing header if tracking is enabled (default: true)
+      if (options?.trackTiming !== false) {
+        response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
+      }
+      
+      return response;
+      
+    } catch (error) {
+      // If it's already an API error response, return it
+      if (error instanceof NextResponse) {
+        return error;
+      }
+      throw error;
+    }
+  }, options);
+}
+
+/**
+ * Wrapper that adds rate limiting to routes
+ * Consolidates rate limiting logic for DRY compliance
+ */
+export function withRateLimit(
+  rateLimiter: RateLimiter,
+  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
+  options?: { 
+    allowDevBypass?: boolean;
+    trackTiming?: boolean;
+    includeHeaders?: boolean;
+  }
+) {
+  return withAuth(async (request: NextRequest, userEmail: string) => {
+    // Check rate limit
+    if (!rateLimiter.checkLimit(userEmail)) {
+      const resetTime = rateLimiter.getResetTime(userEmail);
+      return ApiErrors.rateLimitExceeded(resetTime ? new Date(resetTime) : undefined);
+    }
+    
+    // Call the handler
+    const response = await handler(request, userEmail);
+    
+    // Add rate limit headers if requested (default: true)
+    if (options?.includeHeaders !== false) {
+      const remaining = rateLimiter.getRemainingRequests(userEmail);
+      const resetTime = rateLimiter.getResetTime(userEmail);
+      
+      response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.LIMIT, rateLimiter['maxRequests'].toString());
+      response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.REMAINING, remaining.toString());
+      if (resetTime) {
+        response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.RESET, new Date(resetTime).toISOString());
+      }
+    }
+    
+    return response;
+  }, options);
+}
+
 
 
 

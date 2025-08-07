@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
-import { NextRequest, NextResponse } from 'next/server'
-import { withRateLimit, ApiResponse } from '@/lib/auth-utils'
+import { NextRequest } from 'next/server'
+import { withRateLimit } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
 import { ApiErrors } from '@/lib/utils'
-import { documentDb, comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
+import { comparisonDb, ComparisonStatus, DocumentStatus } from '@/lib/nda'
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 import { Logger } from '@/lib/services/logger'
 import { compareRateLimiter } from '@/lib/rate-limiter'

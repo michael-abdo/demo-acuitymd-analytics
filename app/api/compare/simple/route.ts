@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
-import { NextRequest, NextResponse } from 'next/server';
-import { withComparisonAccess, ApiResponse } from '@/lib/auth-utils';
+import { NextRequest } from 'next/server';
+import { withComparisonAccess } from '@/lib/auth-utils';
 import { ApiErrors } from '@/lib/utils';
 import { comparisonDb, ComparisonStatus } from '@/lib/nda';
 import { Logger } from '@/lib/services/logger';
