@@ -92,6 +92,9 @@ export const config = {
   
   // Test user configuration
   TEST_USER_EMAIL: process.env.TEST_USER_EMAIL || 'test@example.com',
+  
+  // OpenAI configuration
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
 
   // Storage configuration properties (for lib/storage/index.ts)
   STORAGE_PROVIDER: process.env.STORAGE_PROVIDER as 'local' | 's3' || 'local',
