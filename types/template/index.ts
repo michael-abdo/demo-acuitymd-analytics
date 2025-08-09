@@ -1,7 +1,7 @@
 /**
- * ${PROJECT_DISPLAY_NAME} Type Definitions
+ * Document Processing Template Type Definitions
  * 
- * This file contains all TypeScript type definitions for the ${PROJECT_DISPLAY_NAME}.
+ * This file contains all TypeScript type definitions for the Document Processing Template.
  * These types mirror the database schema for type safety.
  */
 
