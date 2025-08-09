@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env.docker.local
+      - .env.local  # Use our new unified secrets file
       
     volumes:
       # Mount local storage directory for development

@@ -7,7 +7,7 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env.docker.production
+      - .env.local  # Production secrets file (not committed to git)
       
     volumes:
       # Mount storage directory for production
