@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   app:
     build: .
     ports:
       - "3000:3000"
     env_file:
-      - .env.local  # Use our new unified secrets file
+      - .env.docker.local
       
     volumes:
       # Mount local storage directory for development
