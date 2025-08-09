@@ -49,7 +49,7 @@ export class ComparisonRepository
     }
     
     super({
-      tableName: 'template_comparisons',
+      tableName: 'comparisons', // Generic table name - customize per project
       entityName: 'comparison',
       rowConverter: rowToComparison,
       memoryStore: global._templateMemoryStore.comparisons,

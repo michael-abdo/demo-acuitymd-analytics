@@ -2,7 +2,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest } from 'next/server';
 import { withComparisonAccess } from '@/lib/auth-utils';
 import { ApiErrors, ResponseBuilder } from '@/lib/utils';
-import { comparisonDb, ComparisonStatus } from '@/lib/nda';
+// import { comparisonDb, ComparisonStatus } from '@/lib/nda'; // Removed NDA-specific imports
+// Generic comparison status enum
+enum ComparisonStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing', 
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
 import { Logger } from '@/lib/services/logger';
 import { getTextStats, findSections, calculateSimilarity } from '@/lib/text-extraction';
 
@@ -34,7 +41,8 @@ export const POST = withComparisonAccess(async (_request: NextRequest, userEmail
     const sections1 = findSections(text1);
     const sections2 = findSections(text2);
     
-    // Create comparison record
+    // TODO: Create comparison record in database
+    /*
     const comparison = await comparisonDb.create({
       doc1_id: doc1.id,
       doc2_id: doc2.id,
@@ -63,6 +71,33 @@ export const POST = withComparisonAccess(async (_request: NextRequest, userEmail
         ]
       }
     });
+    */
+    
+    // Temporary mock comparison record
+    const comparison = {
+      id: Date.now(),
+      result: {
+        summary: `Simple text comparison between "${doc1.original_name}" and "${doc2.original_name}"`,
+        differences: [
+          {
+            section: 'Document Statistics',
+            type: 'different',
+            importance: 'low',
+            standard_text: `Word count: ${stats1.words}`,
+            compared_text: `Word count: ${stats2.words}`,
+            explanation: `Word count difference: ${stats1.words - stats2.words} words`
+          },
+          {
+            section: 'Content Length',
+            type: 'different',
+            importance: 'low',
+            standard_text: `Character count: ${stats1.characters}`,
+            compared_text: `Character count: ${stats2.characters}`,
+            explanation: `Character count difference: ${stats1.characters - stats2.characters} characters`
+          }
+        ]
+      }
+    };
     
     return ResponseBuilder.operation('comparison.simple', {
       data: {

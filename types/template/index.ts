@@ -43,7 +43,7 @@ export enum QueueStatus {
 }
 
 /**
- * Template Document type matching template_documents table
+ * Generic Document type for template system - customize per project
  */
 export interface TemplateDocument {
   id: number;

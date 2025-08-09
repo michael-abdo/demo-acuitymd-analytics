@@ -79,7 +79,7 @@ export class DocumentRepository
     }
     
     super({
-      tableName: 'template_documents',
+      tableName: 'documents', // Generic table name - customize per project
       entityName: 'document',
       rowConverter: rowToDocument,
       memoryStore: global._templateMemoryStore.documents,

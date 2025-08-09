@@ -3,7 +3,14 @@ import { NextRequest } from 'next/server'
 import { withRateLimit } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
 import { ApiErrors, ResponseBuilder } from '@/lib/utils'
-import { comparisonDb, ComparisonStatus } from '@/lib/nda'
+// import { comparisonDb, ComparisonStatus } from '@/lib/nda' // Removed NDA-specific imports
+// Generic comparison status enum
+enum ComparisonStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing', 
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 import { Logger } from '@/lib/services/logger'
 import { compareRateLimiter } from '@/lib/rate-limiter'
@@ -94,9 +101,11 @@ export const POST = withRateLimit(
       }
       
       // Add documents to extraction queue (DRY principle - handle common failure case)
-      const { queueDb, TaskType } = await import('@/lib/nda');
+      // const { queueDb, TaskType } = await import('@/lib/nda'); // Removed NDA-specific queue imports
       
       try {
+        // TODO: Implement generic queue system for document processing
+        /* 
         const queuePromises = [];
         
         if (!standardDoc.extracted_text) {
@@ -142,6 +151,7 @@ export const POST = withRateLimit(
         } else {
           Logger.api.error('COMPARE', `Queue processing trigger failed: ${response.status}`);
         }
+        */
       } catch (error) {
         Logger.api.error('COMPARE', 'Queue setup error', error as Error);
       }
@@ -179,12 +189,20 @@ export const POST = withRateLimit(
 
     // Create comparison record
     Logger.api.step('COMPARE', 'Creating comparison record');
+    // TODO: Implement generic comparison database operations
+    /* 
     const comparison = await comparisonDb.create({
       doc1_id: parseInt(standardDocId.toString()),
       doc2_id: parseInt(thirdPartyDocId.toString()),
       user_id: userEmail,
       status: ComparisonStatus.PROCESSING
     })
+    */
+    const comparison = { 
+      id: Date.now(), 
+      status: ComparisonStatus.PROCESSING,
+      created_at: new Date()
+    }; // Temporary mock
     Logger.api.step('COMPARE', 'Comparison record created', { comparisonId: comparison.id });
 
     try {
@@ -215,6 +233,8 @@ export const POST = withRateLimit(
       Logger.api.step('COMPARE', 'Starting OpenAI document comparison');
       const comparisonResult = await compareDocuments(standardContent, thirdPartyContent);
       Logger.api.success('COMPARE', 'OpenAI comparison completed successfully');
+      // TODO: Update comparison record in database
+      /*
       await comparisonDb.update(comparison.id, {
         status: ComparisonStatus.COMPLETED,
         result: {
@@ -231,6 +251,7 @@ export const POST = withRateLimit(
           processing_time_ms: 0
         }
       });
+      */
 
       // Transform result to match frontend expectations (DRY - reuse existing type structure)
       const formattedResult = {
@@ -278,6 +299,8 @@ export const POST = withRateLimit(
       // Update comparison status to error (DRY - reuse existing error handling)
       const errorMessage = comparisonError instanceof Error ? comparisonError.message : 'Unknown error';
       
+      // TODO: Update comparison record with error status
+      /*
       await comparisonDb.update(comparison.id, {
         status: ComparisonStatus.FAILED,
         result: {
@@ -285,6 +308,7 @@ export const POST = withRateLimit(
           failed_at: new Date().toISOString()
         }
       });
+      */
       
       Logger.api.error('COMPARE', 'Comparison failed', new Error(errorMessage));
       
