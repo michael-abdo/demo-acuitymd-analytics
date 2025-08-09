@@ -1,6 +1,11 @@
 import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 
+// Validate required OAuth configuration
+if (!process.env.AZURE_AD_REDIRECT_URI && process.env.NODE_ENV === 'production') {
+  console.warn('Warning: AZURE_AD_REDIRECT_URI not set. OAuth callbacks may fail.');
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     AzureADProvider({
@@ -9,7 +14,8 @@ export const authOptions: NextAuthOptions = {
       tenantId: process.env.AZURE_AD_TENANT_ID || '',
       authorization: {
         params: {
-          scope: "openid profile email"
+          scope: "openid profile email",
+          redirect_uri: process.env.AZURE_AD_REDIRECT_URI
         }
       }
     }),

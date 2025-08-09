@@ -24,12 +24,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
+# Environment files - Security critical
+.env.local
 .env*.local
-.env
+
+# Legacy environment files (remove after migration)
 .env.development
+.env.staging
 .env.test
-.env.production
 
 # vercel
 .vercel

@@ -7,11 +7,43 @@ import { PageContainer } from '@/components/page-container';
 import { AuthGuard, useAuth } from '@/components/auth-guard';
 import { getFilenameFromPath } from '@/lib/utils';
 import { apiPath } from '@/lib/utils/path-utils';
-import { NDADocument, ComparisonResult, Comparison } from '@/types/nda';
 import { useApiData, useAsyncOperation } from '@/lib/hooks';
 
-// Using NDADocument directly since this page doesn't need UI-specific fields
-type Document = NDADocument;
+// Generic document type for comparison functionality
+type Document = {
+  id: string;
+  filename: string;
+  is_standard: boolean;
+  created_at: string;
+  file_size?: number;
+  content_preview?: string;
+};
+
+// Comparison types
+type ComparisonResult = {
+  id: string;
+  differences: Array<{
+    type: string;
+    risk: string;
+    description: string;
+  }>;
+  suggestions: Array<{
+    type: string;
+    description: string;
+  }>;
+  actions: Array<{
+    type: string;
+    description: string;
+  }>;
+};
+
+type Comparison = {
+  id: string;
+  standard_doc_id: string;
+  third_party_doc_id: string;
+  result: ComparisonResult;
+  created_at: string;
+};
 
 export default function ComparePage() {
   const { session } = useAuth();
@@ -21,7 +53,7 @@ export default function ComparePage() {
   const [recentComparisons, setRecentComparisons] = useState<Comparison[]>([]);
 
   // Use consolidated API data hook for documents
-  const { data: documents } = useApiData<NDADocument[]>(apiPath('/documents'), {
+  const { data: documents } = useApiData<Document[]>(apiPath('/documents'), {
     autoLoad: !!session,
     initialData: [],
     transform: (response) => response.data || [],
@@ -89,7 +121,7 @@ export default function ComparePage() {
       message="Please sign in to compare documents."
     >
       <PageContainer className="space-y-8">
-      <h1 className="text-3xl font-bold">Compare NDAs</h1>
+      <h1 className="text-3xl font-bold">Compare Documents</h1>
 
       {/* Document Selection */}
       <Card>
@@ -104,7 +136,7 @@ export default function ComparePage() {
               </label>
               <Select value={selectedStandard} onValueChange={setSelectedStandard}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose your standard NDA template" />
+                  <SelectValue placeholder="Choose your standard document template" />
                 </SelectTrigger>
                 <SelectContent>
                   {standardDocuments.map((doc) => (
@@ -119,18 +151,18 @@ export default function ComparePage() {
               </Select>
               {standardDocuments.length === 0 && (
                 <p className="text-sm text-gray-500 mt-1">
-                  No standard templates found. Upload an NDA and mark it as standard in the Documents page.
+                  No standard templates found. Upload a document and mark it as standard in the Documents page.
                 </p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">
-                Third-Party NDA
+                Third-Party Document
               </label>
               <Select value={selectedThirdParty} onValueChange={setSelectedThirdParty}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose third-party NDA to analyze" />
+                  <SelectValue placeholder="Choose third-party document to analyze" />
                 </SelectTrigger>
                 <SelectContent>
                   {thirdPartyDocuments.map((doc) => (
@@ -145,7 +177,7 @@ export default function ComparePage() {
               </Select>
               {thirdPartyDocuments.length === 0 && (
                 <p className="text-sm text-gray-500 mt-1">
-                  No third-party documents found. Upload some NDAs to compare.
+                  No third-party documents found. Upload some documents to compare.
                 </p>
               )}
             </div>

@@ -39,10 +39,8 @@ function ErrorContent() {
           {error === "OAuthCallback" && (
             <div className="mt-4 p-4 bg-gray-100 rounded text-sm text-gray-700">
               <p className="font-semibold">For administrators:</p>
-              <p className="mt-2">Ensure your Azure AD redirect URI is set to:</p>
-              <code className="block mt-2 p-2 bg-gray-200 rounded text-xs break-all">
-                {typeof window !== 'undefined' ? `${window.location.origin}/api/auth/callback/azure-ad` : '/api/auth/callback/azure-ad'}
-              </code>
+              <p className="mt-2">Ensure your Azure AD redirect URI matches the AZURE_AD_REDIRECT_URI environment variable.</p>
+              <p className="mt-2 text-xs">See the OAuth configuration documentation for environment-specific redirect URIs.</p>
             </div>
           )}
           <Link

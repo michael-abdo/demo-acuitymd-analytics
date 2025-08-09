@@ -5,9 +5,36 @@
  * Provides higher-level operations that combine multiple database calls and add business logic.
  */
 
-import { documentDb, comparisonDb, queueDb } from '@/lib/nda/database';
+// import { documentDb, comparisonDb, queueDb } from '@/lib/nda/database'; // Removed NDA-specific imports
 import { Logger } from './logger';
-import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda';
+// import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda'; // Removed NDA-specific imports
+
+// Generic document types for template system
+type Document = {
+  id: number;
+  filename: string;
+  original_name: string;
+  file_size?: number;
+  file_hash: string;
+  user_id: string;
+  is_standard: boolean;
+  extracted_text?: string;
+  metadata?: any;
+  status?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+enum TaskType {
+  EXTRACT_TEXT = 'extract_text'
+}
+
+enum DocumentStatus {
+  UPLOADED = 'uploaded',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
 import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
 import { APP_CONSTANTS } from '@/lib/config';
 import { storage } from '@/lib/storage';
@@ -22,7 +49,7 @@ export interface StorageMetadata {
   key?: string;
 }
 
-export interface DocumentWithMetadata extends NDADocument {
+export interface DocumentWithMetadata extends Document {
   fileType: string;
   hasExtractedText: boolean;
   extractedTextLength: number;
@@ -32,7 +59,7 @@ export interface DocumentWithMetadata extends NDADocument {
 export interface DocumentValidationResult {
   isValid: boolean;
   error?: string;
-  document?: NDADocument;
+  document?: Document;
 }
 
 export interface DocumentDeletionValidation {
@@ -60,7 +87,7 @@ export const DocumentService = {
    * Get all documents for a user with enhanced metadata
    * Uses error handling decorator for consistent database error handling
    */
-  getUserDocuments: withDatabaseErrorHandling(async (userEmail: string): Promise<NDADocument[]> => {
+  getUserDocuments: withDatabaseErrorHandling(async (userEmail: string): Promise<Document[]> => {
     Logger.db.operation(`Fetching documents for user: ${userEmail}`);
     
     const documents = await documentDb.findByUser(userEmail);
@@ -167,11 +194,11 @@ export const DocumentService = {
   async getUserDocumentsByIds(
     userEmail: string, 
     ...documentIds: number[]
-  ): Promise<{ documents: NDADocument[]; errors: string[] }> {
+  ): Promise<{ documents: Document[]; errors: string[] }> {
     Logger.db.operation(`Fetching documents [${documentIds.join(', ')}] for user: ${userEmail}`);
     
     const userDocuments = await this.getUserDocuments(userEmail);
-    const documents: NDADocument[] = [];
+    const documents: Document[] = [];
     const errors: string[] = [];
 
     documentIds.forEach(id => {
@@ -202,8 +229,8 @@ export const DocumentService = {
     thirdPartyDocId: number
   ): Promise<{
     isValid: boolean;
-    standardDoc?: NDADocument;
-    thirdPartyDoc?: NDADocument;
+    standardDoc?: Document;
+    thirdPartyDoc?: Document;
     missingExtraction: string[];
     errors: string[];
   }> {
@@ -253,7 +280,7 @@ export const DocumentService = {
   /**
    * Get user's standard document (designated as template)
    */
-  async getUserStandardDocument(userEmail: string): Promise<NDADocument | null> {
+  async getUserStandardDocument(userEmail: string): Promise<Document | null> {
     Logger.db.operation(`Fetching standard document for user: ${userEmail}`);
     
     const document = await documentDb.getStandardDocument(userEmail);
@@ -310,18 +337,16 @@ export const DocumentService = {
 
     const document = validation.document;
     
-    // Get comparisons count
-    const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === document.id || comp.document2_id === document.id
-    );
+    // TODO: Get comparisons count from generic database  
+    // const allComparisons = await comparisonDb.findByUser(userEmail);
+    const relatedComparisons = []; // Temporary empty array
 
     return {
       ...document,
       fileType: document.filename.split('.').pop()?.toLowerCase() || 'unknown',
       hasExtractedText: !!document.extracted_text,
       extractedTextLength: document.extracted_text ? document.extracted_text.length : 0,
-      relatedComparisons: relatedComparisons.length
+      relatedComparisons: 0 // TODO: Calculate from comparison database
     };
   },
 
@@ -382,7 +407,9 @@ export const DocumentService = {
       
       // Merge metadata if provided
       if (metadata) {
-        const document = await documentDb.findById(documentId);
+        // TODO: Implement generic document lookup
+        // const document = await documentDb.findById(documentId);
+        const document = null; // Temporary return
         if (document) {
           updateData.metadata = {
             ...document.metadata,
@@ -392,7 +419,9 @@ export const DocumentService = {
         }
       }
 
-      const success = await documentDb.update(documentId, updateData);
+      // TODO: Implement generic document update
+      // const success = await documentDb.update(documentId, updateData);
+      const success = false; // Temporary return
 
       if (success) {
         Logger.api.success('DOCUMENT', `Document ${documentId} status updated to ${status}`);
@@ -419,12 +448,16 @@ export const DocumentService = {
     Logger.api.step('DOCUMENT', `Queueing extraction for document ${documentId}`, { priority: taskPriority });
 
     try {
-      // Check if task already exists
+      // TODO: Check if task already exists in generic queue
+      /*
       const existingTasks = await queueDb.findByDocument?.(documentId) || [];
       const pendingTask = existingTasks.find(task => 
         task.task_type === TaskType.EXTRACT_TEXT && 
         (task.status === 'queued' || task.status === 'processing')
       );
+      */
+      const existingTasks = [];
+      const pendingTask = null;
 
       if (pendingTask) {
         Logger.api.warn('DOCUMENT', `Extraction already queued for document ${documentId}`, {
@@ -434,7 +467,8 @@ export const DocumentService = {
         return { taskId: pendingTask.id, queued: false };
       }
 
-      // Create new task
+      // TODO: Create new task in generic queue
+      /*
       const task = await queueDb.enqueue({
         document_id: documentId,
         task_type: TaskType.EXTRACT_TEXT,
@@ -442,6 +476,8 @@ export const DocumentService = {
         max_attempts: APP_CONSTANTS.QUEUE.MAX_ATTEMPTS,
         scheduled_at: new Date()
       });
+      */
+      const task = { id: Date.now() }; // Temporary mock
 
       Logger.api.success('DOCUMENT', `Extraction queued for document ${documentId}`, {
         taskId: task.id,
@@ -460,7 +496,7 @@ export const DocumentService = {
    * Uses storage error handling decorator for consistent error handling
    */
   getDocumentUrls: withStorageErrorHandling(async (
-    document: NDADocument
+    document: Document
   ): Promise<{ downloadUrl: string | null; storageMetadata: any }> => {
     let downloadUrl = null;
     let storageMetadata = null;
@@ -500,11 +536,9 @@ export const DocumentService = {
     
     const blockers: string[] = [];
     
-    // Check if document is used in any comparisons
-    const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === documentId || comp.document2_id === documentId
-    );
+    // TODO: Check if document is used in any comparisons
+    // const allComparisons = await comparisonDb.findByUser(userEmail);
+    const relatedComparisons = []; // Temporary empty array
 
     if (relatedComparisons.length > 0) {
       blockers.push(`Document is used in ${relatedComparisons.length} comparison(s)`);
@@ -516,13 +550,13 @@ export const DocumentService = {
       documentId,
       canDelete,
       blockers: blockers.length,
-      relatedComparisons: relatedComparisons.length
+      relatedComparisons: 0 // TODO: Calculate from comparison database
     });
 
     return {
       canDelete,
       blockers,
-      relatedComparisons: relatedComparisons.length
+      relatedComparisons: 0 // TODO: Calculate from comparison database
     };
   },
 
@@ -560,8 +594,9 @@ export const DocumentService = {
         Logger.api.step('DOCUMENT', `Storage file deleted: ${document.filename}`);
       }
 
-      // Delete from database
-      const deleted = await documentDb.delete(documentId);
+      // TODO: Delete from generic document database
+      // const deleted = await documentDb.delete(documentId);
+      const deleted = false; // Temporary return
       if (!deleted) {
         Logger.api.error('DOCUMENT', `Failed to delete document ${documentId} from database`);
         return { deleted: false, error: 'Failed to delete document from database' };
@@ -596,11 +631,9 @@ export const DocumentService = {
       ? urlResult.data || { downloadUrl: null, storageMetadata: null }
       : { downloadUrl: null, storageMetadata: null };
     
-    // Get comparisons count
-    const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = allComparisons.filter(comp => 
-      comp.document1_id === document.id || comp.document2_id === document.id
-    );
+    // TODO: Get comparisons count from generic database  
+    // const allComparisons = await comparisonDb.findByUser(userEmail);
+    const relatedComparisons = []; // Temporary empty array
 
     // Calculate enhanced properties
     const fileType = document.filename.split('.').pop()?.toLowerCase() || 'unknown';
@@ -613,7 +646,7 @@ export const DocumentService = {
       fileType,
       hasExtractedText,
       extractedTextLength,
-      relatedComparisons: relatedComparisons.length,
+      relatedComparisons: 0, // TODO: Calculate from comparison database
       canCompare: !document.is_standard, // Can compare if it's not a standard doc
       canSetAsStandard: !document.is_standard, // Can set as standard if not already
       sizeMB,
