@@ -1,11 +1,12 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
+import { withLogging } from '@/lib/api-logging';
 
 /**
  * Health check endpoint for monitoring systems (Docker, PM2, load balancers)
  * Returns system status without authentication
  */
-export async function GET(request: NextRequest) {
+async function healthHandler(request: NextRequest) {
   // Simple health check for monitoring systems
   return NextResponse.json({
     ok: true,
@@ -14,3 +15,5 @@ export async function GET(request: NextRequest) {
     environment: process.env.NODE_ENV || 'development'
   });
 }
+
+export const GET = withLogging(healthHandler, 'health-check');

@@ -7,6 +7,7 @@
 
 // import { documentDb, comparisonDb, queueDb } from '@/lib/nda/database'; // Removed NDA-specific imports
 import { Logger } from './logger';
+import { logFileOperation, logError } from '../logger';
 // import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda'; // Removed NDA-specific imports
 
 // Generic document types for template system
@@ -363,6 +364,11 @@ export const DocumentService = {
    * Used by upload, seed-dev, and any future document ingestion routes
    */
   async processDocument(options: ProcessFileOptions): Promise<ProcessFileResult> {
+    logFileOperation('process-started', options.filename, options.buffer?.length || 0, {
+      userEmail: options.userEmail,
+      isStandard: options.isStandard
+    });
+    
     Logger.api.step('DOCUMENT', 'Processing document upload', {
       filename: options.filename,
       userEmail: options.userEmail,
@@ -379,6 +385,12 @@ export const DocumentService = {
       // 6. Queue task creation
       const result = await processUploadedFile(options);
 
+      logFileOperation('process-completed', options.filename, options.buffer?.length || 0, {
+        documentId: result.document.id,
+        duplicate: result.duplicate,
+        queued: result.queued
+      });
+
       Logger.api.success('DOCUMENT', 'Document processed successfully', {
         documentId: result.document.id,
         duplicate: result.duplicate,
@@ -387,6 +399,16 @@ export const DocumentService = {
 
       return result;
     } catch (error) {
+      logFileOperation('process-failed', options.filename, options.buffer?.length || 0, {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      logError(error as Error, {
+        type: 'document-processing',
+        filename: options.filename,
+        userEmail: options.userEmail
+      });
+      
       Logger.api.error('DOCUMENT', 'Document processing failed', error as Error);
       throw error;
     }

@@ -1,10 +1,22 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
+import { withLogging } from '@/lib/api-logging';
+import { logFileOperation } from '@/lib/logger';
 
-export async function POST(request: NextRequest) {
+async function uploadHandler(request: NextRequest) {
   try {
+    // Log the upload attempt
+    logFileOperation('upload-attempted', 'unknown', 0, {
+      contentType: request.headers.get('content-type'),
+      userAgent: request.headers.get('user-agent')
+    });
+    
     // Simplified upload endpoint to avoid circular dependencies
     // In a real implementation, this would check authentication and handle file uploads
+    
+    logFileOperation('upload-rejected', 'unknown', 0, {
+      reason: 'Authentication required'
+    });
     
     return NextResponse.json({
       success: false,
@@ -14,6 +26,10 @@ export async function POST(request: NextRequest) {
     }, { status: 401 });
     
   } catch (error) {
+    logFileOperation('upload-failed', 'unknown', 0, {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
     return NextResponse.json({
       success: false,
       error: 'Failed to upload file',
@@ -21,3 +37,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+export const POST = withLogging(uploadHandler, 'file-upload');

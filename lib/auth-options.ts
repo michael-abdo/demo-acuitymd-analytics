@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import { config } from "./config";
+import { logAuthentication } from "./logger";
 
 // NextAuth.js will automatically handle redirect URIs based on NEXTAUTH_URL
 
@@ -26,6 +27,12 @@ export const authOptions: NextAuthOptions = {
       if (account && profile) {
         token.accessToken = account.access_token;
         token.id = profile.sub || (profile as any).oid || profile.email;
+        
+        // Log successful authentication
+        logAuthentication('jwt-token-created', token.id as string, {
+          provider: account.provider,
+          email: profile.email
+        });
       }
       return token;
     },
@@ -33,6 +40,12 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.accessToken = token.accessToken as string;
+        
+        // Log session creation
+        logAuthentication('session-created', session.user.id, {
+          email: session.user.email,
+          name: session.user.name
+        });
       }
       return session;
     },
@@ -64,6 +77,27 @@ export const authOptions: NextAuthOptions = {
       // Default redirect to dashboard
       return fullBaseUrl + "/dashboard";
     },
+  },
+  events: {
+    async signIn({ user, account, profile }) {
+      logAuthentication('user-signed-in', user?.id, {
+        email: user?.email,
+        provider: account?.provider
+      });
+    },
+    async signOut({ token }) {
+      logAuthentication('user-signed-out', token?.id as string);
+    },
+    async createUser({ user }) {
+      logAuthentication('user-created', user?.id, {
+        email: user?.email
+      });
+    },
+    async linkAccount({ user, account }) {
+      logAuthentication('account-linked', user?.id, {
+        provider: account?.provider
+      });
+    }
   },
   secret: config.NEXTAUTH_SECRET,
   session: {

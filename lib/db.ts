@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise'
 import { config } from './config'
+import { logDatabase, logError, logStartup } from './logger'
 
 // Create a connection pool using centralized config
 const pool = mysql.createPool({
@@ -14,50 +15,93 @@ const pool = mysql.createPool({
 })
 
 // Log connection pool creation (non-sensitive values only)
-console.log('MySQL connection pool created with config:', {
-  host: config.MYSQL_HOST,
-  port: config.MYSQL_PORT,
-  user: config.MYSQL_USER,
-  database: config.MYSQL_DATABASE,
-  connectionLimit: 10
-});
+if (config.MYSQL_HOST && config.MYSQL_DATABASE) {
+  console.log('MySQL connection pool created with config:', {
+    host: config.MYSQL_HOST,
+    port: config.MYSQL_PORT,
+    user: config.MYSQL_USER,
+    database: config.MYSQL_DATABASE,
+    connectionLimit: 10
+  });
+}
 
 // Helper function to execute queries
 export async function executeQuery<T>({ query, values = [] }: { query: string; values?: any[] }): Promise<T> {
+  const start = Date.now()
+  const operation = query.split(' ')[0].toUpperCase() // Extract operation type
+  const table = extractTableName(query)
+  
   try {
-    // For troubleshooting, log the query and values
-    console.log("Executing query:", query)
-    console.log("With values:", values)
+    let results: any
     
     // Try using query() instead of execute() for some queries
     if (query.includes('LIMIT ?')) {
       // For pagination queries, use connection.query with simple interpolation
       const conn = await pool.getConnection()
       try {
-        const [results] = await conn.query(query, values)
-        console.log("Query executed successfully:", {
-          rowCount: Array.isArray(results) ? results.length : 'unknown'
-        });
-        return results as T
+        const [queryResults] = await conn.query(query, values)
+        results = queryResults
       } finally {
         conn.release()
       }
     } else {
-      const [results] = await pool.execute(query, values)
-      console.log("Query executed successfully:", {
-        rowCount: Array.isArray(results) ? results.length : 'unknown'
-      });
-      return results as T
+      const [queryResults] = await pool.execute(query, values)
+      results = queryResults
     }
+    
+    const duration = Date.now() - start
+    const rowCount = Array.isArray(results) ? results.length : 
+                    results.affectedRows !== undefined ? results.affectedRows : 0
+    
+    // Log successful database operation
+    logDatabase(operation, table, duration, {
+      rowCount,
+      query: config.IS_DEVELOPMENT ? query : undefined,
+      values: config.IS_DEVELOPMENT ? values : undefined
+    })
+    
+    return results as T
   } catch (error) {
-    console.error('Database query error:', error)
-    // Log more details about the error
+    const duration = Date.now() - start
+    
+    // Log database error
+    logDatabase(operation, table, duration, {
+      error: true,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      query: config.IS_DEVELOPMENT ? query : undefined,
+      values: config.IS_DEVELOPMENT ? values : undefined
+    })
+    
     if (error instanceof Error) {
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+      logError(error, {
+        type: 'database',
+        operation,
+        table,
+        query: config.IS_DEVELOPMENT ? query : undefined
+      })
     }
+    
     throw error
   }
+}
+
+// Helper function to extract table name from query
+function extractTableName(query: string): string {
+  const patterns = [
+    /FROM\s+`?(\w+)`?/i,
+    /INSERT\s+INTO\s+`?(\w+)`?/i,
+    /UPDATE\s+`?(\w+)`?/i,
+    /DELETE\s+FROM\s+`?(\w+)`?/i
+  ]
+  
+  for (const pattern of patterns) {
+    const match = query.match(pattern)
+    if (match && match[1]) {
+      return match[1]
+    }
+  }
+  
+  return 'unknown'
 }
 
 // Helper function to handle binary(1) boolean conversion
@@ -68,12 +112,37 @@ export function convertBinaryToBoolean(value: Buffer | null | undefined): boolea
 
 // Export an async function to check the database connection
 export async function testDatabaseConnection() {
+  const start = Date.now()
+  
   try {
     const conn = await pool.getConnection();
     conn.release();
+    const duration = Date.now() - start
+    
+    logDatabase('CONNECTION', 'pool', duration, {
+      status: 'success',
+      message: 'Connected to database'
+    })
+    
     console.log('Successfully connected to MySQL database');
     return { success: true, message: 'Connected to database' };
   } catch (error) {
+    const duration = Date.now() - start
+    
+    logDatabase('CONNECTION', 'pool', duration, {
+      status: 'failed',
+      error: true,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    })
+    
+    if (error instanceof Error) {
+      logError(error, {
+        type: 'database-connection',
+        host: config.MYSQL_HOST,
+        database: config.MYSQL_DATABASE
+      })
+    }
+    
     console.error('Failed to connect to MySQL database:', error);
     return { 
       success: false, 

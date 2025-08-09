@@ -4,6 +4,7 @@
 
 import { config } from './config';
 import { TimestampUtils } from './utils';
+import { logError as winstonLogError } from './logger';
 
 export interface ErrorContext {
   userId?: string;
@@ -39,7 +40,19 @@ export const ErrorLogger = {
     const isApiError = error instanceof ApiError;
     const statusCode = isApiError ? error.statusCode : 500;
     
-    // In development, log to console with formatting
+    // Use winston logger for comprehensive error logging
+    winstonLogError(error, {
+      statusCode,
+      errorType: isApiError ? error.name : 'Error',
+      context: isApiError ? error.context : context,
+      endpoint: context?.endpoint,
+      method: context?.method,
+      userId: context?.userId,
+      documentId: context?.documentId,
+      metadata: context?.metadata
+    });
+    
+    // In development, also log to console with formatting
     if (config.IS_DEVELOPMENT) {
       console.error(`\n[${timestamp}] API Error:`, {
         message: error.message,
@@ -50,16 +63,6 @@ export const ErrorLogger = {
         method: context?.method,
         userId: context?.userId
       });
-    } else {
-      // In production, use structured logging
-      console.error(JSON.stringify({
-        timestamp,
-        level: 'error',
-        message: error.message,
-        statusCode,
-        context: isApiError ? error.context : context,
-        stack: config.IS_DEVELOPMENT ? error.stack : undefined
-      }));
     }
     
     // Here you could integrate with external error tracking services like Sentry
