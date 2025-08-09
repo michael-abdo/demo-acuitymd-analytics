@@ -22,6 +22,20 @@ export const config = {
   IS_DEVELOPMENT: process.env.NODE_ENV === 'development',
   IS_PRODUCTION: process.env.NODE_ENV === 'production',
   
+  // Database configuration
+  MYSQL_HOST: process.env.MYSQL_HOST || 'localhost',
+  MYSQL_PORT: process.env.MYSQL_PORT || '3306',
+  MYSQL_USER: process.env.MYSQL_USER || 'root',
+  MYSQL_PASSWORD: process.env.MYSQL_PASSWORD || '',
+  MYSQL_DATABASE: process.env.MYSQL_DATABASE || 'vvg_template',
+  DATABASE_URL: process.env.DATABASE_URL || '',
+  
+  // Storage configuration
+  STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'local',
+  AWS_REGION: process.env.AWS_REGION || 'us-east-1',
+  S3_BUCKET_NAME: process.env.S3_BUCKET_NAME || '',
+  S3_FOLDER_PREFIX: process.env.S3_FOLDER_PREFIX || 'documents/',
+  
   // Application properties
   app: {
     name: process.env.PROJECT_NAME || 'vvg-template',
@@ -58,6 +72,8 @@ export const EnvironmentHelpers = {
   devOnlyResponse: () => EnvironmentHelpers.isProduction() 
     ? new Response(null, { status: 404 })
     : null,
+    
+  hasDbAccess: () => !!(config.DATABASE_URL || (config.MYSQL_HOST && config.MYSQL_DATABASE)),
 };
 
 // Development features
@@ -73,6 +89,32 @@ config.FEATURES = FEATURES;
 export const APP_CONSTANTS = {
   HEADERS: {
     DEV_BYPASS: 'X-Dev-Bypass',
+  },
+  FILE_LIMITS: {
+    ALLOWED_MIME_TYPES: [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'text/plain',
+      'text/csv'
+    ],
+    ALLOWED_EXTENSIONS: ['.pdf', '.docx', '.doc', '.txt', '.csv'],
+    MAX_SIZE: 10 * 1024 * 1024, // 10MB
+  },
+  QUEUE: {
+    DEFAULT_PRIORITY: 5,
+    MAX_ATTEMPTS: 3,
+  },
+  MESSAGES: {
+    UNAUTHORIZED: 'Authentication required',
+    FORBIDDEN: 'Access denied',
+    NOT_FOUND: 'Resource not found',
+    VALIDATION_ERROR: 'Validation failed',
+    INTERNAL_ERROR: 'Internal server error'
+  },
+  RATE_LIMIT: {
+    WINDOW_SIZE: 15 * 60 * 1000, // 15 minutes
+    MAX_REQUESTS: 100
   }
 };
 

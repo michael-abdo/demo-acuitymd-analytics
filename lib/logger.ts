@@ -1,78 +1,107 @@
-import winston from 'winston'
-import path from 'path'
+// Graceful fallback logger when winston is not available
+let winston: any = null
+let logger: any = null
 
-// Define log levels
-const levels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4,
-}
+try {
+  winston = require('winston')
+  const path = require('path')
 
-// Define log colors
-const colors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'white',
-}
+  // Define log levels
+  const levels = {
+    error: 0,
+    warn: 1,
+    info: 2,
+    http: 3,
+    debug: 4,
+  }
 
-// Tell winston about our colors
-winston.addColors(colors)
+  // Define log colors
+  const colors = {
+    error: 'red',
+    warn: 'yellow',
+    info: 'green',
+    http: 'magenta',
+    debug: 'white',
+  }
 
-// Define log format
-const format = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-)
+  // Tell winston about our colors
+  winston.addColors(colors)
 
-// Define which transports to use
-const transports = []
+  // Define log format
+  const format = winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+    winston.format.errors({ stack: true }),
+    winston.format.splat(),
+    winston.format.json()
+  )
 
-// Always use console transport
-transports.push(
-  new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize({ all: true }),
-      winston.format.printf(
-        (info) => `${info.timestamp} ${info.level}: ${info.message}`
-      )
-    ),
+  // Define which transports to use
+  const transports = []
+
+  // Always use console transport
+  transports.push(
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize({ all: true }),
+        winston.format.printf(
+          (info) => `${info.timestamp} ${info.level}: ${info.message}`
+        )
+      ),
+    })
+  )
+
+  // In production, also write to files
+  if (process.env.NODE_ENV === 'production') {
+    // Error logs
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(process.cwd(), 'logs', 'error.log'),
+        level: 'error',
+        maxsize: 10485760, // 10MB
+        maxFiles: 5,
+      })
+    )
+    // Combined logs
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(process.cwd(), 'logs', 'combined.log'),
+        maxsize: 10485760, // 10MB
+        maxFiles: 5,
+      })
+    )
+  }
+
+  // Create the winston logger
+  logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    levels,
+    format,
+    transports,
   })
-)
-
-// In production, also write to files
-if (process.env.NODE_ENV === 'production') {
-  // Error logs
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(process.cwd(), 'logs', 'error.log'),
-      level: 'error',
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
-    })
-  )
-  // Combined logs
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(process.cwd(), 'logs', 'combined.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
-    })
-  )
+} catch (error) {
+  // Winston not available, use console fallback
+  console.warn('Winston not available, using console fallback logging')
+  
+  logger = {
+    error: (message: string, meta?: any) => {
+      console.error(`[ERROR] ${new Date().toISOString()} ${message}`, meta ? JSON.stringify(meta) : '')
+    },
+    warn: (message: string, meta?: any) => {
+      console.warn(`[WARN] ${new Date().toISOString()} ${message}`, meta ? JSON.stringify(meta) : '')
+    },
+    info: (message: string, meta?: any) => {
+      console.log(`[INFO] ${new Date().toISOString()} ${message}`, meta ? JSON.stringify(meta) : '')
+    },
+    http: (message: string, meta?: any) => {
+      console.log(`[HTTP] ${new Date().toISOString()} ${message}`, meta ? JSON.stringify(meta) : '')
+    },
+    debug: (message: string, meta?: any) => {
+      if (process.env.LOG_LEVEL === 'debug') {
+        console.log(`[DEBUG] ${new Date().toISOString()} ${message}`, meta ? JSON.stringify(meta) : '')
+      }
+    }
+  }
 }
-
-// Create the logger
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  levels,
-  format,
-  transports,
-})
 
 // Log startup information
 export function logStartup() {
