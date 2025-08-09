@@ -1,28 +1,25 @@
 import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
+import { config } from "./config";
 
-// Validate required OAuth configuration
-if (!process.env.AZURE_AD_REDIRECT_URI && process.env.NODE_ENV === 'production') {
-  console.warn('Warning: AZURE_AD_REDIRECT_URI not set. OAuth callbacks may fail.');
-}
+// NextAuth.js will automatically handle redirect URIs based on NEXTAUTH_URL
 
 export const authOptions: NextAuthOptions = {
   providers: [
     AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID || '',
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET || '',
-      tenantId: process.env.AZURE_AD_TENANT_ID || '',
+      clientId: config.AZURE_AD_CLIENT_ID,
+      clientSecret: config.AZURE_AD_CLIENT_SECRET,
+      tenantId: config.AZURE_AD_TENANT_ID,
       authorization: {
         params: {
-          scope: "openid profile email",
-          redirect_uri: process.env.AZURE_AD_REDIRECT_URI
+          scope: "openid profile email offline_access User.Read"
         }
       }
     }),
   ],
   pages: {
-    signIn: process.env.SIGNIN_PAGE || "/sign-in",
-    signOut: process.env.SIGNOUT_PAGE || "/auth/signout",
+    signIn: "/sign-in",
+    signOut: "/auth/signout",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -40,31 +37,35 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const basePath = process.env.BASE_PATH || '';
-      const defaultRedirect = process.env.DEFAULT_REDIRECT_PATH || "/dashboard";
-      const signinPath = process.env.SIGNIN_PAGE || "/sign-in";
-      const dashboardPath = process.env.DASHBOARD_PATH || "/dashboard";
+      const fullBaseUrl = baseUrl + config.BASE_PATH;
       
-      const fullBaseUrl = baseUrl + basePath;
-      
+      // Handle sign-in redirects
       if (url.includes("/auth/signin")) {
-        return fullBaseUrl + signinPath;
+        return fullBaseUrl + "/sign-in";
       }
-      if (url === dashboardPath || url.endsWith(dashboardPath)) {
-        return fullBaseUrl + dashboardPath;
+      
+      // Handle dashboard redirects
+      if (url === "/dashboard" || url.endsWith("/dashboard")) {
+        return fullBaseUrl + "/dashboard";
       }
+      
+      // Handle relative URLs
       if (url.startsWith("/")) {
         return fullBaseUrl + url;
       }
+      
+      // Handle same-origin URLs
       try {
         if (new URL(url).origin === fullBaseUrl) return url;
-      } catch (e) {
-        // Invalid URL
+      } catch {
+        // Invalid URL - fall through to default
       }
-      return fullBaseUrl + defaultRedirect;
+      
+      // Default redirect to dashboard
+      return fullBaseUrl + "/dashboard";
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',
+  secret: config.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
