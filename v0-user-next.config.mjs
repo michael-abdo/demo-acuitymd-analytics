@@ -13,7 +13,7 @@ const nextConfig = {
           {
             key: 'Access-Control-Allow-Origin',
             value: process.env.NODE_ENV === 'production' 
-              ? 'https://legal.vtc.systems' 
+              ? 'https://your-domain.com' 
               : 'http://localhost:3000',
           },
           {
