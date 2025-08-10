@@ -11,7 +11,7 @@ export const config = {
   AZURE_AD_CLIENT_ID: process.env.AZURE_AD_CLIENT_ID || '',
   AZURE_AD_CLIENT_SECRET: process.env.AZURE_AD_CLIENT_SECRET || '',
   AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || '',
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT || 3000}`,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT}`,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',
   BASE_PATH: process.env.BASE_PATH || '',
   NODE_ENV: process.env.NODE_ENV || 'development' as 'development' | 'production' | 'test' | 'staging',

@@ -36,8 +36,8 @@ const nextConfig = {
     ...(process.env.NODE_ENV === 'development' && {
       allowedDevOrigins: [
         '.ngrok.io', '.ngrok-free.app',
-        `localhost:${process.env.PORT || 3000}`, 
-        `127.0.0.1:${process.env.PORT || 3000}`
+        `localhost:${process.env.PORT}`, 
+        `127.0.0.1:${process.env.PORT}`
       ]
     })
   },
