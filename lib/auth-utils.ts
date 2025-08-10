@@ -1,16 +1,7 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "./auth-options";
-import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
-import { isDocumentOwner, ApiErrors, TimestampUtils } from './utils';
-import { documentDb } from './template/database';
-import type { TemplateDocument } from '@/types/template';
-import { ensureStorageInitialized } from './storage';
-import { ErrorLogger, ApiError } from './error-logger';
-import { APP_CONSTANTS, config, EnvironmentHelpers } from './config';
-import { RequestParser } from './services/request-parser';
-import type { RateLimiter } from './rate-limiter';
-import { pagePath } from './utils/path-utils';
+import { getOptionalSession } from './dal';
+import { ApiErrors, TimestampUtils } from './utils';
+import { APP_CONSTANTS } from './config';
 
 /**
  * Consolidated API imports - eliminates duplicate import statements across API routes
@@ -20,172 +11,34 @@ export { ApiErrors, TimestampUtils, FileValidation } from './utils';
 export { Logger } from './services/logger';
 export { APP_CONSTANTS, config } from './config';
 
-/**
- * Server-side authentication check for server components.
- * Redirects to the sign-in page if the user is not authenticated.
- */
-export async function requireAuth() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session) {
-    redirect(pagePath("/sign-in"));
-  }
-  
-  return session;
-}
+// NOTE: Server-side authentication is now handled by the DAL (lib/dal.ts)
+// Use verifySession() for pages that require auth
+// Use getOptionalSession() for optional auth checks
 
 /**
- * Server-side authentication check that returns the session if authenticated
- * or null if not. Does not redirect.
- */
-export async function getAuthSession() {
-  return await getServerSession(authOptions);
-}
-
-/**
- * Checks if a user has the required permissions.
- * Can be extended with role-based access control.
- */
-export async function checkPermission(requiredPermission: string) {
-  const session = await getServerSession(authOptions);
-  
-  if (!session) {
-    return false;
-  }
-  
-  // This is a placeholder for more complex permission checks
-  // You would typically check against user roles or permissions stored in the session or a database
-  return true;
-}
-
-/**
- * Higher-order function that wraps API route handlers with authentication.
+ * Simplified API route authentication wrapper
+ * Industry Standard 2025: Single authentication layer using DAL
+ * 
  * Returns 401 if user is not authenticated, otherwise calls the handler with the user email.
- * Use this for routes WITHOUT dynamic segments.
  */
 export function withAuth(
-  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
-  options?: { allowDevBypass?: boolean; trackTiming?: boolean }
+  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>
 ) {
   return async (request: NextRequest) => {
-    const startTime = Date.now();
+    const session = await getOptionalSession();
     
-    // Development bypass for testing (when explicitly allowed)
-    if (options?.allowDevBypass && 
-        config.IS_DEVELOPMENT && 
-        request.headers.get(APP_CONSTANTS.HEADERS.DEV_BYPASS) === 'true') {
-      const testEmail = 'test@example.com';
-      const response = await handler(request, testEmail);
-      
-      // Add timing header if tracking is enabled (default: true)
-      if (options?.trackTiming !== false) {
-        response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
-      }
-      
-      return response;
-    }
-
-    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Authentication required' 
+      }, { status: 401 });
     }
     
-    const response = await handler(request, session.user.email);
-    
-    // Add timing header if tracking is enabled (default: true)
-    if (options?.trackTiming !== false) {
-      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
-    }
-    
-    return response;
+    return handler(request, session.user.email);
   };
 }
 
-/**
- * Higher-order function that wraps API route handlers with authentication for dynamic routes.
- * Returns 401 if user is not authenticated, otherwise calls the handler with the user email.
- * Use this for routes WITH dynamic segments like [id].
- */
-export function withAuthDynamic<T extends Record<string, any>>(
-  handler: (request: NextRequest, userEmail: string, context: { params: Promise<T> }) => Promise<NextResponse>,
-  options?: { trackTiming?: boolean }
-) {
-  return async (request: NextRequest, context: { params: Promise<T> }) => {
-    const startTime = Date.now();
-    
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
-    }
-    
-    const response = await handler(request, session.user.email, context);
-    
-    // Add timing header if tracking is enabled (default: true)
-    if (options?.trackTiming !== false) {
-      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
-    }
-    
-    return response;
-  };
-}
-
-/**
- * Middleware for document access - combines auth + document retrieval + ownership check
- * This reduces boilerplate in all document-related endpoints
- * 
- * @example
- * export const GET = withDocumentAccess(async (request, userEmail, document, context) => {
- *   // document is already validated and ownership checked
- *   return NextResponse.json(document);
- * });
- */
-export function withDocumentAccess<T extends { id: string }>(
-  handler: (
-    request: NextRequest,
-    userEmail: string,
-    document: TemplateDocument,
-    context: { params: Promise<T> }
-  ) => Promise<NextResponse>,
-  options?: { trackTiming?: boolean }
-) {
-  return async (request: NextRequest, context: { params: Promise<T> }) => {
-    const startTime = Date.now();
-    
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 });
-    }
-    const userEmail = session.user.email;
-    
-    // Parse and validate document ID
-    const params = await context.params;
-    const documentId = RequestParser.parseDocumentId(params.id);
-    if (!documentId) {
-      return ApiErrors.badRequest('Invalid document ID');
-    }
-
-    // Retrieve document from database
-    const document = await documentDb.findById(documentId);
-    if (!document) {
-      return ApiErrors.notFound('Document');
-    }
-
-    // Check ownership
-    if (!isDocumentOwner(document, userEmail)) {
-      return ApiErrors.forbidden();
-    }
-
-    // Call the actual handler with the document
-    const response = await handler(request, userEmail, document, context);
-    
-    // Add timing header if tracking is enabled (default: true)
-    if (options?.trackTiming !== false) {
-      response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
-    }
-    
-    return response;
-  };
-}
+// Removed redundant auth wrapper functions to follow 2025 industry standards
+// Use the single withAuth() function and handle specific logic in individual routes
 
 /**
  * Simple API response structure
@@ -254,15 +107,14 @@ export const ApiResponseHelpers = {
 
 
 /**
- * Development-only access wrapper (DRY: consolidates dev environment guards)
- * Ensures consistent production protection across development endpoints
+ * Development-only access wrapper
+ * Blocks access in production environments
  */
 export function withDevOnlyAccess<T extends any[]>(
   handler: (...args: T) => Promise<NextResponse>
 ) {
   return async (...args: T): Promise<NextResponse> => {
-    // FAIL FAST: Block access in production
-    if (EnvironmentHelpers.isProduction()) {
+    if (process.env.NODE_ENV === 'production') {
       return new NextResponse(null, { status: 404 });
     }
     return handler(...args);
@@ -308,56 +160,8 @@ export function withErrorHandler<T extends any[]>(
   };
 }
 
-/**
- * Combined auth + error handling wrapper
- */
-export function withAuthAndErrorHandling(
-  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>
-) {
-  return withAuth(withErrorHandler(handler));
-}
-
-/**
- * Combined auth + error handling wrapper for dynamic routes
- */
-export function withAuthDynamicAndErrorHandling<T extends Record<string, any>>(
-  handler: (request: NextRequest, userEmail: string, context: { params: Promise<T> }) => Promise<NextResponse>
-) {
-  return withAuthDynamic<T>(withErrorHandler(handler));
-}
-
-/**
- * Middleware that ensures storage is initialized
- */
-export function withStorage<T extends any[]>(
-  handler: (...args: T) => Promise<NextResponse>
-) {
-  return async (...args: T): Promise<NextResponse> => {
-    await ensureStorageInitialized();
-    return handler(...args);
-  };
-}
-
-/**
- * Combined auth + storage initialization wrapper
- */
-export function withAuthAndStorage(
-  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
-  options?: { allowDevBypass?: boolean }
-) {
-  return withAuth(withStorage(handler), options);
-}
-
-/**
- * Combined auth + storage initialization wrapper for dynamic routes
- */
-export function withAuthDynamicAndStorage<T extends Record<string, any>>(
-  handler: (request: NextRequest, userEmail: string, context: { params: Promise<T> }) => Promise<NextResponse>
-) {
-  return withAuthDynamic<T>(withStorage(handler));
-}
-
-
+// Removed redundant auth wrapper combinations
+// Industry Standard 2025: Use single withAuth() and compose functionality in routes as needed
 
 /**
  * HTTP Status Codes - Consolidated constants for consistency
@@ -379,106 +183,6 @@ export const StatusCodes = {
   BAD_GATEWAY: 502,
   SERVICE_UNAVAILABLE: 503,
 } as const;
-
-/**
- * Wrapper that adds comparison access control to routes
- * Validates document ownership for both documents in a comparison
- */
-export function withComparisonAccess(
-  handler: (
-    request: NextRequest,
-    userEmail: string,
-    doc1: any,
-    doc2: any
-  ) => Promise<NextResponse>,
-  options?: { trackTiming?: boolean }
-) {
-  return withAuth(async (request: NextRequest, userEmail: string) => {
-    const startTime = Date.now();
-    
-    try {
-      // Parse comparison request
-      const { doc1Id, doc2Id } = await RequestParser.parseComparisonRequest(request);
-      
-      // Validate not comparing document with itself
-      if (doc1Id === doc2Id) {
-        return ApiErrors.badRequest('Cannot compare a document with itself');
-      }
-      
-      // Fetch both documents in parallel
-      const [doc1, doc2] = await Promise.all([
-        documentDb.findById(doc1Id),
-        documentDb.findById(doc2Id)
-      ]);
-      
-      // Check existence
-      if (!doc1 || !doc2) {
-        return ApiErrors.notFound('One or both documents not found');
-      }
-      
-      // Check ownership of both documents
-      if (!isDocumentOwner(doc1, userEmail) || !isDocumentOwner(doc2, userEmail)) {
-        return ApiErrors.forbidden();
-      }
-      
-      // Call the actual handler with both documents
-      const response = await handler(request, userEmail, doc1, doc2);
-      
-      // Add timing header if tracking is enabled (default: true)
-      if (options?.trackTiming !== false) {
-        response.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`);
-      }
-      
-      return response;
-      
-    } catch (error) {
-      // If it's already an API error response, return it
-      if (error instanceof NextResponse) {
-        return error;
-      }
-      throw error;
-    }
-  }, options);
-}
-
-/**
- * Wrapper that adds rate limiting to routes
- * Consolidates rate limiting logic for DRY compliance
- */
-export function withRateLimit(
-  rateLimiter: RateLimiter,
-  handler: (request: NextRequest, userEmail: string) => Promise<NextResponse>,
-  options?: { 
-    allowDevBypass?: boolean;
-    trackTiming?: boolean;
-    includeHeaders?: boolean;
-  }
-) {
-  return withAuth(async (request: NextRequest, userEmail: string) => {
-    // Check rate limit
-    if (!rateLimiter.checkLimit(userEmail)) {
-      const resetTime = rateLimiter.getResetTime(userEmail);
-      return ApiErrors.rateLimitExceeded(resetTime ? new Date(resetTime) : undefined);
-    }
-    
-    // Call the handler
-    const response = await handler(request, userEmail);
-    
-    // Add rate limit headers if requested (default: true)
-    if (options?.includeHeaders !== false) {
-      const remaining = rateLimiter.getRemainingRequests(userEmail);
-      const resetTime = rateLimiter.getResetTime(userEmail);
-      
-      response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.LIMIT, rateLimiter['maxRequests'].toString());
-      response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.REMAINING, remaining.toString());
-      if (resetTime) {
-        response.headers.set(APP_CONSTANTS.HEADERS.RATE_LIMIT.RESET, new Date(resetTime).toISOString());
-      }
-    }
-    
-    return response;
-  }, options);
-}
 
 
 

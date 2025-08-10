@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest } from 'next/server'
-import { withRateLimit } from '@/lib/auth-utils'
+import { withAuth } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
 import { ApiErrors, ResponseBuilder } from '@/lib/utils'
 // import { comparisonDb, ComparisonStatus } from '@/lib/nda' // Removed NDA-specific imports
@@ -17,9 +17,13 @@ import { compareRateLimiter } from '@/lib/rate-limiter'
 import { config, APP_CONSTANTS } from '@/lib/config'
 import { DocumentService } from '@/lib/services/document-service'
 
-export const POST = withRateLimit(
-  compareRateLimiter,
-  async (request: NextRequest, userEmail: string) => {
+export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
+  // Check rate limit
+  if (!compareRateLimiter.checkLimit(userEmail)) {
+    const resetTime = compareRateLimiter.getResetTime(userEmail);
+    return ApiErrors.rateLimitExceeded(resetTime ? new Date(resetTime) : undefined);
+  }
+
   Logger.api.start('COMPARE', userEmail, {
     method: request.method,
     url: request.url
@@ -320,6 +324,4 @@ export const POST = withRateLimit(
     Logger.api.error('COMPARE', 'Comparison error', error as Error);
     return ApiErrors.serverError(error instanceof Error ? error.message : 'Comparison failed');
   }
-  },
-  { allowDevBypass: true, includeHeaders: true }
-)
+});

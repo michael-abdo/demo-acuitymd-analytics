@@ -4,21 +4,16 @@ import { useState } from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input, PageTitle } from '@/components/ui';
 import { Upload, FileText, Trash2, Star, Download } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
-import { AuthGuard, useAuth } from '@/components/auth-guard';
 
 export default function DocumentsPage() {
-  const { session } = useAuth();
+  // TODO: Authentication will be handled at page level
   const [searchTerm, setSearchTerm] = useState('');
 
   // Simplified documents page to avoid circular dependencies
   // In a real implementation, this would fetch and manage documents
 
   return (
-    <AuthGuard 
-      title="Document Library" 
-      message="Please sign in to manage your documents."
-    >
-      <PageContainer>
+    <PageContainer>
         <div className="flex justify-between items-center mb-8">
           <PageTitle className="mb-0">Document Library</PageTitle>
           <div className="flex gap-4">
@@ -66,7 +61,6 @@ export default function DocumentsPage() {
             </CardContent>
           </Card>
         </div>
-      </PageContainer>
-    </AuthGuard>
+    </PageContainer>
   );
 }

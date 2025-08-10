@@ -3,15 +3,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { signIn, signOut } from 'next-auth/react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '@/components/auth-guard';
 import { useBasePath } from '@/lib/hooks';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, user } = useAuth();
+  const { data: session } = useSession();
+  const user = session?.user;
   const { pagePath, assetPath, withoutBasePath } = useBasePath();
   const userName = user?.name || 'Sign In';
   const [showDropdown, setShowDropdown] = useState(false);

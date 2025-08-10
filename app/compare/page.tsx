@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui';
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
-import { AuthGuard, useAuth } from '@/components/auth-guard';
 import { getFilenameFromPath } from '@/lib/utils';
 import { apiPath } from '@/lib/utils/path-utils';
 import { useApiData, useAsyncOperation } from '@/lib/hooks';
@@ -46,7 +45,7 @@ type Comparison = {
 };
 
 export default function ComparePage() {
-  const { session } = useAuth();
+  // TODO: Authentication will be handled at page level
   const [selectedStandard, setSelectedStandard] = useState<string>('');
   const [selectedThirdParty, setSelectedThirdParty] = useState<string>('');
   const [currentComparison, setCurrentComparison] = useState<Comparison | null>(null);
@@ -54,10 +53,10 @@ export default function ComparePage() {
 
   // Use consolidated API data hook for documents
   const { data: documents } = useApiData<Document[]>(apiPath('/documents'), {
-    autoLoad: !!session,
+    autoLoad: false, // TODO: Will be enabled after implementing proper auth
     initialData: [],
     transform: (response) => response.data || [],
-    deps: [session]
+    deps: []
   });
 
   // Use async operation hook for comparison
@@ -116,11 +115,7 @@ export default function ComparePage() {
   };
 
   return (
-    <AuthGuard 
-      title="Document Comparison" 
-      message="Please sign in to compare documents."
-    >
-      <PageContainer className="space-y-8">
+    <PageContainer className="space-y-8">
       <h1 className="text-3xl font-bold">Compare Documents</h1>
 
       {/* Document Selection */}
@@ -350,7 +345,6 @@ export default function ComparePage() {
           </CardContent>
         </Card>
       )}
-      </PageContainer>
-    </AuthGuard>
+    </PageContainer>
   );
 }

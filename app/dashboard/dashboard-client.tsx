@@ -6,13 +6,14 @@ import { LoadingCard } from "@/components/ui/loading";
 import { FileUp, FileText, GitCompare, Download, RefreshCw } from "lucide-react";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
-import { useAuth } from "@/components/auth-guard";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
 import { useApiData, useBasePath } from "@/lib/hooks";
 import { toast } from "@/lib/utils/toast";
 
 export default function DashboardClient() {
-  const { session, isAuthenticated, user } = useAuth();
+  // TODO: Authentication will be handled at page level
+  const isAuthenticated = false; // Temporary until proper auth implemented
+  const user = { name: "User" }; // Temporary mock
   const router = useRouter();
   const { pagePath } = useBasePath();
 
@@ -37,7 +38,7 @@ export default function DashboardClient() {
   return (
     <PageContainer>
       <div className="flex items-center justify-between mb-6">
-        <PageTitle description={`Welcome, ${user?.name || "User"}!`}>
+        <PageTitle description={`Welcome, ${user.name}!`}>
           Dashboard
         </PageTitle>
         <Button

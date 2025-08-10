@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { withAuth } from '@/lib/auth-utils'
 import { emailService } from '@/lib/services/email-service'
 import { config } from '@/lib/config'
 
@@ -25,17 +24,8 @@ export interface EmailSendResult {
   error?: string
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
-    // Validate session
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     // Parse request body
     const body: SendEmailRequest = await request.json()
     
@@ -117,7 +107,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+});
 
 function formatEmailHtml(draft: EmailDraft, senderName: string): string {
   const appName = config.app.name || 'Document Processing System'

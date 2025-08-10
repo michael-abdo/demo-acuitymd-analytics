@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest } from 'next/server';
-import { withComparisonAccess } from '@/lib/auth-utils';
-import { ApiErrors, ResponseBuilder } from '@/lib/utils';
+import { withAuth } from '@/lib/auth-utils';
+import { ApiErrors, ResponseBuilder, isDocumentOwner } from '@/lib/utils';\nimport { documentDb } from '@/lib/template/database';\nimport { RequestParser } from '@/lib/services/request-parser';
 // import { comparisonDb, ComparisonStatus } from '@/lib/nda'; // Removed NDA-specific imports
 // Generic comparison status enum
 enum ComparisonStatus {
@@ -13,9 +13,32 @@ enum ComparisonStatus {
 import { Logger } from '@/lib/services/logger';
 import { getTextStats, findSections, calculateSimilarity } from '@/lib/text-extraction';
 
-// POST /api/compare/simple - Create a simple text comparison
-export const POST = withComparisonAccess(async (_request: NextRequest, userEmail: string, doc1, doc2) => {
+// POST /api/compare/simple - Create a simple text comparison  
+export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
   try {
+    // Parse comparison request
+    const { doc1Id, doc2Id } = await RequestParser.parseComparisonRequest(request);
+    
+    // Validate not comparing document with itself
+    if (doc1Id === doc2Id) {
+      return ApiErrors.badRequest('Cannot compare a document with itself');
+    }
+    
+    // Fetch both documents in parallel
+    const [doc1, doc2] = await Promise.all([
+      documentDb.findById(doc1Id),
+      documentDb.findById(doc2Id)
+    ]);
+    
+    // Check existence
+    if (!doc1 || !doc2) {
+      return ApiErrors.notFound('One or both documents not found');
+    }
+    
+    // Check ownership of both documents
+    if (!isDocumentOwner(doc1, userEmail) || !isDocumentOwner(doc2, userEmail)) {
+      return ApiErrors.forbidden();
+    }
     
     // Check if text has been extracted
     if (!doc1.extracted_text || !doc2.extracted_text) {
