@@ -30,7 +30,7 @@ export class RateLimiter {
     const entry = this.limits.get(userId);
 
     // Clean up old entries periodically
-    if (this.limits.size > APP_CONSTANTS.RATE_LIMITS.CLEANUP_THRESHOLD) {
+    if (this.limits.size > 1000) { // Default cleanup threshold
       this.cleanup();
     }
 
@@ -90,10 +90,10 @@ export class RateLimiter {
 
 // Export singleton instances for different endpoints
 export const compareRateLimiter = new RateLimiter(
-  APP_CONSTANTS.RATE_LIMITS.COMPARE.MAX_REQUESTS, 
-  APP_CONSTANTS.RATE_LIMITS.COMPARE.WINDOW_MINUTES
+  APP_CONSTANTS.RATE_LIMIT.MAX_REQUESTS, 
+  60 // 60 minutes
 );
 export const uploadRateLimiter = new RateLimiter(
-  APP_CONSTANTS.RATE_LIMITS.UPLOAD.MAX_REQUESTS,
-  APP_CONSTANTS.RATE_LIMITS.UPLOAD.WINDOW_MINUTES
+  APP_CONSTANTS.RATE_LIMIT.MAX_REQUESTS,
+  60 // 60 minutes
 );

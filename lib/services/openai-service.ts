@@ -7,7 +7,6 @@
 
 import OpenAI from 'openai';
 import { Logger } from './logger';
-import { config } from '@/lib/config';
 
 /**
  * OpenAI configuration interface
@@ -64,7 +63,7 @@ export class OpenAIService {
       apiKey: this.config.apiKey,
     });
 
-    Logger.openai?.initialized?.(this.config.model || 'gpt-4-turbo-preview');
+    Logger.openai.start(`Initialized with model: ${this.config.model || 'gpt-4-turbo-preview'}`);
   }
 
   /**
@@ -72,7 +71,8 @@ export class OpenAIService {
    */
   async analyzeDocument(content: string, filename?: string): Promise<DocumentAnalysisResult> {
     try {
-      Logger.openai?.operation?.('Document analysis started', { filename, contentLength: content.length });
+      Logger.openai.start('Document analysis started');
+      Logger.openai.request({ filename, contentLength: content.length });
 
       const prompt = `Analyze the following document content and provide:
 1. A concise summary (2-3 sentences)
@@ -109,16 +109,12 @@ Respond in JSON format with keys: summary, keyPoints, categories, sentiment, con
 
       const analysis = JSON.parse(result) as DocumentAnalysisResult;
       
-      Logger.openai?.success?.('Document analysis completed', { 
-        filename,
-        summary: analysis.summary?.substring(0, 100) + '...',
-        confidence: analysis.confidence
-      });
+      Logger.openai.success('Document analysis completed');
 
       return analysis;
 
     } catch (error) {
-      Logger.openai?.error?.('Document analysis failed', error as Error);
+      Logger.openai.error('Document analysis failed', error as Error);
       throw error;
     }
   }
@@ -128,7 +124,8 @@ Respond in JSON format with keys: summary, keyPoints, categories, sentiment, con
    */
   async compareDocuments(content1: string, content2: string, filename1?: string, filename2?: string): Promise<TextComparisonResult> {
     try {
-      Logger.openai?.operation?.('Document comparison started', { filename1, filename2 });
+      Logger.openai.start('Document comparison started');
+      Logger.openai.request({ filename1, filename2 });
 
       const prompt = `Compare these two documents and provide:
 1. Similarity score (0-1, where 1 is identical)
@@ -167,16 +164,12 @@ Respond in JSON format with keys: similarity, differences, commonPoints, recomme
 
       const comparison = JSON.parse(result) as TextComparisonResult;
       
-      Logger.openai?.success?.('Document comparison completed', { 
-        filename1,
-        filename2,
-        similarity: comparison.similarity
-      });
+      Logger.openai.success('Document comparison completed');
 
       return comparison;
 
     } catch (error) {
-      Logger.openai?.error?.('Document comparison failed', error as Error);
+      Logger.openai.error('Document comparison failed', error as Error);
       throw error;
     }
   }
@@ -186,7 +179,8 @@ Respond in JSON format with keys: similarity, differences, commonPoints, recomme
    */
   async generateSummary(contents: string[], filenames?: string[]): Promise<string> {
     try {
-      Logger.openai?.operation?.('Summary generation started', { documentCount: contents.length });
+      Logger.openai.start('Summary generation started');
+      Logger.openai.request({ documentCount: contents.length });
 
       const combinedContent = contents.map((content, index) => 
         `Document ${index + 1}${filenames?.[index] ? ` (${filenames[index]})` : ''}:\n${content.substring(0, 1500)}${content.length > 1500 ? '...' : ''}`
@@ -223,15 +217,12 @@ Provide a clear, structured summary that:
         throw new Error('No response from OpenAI');
       }
 
-      Logger.openai?.success?.('Summary generation completed', { 
-        documentCount: contents.length,
-        summaryLength: summary.length
-      });
+      Logger.openai.success('Summary generation completed');
 
       return summary;
 
     } catch (error) {
-      Logger.openai?.error?.('Summary generation failed', error as Error);
+      Logger.openai.error('Summary generation failed', error as Error);
       throw error;
     }
   }
@@ -241,7 +232,8 @@ Provide a clear, structured summary that:
    */
   async extractKeyInformation(content: string, extractionType: 'entities' | 'dates' | 'numbers' | 'contacts' = 'entities'): Promise<string[]> {
     try {
-      Logger.openai?.operation?.('Key information extraction started', { extractionType });
+      Logger.openai.start('Key information extraction started');
+      Logger.openai.request({ extractionType });
 
       const typePrompts = {
         entities: 'Extract all important entities (people, organizations, locations, products)',
@@ -279,15 +271,12 @@ Return as a JSON array of strings, with each item being a distinct piece of info
 
       const extracted = JSON.parse(result) as string[];
       
-      Logger.openai?.success?.('Key information extraction completed', { 
-        extractionType,
-        extractedCount: extracted.length
-      });
+      Logger.openai.success('Key information extraction completed');
 
       return extracted;
 
     } catch (error) {
-      Logger.openai?.error?.('Key information extraction failed', error as Error);
+      Logger.openai.error('Key information extraction failed', error as Error);
       throw error;
     }
   }
@@ -297,7 +286,7 @@ Return as a JSON array of strings, with each item being a distinct piece of info
    */
   async validateConnection(): Promise<boolean> {
     try {
-      Logger.openai?.operation?.('Validating OpenAI connection');
+      Logger.openai.start('Validating OpenAI connection');
 
       const response = await this.client.chat.completions.create({
         model: 'gpt-3.5-turbo',
@@ -308,15 +297,15 @@ Return as a JSON array of strings, with each item being a distinct piece of info
       const isValid = !!response.choices[0]?.message?.content;
       
       if (isValid) {
-        Logger.openai?.success?.('OpenAI connection validated');
+        Logger.openai.success('OpenAI connection validated');
       } else {
-        Logger.openai?.error?.('OpenAI connection validation failed - no response');
+        Logger.openai.error('OpenAI connection validation failed - no response');
       }
 
       return isValid;
 
     } catch (error) {
-      Logger.openai?.error?.('OpenAI connection validation failed', error as Error);
+      Logger.openai.error('OpenAI connection validation failed', error as Error);
       return false;
     }
   }

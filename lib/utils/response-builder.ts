@@ -369,7 +369,9 @@ export class ResponseBuilder {
       headers['ETag'] = etag;
     }
     
-    return new NextResponse(fileData, { headers });
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    const body = fileData instanceof Buffer ? new Uint8Array(fileData) : fileData;
+    return new NextResponse(body as BodyInit, { headers });
   }
   
   /**

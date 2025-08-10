@@ -34,8 +34,8 @@ export function useBasePath(): UseBasePathReturn {
   // Get basePath from Next.js runtime config or environment
   const basePath = useMemo(() => {
     // Try to get from Next.js publicRuntimeConfig first
-    if (typeof window !== 'undefined' && window.__NEXT_DATA__?.publicRuntimeConfig?.basePath) {
-      return window.__NEXT_DATA__.publicRuntimeConfig.basePath;
+    if (typeof window !== 'undefined' && (window.__NEXT_DATA__ as any)?.publicRuntimeConfig?.basePath) {
+      return (window.__NEXT_DATA__ as any).publicRuntimeConfig.basePath;
     }
     
     // Fall back to NEXT_PUBLIC_BASE_PATH environment variable

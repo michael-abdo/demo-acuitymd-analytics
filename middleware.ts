@@ -1,7 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { config as appConfig, EnvironmentHelpers } from "@/lib/config";
-import { logRequest } from "@/lib/logger";
+import { EnvironmentHelpers } from "@/lib/config";
 
 // Check if middleware should be disabled
 const isDisabled = process.env.DISABLE_MIDDLEWARE === 'true';
@@ -23,7 +22,7 @@ export default isDisabled
             req.headers.get("X-Dev-Bypass") === "true") {
           const response = NextResponse.next();
           const duration = Date.now() - start;
-          logRequest(req.method, req.nextUrl.pathname, 200, duration);
+          console.log(`← ${req.method} ${req.nextUrl.pathname} 200 ${duration}ms`);
           return response;
         }
 
@@ -39,7 +38,7 @@ export default isDisabled
         
         // Log the request
         const duration = Date.now() - start;
-        logRequest(req.method, req.nextUrl.pathname, 200, duration);
+        console.log(`← ${req.method} ${req.nextUrl.pathname} 200 ${duration}ms`);
 
         // Additional custom middleware logic could be added here if needed
         return response;
@@ -61,12 +60,11 @@ export default isDisabled
       }
     );
 
-// Export config - either empty matcher (disabled) or full protection
+// Export config - protect ALL routes except specific public ones
+// Note: Next.js requires static config, so we use a hardcoded matcher
 export const config = {
-  matcher: isDisabled 
-    ? [] // Empty matcher = middleware never runs
-    : [
-        // Protect ALL routes except specific public ones (blacklist pattern)
-        "/((?!api/auth|sign-in|sign-up|_next/static|_next/image|favicon.ico|public).*)",
-      ],
+  matcher: [
+    // Protect ALL routes except specific public ones (blacklist pattern)
+    "/((?!api/auth|sign-in|sign-up|_next/static|_next/image|favicon.ico|public).*)",
+  ],
 };

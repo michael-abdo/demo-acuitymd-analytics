@@ -8,7 +8,6 @@
 
 import { PerformanceTimer } from '@/lib/decorators/performance-timer';
 import { ErrorSuggestionService } from './error-suggestions';
-import { APP_CONSTANTS } from '@/lib/config';
 
 /**
  * Retry configuration options
@@ -222,7 +221,7 @@ export class RetryUtils {
   /**
    * Default retry condition using error suggestion service
    */
-  static defaultRetryCondition(error: any, attempt: number): boolean {
+  static defaultRetryCondition(error: any, _attempt: number): boolean {
     return ErrorSuggestionService.isRetryableError(error);
   }
   
@@ -407,13 +406,10 @@ export class RetryUtils {
    */
   static async withRateLimit<T>(
     operation: () => Promise<T>,
-    rateLimit: { requests: number; windowMs: number },
+    _rateLimit: { requests: number; windowMs: number },
     options: RetryOptions = {}
   ): Promise<RetryResult<T>> {
     // Simple in-memory rate limiting (for production, use Redis)
-    const key = operation.toString().slice(0, 50);
-    const now = Date.now();
-    
     // In a real implementation, you'd use a proper rate limiter
     // This is a simplified version for demonstration
     
@@ -506,7 +502,7 @@ export const retry = {
 export function Retryable(
   config: keyof typeof DEFAULT_RETRY_CONFIGS | RetryOptions = 'api'
 ) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (_target: any, _propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     
     descriptor.value = async function (...args: any[]) {

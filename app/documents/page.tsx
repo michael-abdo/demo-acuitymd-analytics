@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input, PageTitle } from '@/components/ui';
-import { Upload, FileText, Trash2, Star, Download } from 'lucide-react';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, PageTitle } from '@/components/ui';
+import { Upload, FileText, Star } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
 
 export default function DocumentsPage() {

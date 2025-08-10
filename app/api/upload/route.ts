@@ -3,12 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withLogging } from '@/lib/api-logging';
 import { logFileOperation } from '@/lib/logger';
 
-async function uploadHandler(request: NextRequest) {
+async function uploadHandler(_request: NextRequest) {
   try {
     // Log the upload attempt
     logFileOperation('upload-attempted', 'unknown', 0, {
-      contentType: request.headers.get('content-type'),
-      userAgent: request.headers.get('user-agent')
+      contentType: _request.headers.get('content-type'),
+      userAgent: _request.headers.get('user-agent')
     });
     
     // Simplified upload endpoint to avoid circular dependencies

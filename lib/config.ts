@@ -82,8 +82,11 @@ export const FEATURES = {
   devBypass: process.env.FEATURE_DEV_BYPASS !== 'false'
 };
 
-// Add FEATURES to main config for backward compatibility
-config.FEATURES = FEATURES;
+// Extended config with FEATURES
+export const extendedConfig = {
+  ...config,
+  FEATURES
+};
 
 // Essential constants only
 export const APP_CONSTANTS = {

@@ -6,7 +6,7 @@ import { withLogging } from '@/lib/api-logging';
  * Health check endpoint for monitoring systems (Docker, PM2, load balancers)
  * Returns system status without authentication
  */
-async function healthHandler(request: NextRequest) {
+async function healthHandler(_request: NextRequest) {
   // Simple health check for monitoring systems
   return NextResponse.json({
     ok: true,

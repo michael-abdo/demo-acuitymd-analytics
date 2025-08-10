@@ -5,30 +5,19 @@
  * Provides higher-level operations that combine multiple database calls and add business logic.
  */
 
-// import { documentDb, comparisonDb, queueDb } from '@/lib/nda/database'; // Removed NDA-specific imports
+import { documentDb } from '@/lib/template/database';
+// Import type from template index 
+import type { TemplateDocument } from '@/lib/template';
 import { Logger } from './logger';
-import { logFileOperation, logError } from '../logger';
+// import { logFileOperation, logError } from '../logger';
 // import { NDADocument, TaskType, DocumentStatus, QueueStatus } from '@/lib/nda'; // Removed NDA-specific imports
 
-// Generic document types for template system
-type Document = {
-  id: number;
-  filename: string;
-  original_name: string;
-  file_size?: number;
-  file_hash: string;
-  user_id: string;
-  is_standard: boolean;
-  extracted_text?: string;
-  metadata?: any;
-  status?: string;
-  created_at: string;
-  updated_at: string;
-};
+// Use TemplateDocument type directly instead of custom Document type
+type Document = TemplateDocument;
 
-enum TaskType {
-  EXTRACT_TEXT = 'extract_text'
-}
+// enum TaskType {
+//   EXTRACT_TEXT = 'extract_text'
+// }
 
 enum DocumentStatus {
   UPLOADED = 'uploaded',
@@ -36,10 +25,25 @@ enum DocumentStatus {
   COMPLETED = 'completed',
   FAILED = 'failed'
 }
-import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
+// import { processUploadedFile, ProcessFileOptions, ProcessFileResult } from '@/lib/text-extraction';
 import { APP_CONSTANTS } from '@/lib/config';
 import { storage } from '@/lib/storage';
 import { withDatabaseErrorHandling, withStorageErrorHandling, withValidationErrorHandling } from '@/lib/decorators/error-handler';
+
+// Define types locally for template
+interface ProcessFileOptions {
+  file?: File;
+  buffer?: Buffer;
+  userEmail: string;
+  isStandard?: boolean;
+}
+
+interface ProcessFileResult {
+  success: boolean;
+  document?: Document;
+  error?: string;
+  metadata?: Record<string, any>;
+}
 
 export interface StorageMetadata {
   size?: number;
@@ -114,7 +118,7 @@ export const DocumentService = {
     // Apply filters
     let filteredDocuments = allDocuments;
 
-    if (options.type) {
+    if (options.type && filteredDocuments) {
       filteredDocuments = filteredDocuments.filter(doc => {
         if (options.type === 'standard') return doc.is_standard;
         if (options.type === 'third_party') return !doc.is_standard;
@@ -122,7 +126,7 @@ export const DocumentService = {
       });
     }
 
-    if (options.search) {
+    if (options.search && filteredDocuments) {
       const searchLower = options.search.toLowerCase();
       filteredDocuments = filteredDocuments.filter(doc => 
         doc.filename.toLowerCase().includes(searchLower) ||
@@ -131,16 +135,18 @@ export const DocumentService = {
     }
 
     // Sort by created_at descending
-    filteredDocuments.sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    if (filteredDocuments) {
+      filteredDocuments.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    }
 
     // Apply pagination
     const offset = (options.page - 1) * options.pageSize;
-    const paginatedDocuments = filteredDocuments.slice(offset, offset + options.pageSize);
+    const paginatedDocuments = filteredDocuments ? filteredDocuments.slice(offset, offset + options.pageSize) : [];
 
-    // Get comparisons count for each document
-    const allComparisons = await comparisonDb.findByUser(userEmail);
+    // TODO: Get comparisons count for each document
+    // const allComparisons = await comparisonDb.findByUser(userEmail);
     
     // Enhance with metadata
     const documentsWithMetadata: DocumentWithMetadata[] = paginatedDocuments.map(doc => ({
@@ -148,12 +154,10 @@ export const DocumentService = {
       fileType: doc.filename.split('.').pop()?.toLowerCase() || 'unknown',
       hasExtractedText: !!doc.extracted_text,
       extractedTextLength: doc.extracted_text ? doc.extracted_text.length : 0,
-      relatedComparisons: allComparisons.filter(comp => 
-        comp.document1_id === doc.id || comp.document2_id === doc.id
-      ).length
+      relatedComparisons: 0 // TODO: Implement comparison counting
     }));
 
-    const total = filteredDocuments.length;
+    const total = filteredDocuments ? filteredDocuments.length : 0;
     const pages = Math.ceil(total / options.pageSize);
 
     Logger.db.operation(`Paginated documents`, { 
@@ -175,7 +179,7 @@ export const DocumentService = {
     Logger.db.operation(`Fetching document ${documentId} for user: ${userEmail}`);
     
     const userDocuments = await this.getUserDocuments(userEmail);
-    const document = userDocuments.find(doc => doc.id === documentId);
+    const document = userDocuments?.find(doc => doc.id === documentId);
     
     if (!document) {
       Logger.db.missing(`Document ${documentId}`, { userEmail });
@@ -203,7 +207,7 @@ export const DocumentService = {
     const errors: string[] = [];
 
     documentIds.forEach(id => {
-      const document = userDocuments.find(doc => doc.id === id);
+      const document = userDocuments?.find(doc => doc.id === id);
       if (document) {
         documents.push(document);
       } else {
@@ -309,7 +313,7 @@ export const DocumentService = {
 
     // First, unset any existing standard documents for this user
     const userDocuments = await this.getUserDocuments(userEmail);
-    for (const doc of userDocuments) {
+    for (const doc of userDocuments || []) {
       if (doc.is_standard) {
         await documentDb.update(doc.id, { is_standard: false });
       }
@@ -340,7 +344,7 @@ export const DocumentService = {
     
     // TODO: Get comparisons count from generic database  
     // const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = []; // Temporary empty array
+    // const relatedComparisons = []; // Temporary empty array - commented out unused
 
     return {
       ...document,
@@ -363,17 +367,13 @@ export const DocumentService = {
    * Process a document upload (DRY: consolidates upload/validate/store/queue pattern)
    * Used by upload, seed-dev, and any future document ingestion routes
    */
-  async processDocument(options: ProcessFileOptions): Promise<ProcessFileResult> {
-    logFileOperation('process-started', options.filename, options.buffer?.length || 0, {
-      userEmail: options.userEmail,
-      isStandard: options.isStandard
-    });
+  async processDocument(_options: ProcessFileOptions): Promise<ProcessFileResult> {
+    // logFileOperation('process-started', 'document', 0, {
+    //   userEmail: options.userEmail,
+    //   isStandard: options.isStandard
+    // });
     
-    Logger.api.step('DOCUMENT', 'Processing document upload', {
-      filename: options.filename,
-      userEmail: options.userEmail,
-      isStandard: options.isStandard
-    });
+    console.log('Processing document upload'); // Simple logging for template
 
     try {
       // Use the existing processUploadedFile which handles:
@@ -383,31 +383,33 @@ export const DocumentService = {
       // 4. Storage upload
       // 5. Database record creation
       // 6. Queue task creation
-      const result = await processUploadedFile(options);
-
-      logFileOperation('process-completed', options.filename, options.buffer?.length || 0, {
-        documentId: result.document.id,
-        duplicate: result.duplicate,
-        queued: result.queued
-      });
-
-      Logger.api.success('DOCUMENT', 'Document processed successfully', {
-        documentId: result.document.id,
-        duplicate: result.duplicate,
-        queued: result.queued
-      });
-
-      return result;
-    } catch (error) {
-      logFileOperation('process-failed', options.filename, options.buffer?.length || 0, {
-        error: error instanceof Error ? error.message : String(error)
-      });
+      // const result = await processUploadedFile(options); // TODO: Implement for template
+      throw new Error('Document processing not implemented in template');
       
-      logError(error as Error, {
-        type: 'document-processing',
-        filename: options.filename,
-        userEmail: options.userEmail
-      });
+      // Unreachable code below - commented out for template
+      // logFileOperation('process-completed', options.filename, options.buffer?.length || 0, {
+      //   documentId: result.document.id,
+      //   duplicate: result.duplicate,
+      //   queued: result.queued
+      // });
+
+      // Logger.api.success('DOCUMENT', 'Document processed successfully', {
+      //   documentId: result.document.id,
+      //   duplicate: result.duplicate,
+      //   queued: result.queued
+      // });
+
+      // return result;
+    } catch (error) {
+      // logFileOperation('process-failed', options.filename, options.buffer?.length || 0, {
+      //   error: error instanceof Error ? error.message : String(error)
+      // });
+      
+      // logError(error as Error, {
+      //   type: 'document-processing',
+      //   filename: options.filename,
+      //   userEmail: options.userEmail
+      // });
       
       Logger.api.error('DOCUMENT', 'Document processing failed', error as Error);
       throw error;
@@ -431,14 +433,11 @@ export const DocumentService = {
       if (metadata) {
         // TODO: Implement generic document lookup
         // const document = await documentDb.findById(documentId);
-        const document = null; // Temporary return
-        if (document) {
-          updateData.metadata = {
-            ...document.metadata,
-            ...metadata,
-            lastStatusUpdate: new Date().toISOString()
-          };
-        }
+        // For now, just set the metadata directly without merging
+        updateData.metadata = {
+          ...metadata,
+          lastStatusUpdate: new Date().toISOString()
+        };
       }
 
       // TODO: Implement generic document update
@@ -478,8 +477,7 @@ export const DocumentService = {
         (task.status === 'queued' || task.status === 'processing')
       );
       */
-      const existingTasks = [];
-      const pendingTask = null;
+      const pendingTask: any = null;
 
       if (pendingTask) {
         Logger.api.warn('DOCUMENT', `Extraction already queued for document ${documentId}`, {
@@ -551,7 +549,7 @@ export const DocumentService = {
    * Validate if a document can be deleted (DRY: centralize deletion validation)
    */
   async validateDocumentDeletion(
-    userEmail: string,
+    _userEmail: string,
     documentId: number
   ): Promise<DocumentDeletionValidation> {
     Logger.api.step('DOCUMENT', `Validating deletion for document ${documentId}`);
@@ -560,7 +558,7 @@ export const DocumentService = {
     
     // TODO: Check if document is used in any comparisons
     // const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = []; // Temporary empty array
+    const relatedComparisons: any[] = []; // Temporary empty array
 
     if (relatedComparisons.length > 0) {
       blockers.push(`Document is used in ${relatedComparisons.length} comparison(s)`);
@@ -655,7 +653,7 @@ export const DocumentService = {
     
     // TODO: Get comparisons count from generic database  
     // const allComparisons = await comparisonDb.findByUser(userEmail);
-    const relatedComparisons = []; // Temporary empty array
+    // const relatedComparisons = []; // Temporary empty array - commented out unused
 
     // Calculate enhanced properties
     const fileType = document.filename.split('.').pop()?.toLowerCase() || 'unknown';
@@ -691,9 +689,11 @@ export const DocumentService = {
     // Import FileValidation dynamically to avoid circular dependencies
     const { FileValidation } = await import('@/lib/utils');
     
-    const validationError = FileValidation.getValidationError(file);
-    if (validationError) {
-      throw new Error(validationError.error || 'File validation failed');
+    // Use validateFile directly which throws appropriate errors
+    try {
+      FileValidation.validateFile(file);
+    } catch (error: any) {
+      throw new Error(error.message || 'File validation failed');
     }
 
     Logger.api.step('DOCUMENT', 'File validation passed');

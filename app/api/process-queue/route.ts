@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Simplified queue processing endpoint to avoid circular dependencies
     // In a real implementation, this would authenticate and process queue tasks
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Simplified queue status endpoint to avoid circular dependencies
     // In a real implementation, this would authenticate and return queue stats

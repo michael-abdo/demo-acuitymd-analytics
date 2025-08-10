@@ -1,13 +1,12 @@
 "use client"
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, FileText } from 'lucide-react'
 import { LoadingButton } from '@/components/ui/loading'
-import { TemplateDocument, UploadTemplateProps } from '@/types/template'
+import { UploadTemplateProps } from '@/types/template'
 import { useFileUpload } from '@/lib/hooks'
 import { toast } from '@/lib/utils/toast'
 // import { FormUtils } from '@/lib/utils' // Removed to avoid circular dependencies

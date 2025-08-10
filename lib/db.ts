@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise'
 import { config } from './config'
-import { logDatabase, logError, logStartup } from './logger'
+import { logDatabase, logError } from './logger'
 
 // Create a connection pool using centralized config
 const pool = mysql.createPool({

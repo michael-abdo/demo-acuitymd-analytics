@@ -23,7 +23,7 @@ export function withErrorHandler<T extends any[], R>(
   options: ErrorHandlerOptions
 ) {
   return function decorator(
-    target: any,
+    _target: any,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
@@ -181,15 +181,15 @@ export function withDatabaseErrorHandling<T extends any[], R>(
         sql: errorObj.sql
       };
       
-      Logger.db.error(`Database operation failed: ${operation}`, errorObj, errorDetails);
+      console.error(`Database operation failed: ${operation}`, errorObj, errorDetails);
       
       // Check for specific database error types
       if (errorObj.code === 'ER_DUP_ENTRY') {
-        Logger.db.warn('Duplicate entry detected', errorObj);
+        console.warn('Duplicate entry detected', errorObj);
       } else if (errorObj.code === 'ER_NO_SUCH_TABLE') {
-        Logger.db.error('Table does not exist', errorObj);
+        console.error('Table does not exist', errorObj);
       } else if (errorObj.code === 'ECONNREFUSED') {
-        Logger.db.error('Database connection refused', errorObj);
+        console.error('Database connection refused', errorObj);
       }
       
       return null;
@@ -224,7 +224,7 @@ export function withStorageErrorHandling<T extends any[], R>(
         bucketName: errorObj.Bucket
       };
       
-      Logger.storage.error(`Storage operation failed: ${operation}`, errorObj, errorDetails);
+      console.error(`Storage operation failed: ${operation}`, errorObj, errorDetails);
       
       // Map common storage errors to user-friendly messages
       let userMessage = 'Storage operation failed';

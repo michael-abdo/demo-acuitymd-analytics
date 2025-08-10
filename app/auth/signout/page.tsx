@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { signOut } from "next-auth/react";
-import Image from "next/image";
 import { CenteredFormLayout, CenteredTitle } from "@/components/ui";
 import { pagePath, assetPath } from "@/lib/utils/path-utils";
+import Image from "next/image";
 
 export default function SignOut() {
   useEffect(() => {

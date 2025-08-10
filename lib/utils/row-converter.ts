@@ -4,7 +4,7 @@
  * Provides utilities for converting database rows to application objects
  */
 
-import { TimestampUtils, JsonUtils } from '@/lib/utils';
+import { JsonUtils } from '@/lib/utils';
 
 export interface BaseRow {
   id: number;

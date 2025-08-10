@@ -4,7 +4,7 @@
  * Provides validation utilities for various token types
  */
 
-import { config } from '@/lib/config';
+import { config, FEATURES } from '@/lib/config';
 
 export interface TokenValidationResult {
   valid: boolean;
@@ -119,7 +119,7 @@ export class TokenValidator {
       };
     }
     
-    if (!config.FEATURES.DEV_BYPASS) {
+    if (!FEATURES.DEV_BYPASS) {
       return {
         valid: false,
         error: 'Development bypass is disabled'

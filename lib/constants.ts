@@ -32,10 +32,7 @@ export { RequestParser } from './services/request-parser';
 // Authentication wrappers
 export { 
   withAuth, 
-  withAuthDynamic, 
-  withDocumentAccess,
-  withErrorHandler,
-  withStorage
+  withErrorHandler
 } from './auth-utils';
 
 // Utility functions

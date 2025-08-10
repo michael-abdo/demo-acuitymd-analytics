@@ -11,8 +11,7 @@ import {
   DeleteObjectCommand,
   ListObjectsV2Command,
   HeadObjectCommand,
-  CopyObjectCommand,
-  GetObjectCommandOutput
+  CopyObjectCommand
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -258,7 +257,7 @@ export class S3StorageProvider implements IStorageProvider {
         ContentType: options?.contentType
       });
       
-      const response = await this.client.send(command);
+      await this.client.send(command);
       
       // Get file info
       const headResult = await this.head(destinationKey);

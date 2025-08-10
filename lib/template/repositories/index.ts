@@ -26,7 +26,7 @@ export const comparisonDb = comparisonRepository;
 // export const queueDb = queueRepository; // TODO: Create when needed
 
 // Placeholder database functions
-export async function executeQuery(sql: string, values?: any[]): Promise<any> {
+export async function executeQuery(_sql: string, _values?: any[]): Promise<any> {
   throw new Error('Raw SQL queries not supported in development mode');
 }
 

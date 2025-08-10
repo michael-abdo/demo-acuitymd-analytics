@@ -62,7 +62,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
       }
 
       // Format HTML email
-      const htmlContent = formatEmailHtml(draft, session.user?.name || 'User')
+      const htmlContent = formatEmailHtml(draft, userEmail)
 
       try {
         // Send email

@@ -21,7 +21,7 @@ export default function DashboardClient() {
   const { 
     data: stats, 
     loading, 
-    error, 
+    error: _error, 
     reload: fetchStats 
   } = useApiData<DashboardStats | null>('/api/dashboard/stats', {
     autoLoad: isAuthenticated,

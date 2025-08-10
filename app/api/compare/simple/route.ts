@@ -1,15 +1,10 @@
 export const dynamic = "force-dynamic";
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth-utils';
-import { ApiErrors, ResponseBuilder, isDocumentOwner } from '@/lib/utils';\nimport { documentDb } from '@/lib/template/database';\nimport { RequestParser } from '@/lib/services/request-parser';
+import { ApiErrors, ResponseBuilder, isDocumentOwner } from '@/lib/utils';
+import { documentDb } from '@/lib/template/database';
+import { RequestParser } from '@/lib/services/request-parser';
 // import { comparisonDb, ComparisonStatus } from '@/lib/nda'; // Removed NDA-specific imports
-// Generic comparison status enum
-enum ComparisonStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing', 
-  COMPLETED = 'completed',
-  FAILED = 'failed'
-}
 import { Logger } from '@/lib/services/logger';
 import { getTextStats, findSections, calculateSimilarity } from '@/lib/text-extraction';
 

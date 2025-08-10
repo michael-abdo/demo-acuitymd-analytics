@@ -44,7 +44,7 @@ try {
       format: winston.format.combine(
         winston.format.colorize({ all: true }),
         winston.format.printf(
-          (info) => `${info.timestamp} ${info.level}: ${info.message}`
+          (info: any) => `${info.timestamp} ${info.level}: ${info.message}`
         )
       ),
     })

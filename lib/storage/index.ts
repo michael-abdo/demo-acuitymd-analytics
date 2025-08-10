@@ -5,13 +5,11 @@
  * local filesystem (for development) and S3 (for production).
  */
 
-import path from 'path';
 import { LocalStorageProvider } from './local-provider';
 import { S3StorageProvider } from './s3-provider';
-import { config, APP_CONSTANTS } from '@/lib/config';
+import { config } from '@/lib/config';
 import { Logger } from '@/lib/services/logger';
-import { ErrorSuggestionService } from '@/lib/utils/error-suggestions';
-import { PerformanceUtils, RetryUtils, PathResolver } from '@/lib/utils';
+import { RetryUtils, PathResolver } from '@/lib/utils';
 import { 
   IStorageProvider, 
   StorageProvider, 
@@ -42,16 +40,16 @@ export async function initializeStorage(storageConfig?: Partial<StorageConfig>):
   // Determine provider from passed config or centralized config
   const provider = storageConfig?.provider || 
     (config.STORAGE_PROVIDER as StorageProvider) || 
-    (config.S3_ACCESS ? StorageProvider.S3 : StorageProvider.LOCAL);
+    StorageProvider.LOCAL;
   
   if (provider === StorageProvider.S3) {
     // Use S3 provider with centralized config as defaults
     const s3Config = {
       bucket: storageConfig?.s3?.bucket || config.S3_BUCKET_NAME,
       region: storageConfig?.s3?.region || config.AWS_REGION,
-      accessKeyId: storageConfig?.s3?.accessKeyId || config.AWS_ACCESS_KEY_ID,
-      secretAccessKey: storageConfig?.s3?.secretAccessKey || config.AWS_SECRET_ACCESS_KEY,
-      endpoint: storageConfig?.s3?.endpoint || config.S3_ENDPOINT
+      accessKeyId: storageConfig?.s3?.accessKeyId || process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: storageConfig?.s3?.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY,
+      endpoint: storageConfig?.s3?.endpoint || process.env.S3_ENDPOINT
     };
     
     console.log('Initializing S3 storage provider');
@@ -59,7 +57,6 @@ export async function initializeStorage(storageConfig?: Partial<StorageConfig>):
   } else {
     // Use local provider with centralized config as default
     const basePath = storageConfig?.local?.basePath || 
-      config.LOCAL_STORAGE_PATH || 
       PathResolver.getProjectPaths().storage;
     
     console.log(`Initializing local storage provider at: ${basePath}`);
@@ -92,13 +89,6 @@ export async function ensureStorageInitialized(config?: Partial<StorageConfig>):
 }
 
 // Retry logic integrated into main storage interface
-interface StorageOperationResult<T> {
-  success: boolean;
-  data?: T;
-  error?: Error;
-  attempts: number;
-  duration: number;
-}
 
 /**
  * Execute storage operation with unified retry logic
@@ -112,13 +102,13 @@ async function executeWithRetry<T>(
     operation,
     operationName,
     {
-      onRetry: (error, attempt, delay) => {
+      onRetry: (_error, attempt, delay) => {
         Logger.storage?.operation?.(
           `Attempting ${operationName} (attempt ${attempt})`,
           { ...metadata, delay }
         );
       },
-      onFailure: (error, attempts, duration) => {
+      onFailure: (error, _attempts, _duration) => {
         Logger.storage?.error?.(
           `${operationName} failed permanently`,
           error

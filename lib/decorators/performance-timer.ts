@@ -7,7 +7,6 @@
  * Supports both sync/async functions, method decorators, and manual timing.
  */
 
-import { TimestampUtils } from '@/lib/utils';
 
 /**
  * Performance measurement result

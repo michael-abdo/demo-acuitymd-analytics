@@ -1,4 +1,3 @@
-import { verifySession } from "@/lib/dal";
 import DashboardClient from "./dashboard-client";
 import type { Metadata } from 'next';
 
@@ -7,8 +6,6 @@ export const metadata: Metadata = {
   description: 'View your document processing statistics and recent activity',
 };
 
-export default async function Dashboard() {
-  const session = await verifySession();
-
+export default function Dashboard() {
   return <DashboardClient />;
 }

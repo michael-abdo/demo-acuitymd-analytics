@@ -1,15 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
 import { useBasePath } from '@/lib/hooks';
 
 export function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
   const { pagePath, assetPath, withoutBasePath } = useBasePath();

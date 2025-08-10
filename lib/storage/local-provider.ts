@@ -67,7 +67,7 @@ export class LocalStorageProvider implements IStorageProvider {
     };
   }
 
-  async delete(key: string, options?: DeleteOptions): Promise<DeleteResult> {
+  async delete(key: string, _options?: DeleteOptions): Promise<DeleteResult> {
     const filePath = path.join(this.basePath, key);
     await fs.unlink(filePath);
     return { deleted: true };
@@ -83,7 +83,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
   }
 
-  async getSignedUrl(key: string, operation: 'get' | 'put', options?: SignedUrlOptions): Promise<string> {
+  async getSignedUrl(key: string, _operation: 'get' | 'put', _options?: SignedUrlOptions): Promise<string> {
     // For local storage, return a file:// URL
     const filePath = path.join(this.basePath, key);
     return `file://${filePath}`;
@@ -161,7 +161,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
   }
 
-  async copy(sourceKey: string, destinationKey: string, options?: CopyOptions): Promise<StorageFile> {
+  async copy(sourceKey: string, destinationKey: string, _options?: CopyOptions): Promise<StorageFile> {
     const sourcePath = path.join(this.basePath, sourceKey);
     const destPath = path.join(this.basePath, destinationKey);
     const destDir = path.dirname(destPath);

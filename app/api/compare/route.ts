@@ -4,17 +4,10 @@ import { withAuth } from '@/lib/auth-utils'
 import { RequestParser } from '@/lib/services/request-parser'
 import { ApiErrors, ResponseBuilder } from '@/lib/utils'
 // import { comparisonDb, ComparisonStatus } from '@/lib/nda' // Removed NDA-specific imports
-// Generic comparison status enum
-enum ComparisonStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing', 
-  COMPLETED = 'completed',
-  FAILED = 'failed'
-}
 import { compareDocuments, DocumentContent } from '@/lib/text-extraction'
 import { Logger } from '@/lib/services/logger'
 import { compareRateLimiter } from '@/lib/rate-limiter'
-import { config, APP_CONSTANTS } from '@/lib/config'
+import { config } from '@/lib/config'
 import { DocumentService } from '@/lib/services/document-service'
 
 export const POST = withAuth(async (request: NextRequest, userEmail: string) => {
@@ -204,7 +197,7 @@ export const POST = withAuth(async (request: NextRequest, userEmail: string) => 
     */
     const comparison = { 
       id: Date.now(), 
-      status: ComparisonStatus.PROCESSING,
+      status: 'processing',
       created_at: new Date()
     }; // Temporary mock
     Logger.api.step('COMPARE', 'Comparison record created', { comparisonId: comparison.id });

@@ -78,9 +78,8 @@ class EmailService {
 
   async sendEmail(message: EmailMessage): Promise<EmailResult> {
     // Check if email should be sent based on environment
-    const isProduction = process.env.NODE_ENV === 'production'
     const isDevelopment = process.env.NODE_ENV === 'development'
-    const isStaging = process.env.NODE_ENV === 'staging'
+    const isStaging = (process.env.NODE_ENV as string) === 'staging'
     const enableEmailInDev = process.env.ENABLE_EMAIL_IN_DEV === 'true'
 
     // Development mode email interception

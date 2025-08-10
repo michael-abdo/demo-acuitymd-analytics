@@ -71,11 +71,11 @@ export function cn(...inputs: ClassValue[]) {
  * Uses centralized messages from APP_CONSTANTS.MESSAGES
  */
 export const ApiErrors = {
-  unauthorized: () => NextResponse.json({ error: APP_CONSTANTS.MESSAGES.ERROR.UNAUTHORIZED }, { status: 401 }),
+  unauthorized: () => NextResponse.json({ error: APP_CONSTANTS.MESSAGES.UNAUTHORIZED }, { status: 401 }),
   notFound: (resource: string) => NextResponse.json({ error: `${resource} not found` }, { status: 404 }),
   badRequest: (message: string) => NextResponse.json({ error: message }, { status: 400 }),
   serverError: (message: string, details?: any) => NextResponse.json({ 
-    error: message || APP_CONSTANTS.MESSAGES.ERROR.SERVER_ERROR,
+    error: message || APP_CONSTANTS.MESSAGES.INTERNAL_ERROR,
     ...(details && { details })
   }, { status: 500 }),
   forbidden: (message: string = 'Access denied') => NextResponse.json({ error: message }, { status: 403 }),
@@ -92,8 +92,8 @@ export const ApiErrors = {
     };
     
     return NextResponse.json({
-      error: APP_CONSTANTS.MESSAGES.ERROR.RATE_LIMIT,
-      message: APP_CONSTANTS.MESSAGES.ERROR.RATE_LIMIT,
+      error: 'Rate limit exceeded',
+      message: 'Rate limit exceeded',
       resetTime: resetTime?.toISOString()
     }, { 
       status: 429,
@@ -111,9 +111,9 @@ export const ApiErrors = {
 
   // Add configuration error
   configurationError: (missing: string[]) => NextResponse.json({
-    error: APP_CONSTANTS.MESSAGES.ERROR.CONFIGURATION,
+    error: 'Configuration error',
     missing,
-    message: APP_CONSTANTS.MESSAGES.ERROR.CONFIGURATION
+    message: 'Configuration error'
   }, { status: 503 })
 };
 
@@ -585,7 +585,13 @@ export const FileValidation = {
   /**
    * Maps file extensions to MIME types
    */
-  extensionToMimeType: APP_CONSTANTS.FILE_LIMITS.MIME_TYPE_MAP as Record<string, string>,
+  extensionToMimeType: {
+    '.pdf': 'application/pdf',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc': 'application/msword',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv'
+  } as Record<string, string>,
   
   /**
    * Validates a file against allowed types and size limits
@@ -598,7 +604,7 @@ export const FileValidation = {
     }
     
     if (file.size > FileValidation.maxSize) {
-      throw new Error(`File too large. Maximum size is ${APP_CONSTANTS.FILE_LIMITS.MAX_SIZE_MB}MB. Received: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      throw new Error(`File too large. Maximum size is ${FileValidation.maxSize / 1024 / 1024}MB. Received: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
     }
     
     return true;
@@ -615,15 +621,15 @@ export const FileValidation = {
       return null; // No error
     } catch (error: any) {
       if (error.message.includes('Invalid file type')) {
-        return ApiErrors.validation(APP_CONSTANTS.MESSAGES.UPLOAD.INVALID_TYPE, {
+        return ApiErrors.validation('Invalid file type', {
           allowedTypes: FileValidation.allowedExtensions,
           receivedType: file.type
         });
       } else if (error.message.includes('File too large')) {
-        return ApiErrors.validation(APP_CONSTANTS.MESSAGES.UPLOAD.TOO_LARGE, {
+        return ApiErrors.validation('File too large', {
           maxSize: FileValidation.maxSize,
           actualSize: file.size,
-          maxSizeMB: APP_CONSTANTS.FILE_LIMITS.MAX_SIZE_MB,
+          maxSizeMB: FileValidation.maxSize / 1024 / 1024,
           actualSizeMB: Number((file.size / 1024 / 1024).toFixed(2))
         });
       } else {

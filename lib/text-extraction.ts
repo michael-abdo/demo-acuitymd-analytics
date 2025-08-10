@@ -28,7 +28,7 @@ export interface ProcessFileResult {
  * Replace with actual PDF parsing library (pdf-parse, pdf2pic, etc.) per project needs
  */
 export async function extractTextFromPDF(
-  fileBuffer: Buffer, 
+  _fileBuffer: Buffer, 
   fileHash: string
 ): Promise<DocumentContent> {
   // Placeholder implementation - customize per project
@@ -49,7 +49,7 @@ export async function extractTextFromPDF(
  * Replace with actual Word parsing library (mammoth, etc.) per project needs
  */
 export async function extractTextFromWord(
-  fileBuffer: Buffer, 
+  _fileBuffer: Buffer, 
   fileHash: string
 ): Promise<DocumentContent> {
   // Placeholder implementation - customize per project

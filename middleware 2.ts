@@ -1,6 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { config as appConfig, EnvironmentHelpers } from "@/lib/config";
+import { EnvironmentHelpers } from "@/lib/config";
 
 export default withAuth(
   function middleware(req) {

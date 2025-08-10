@@ -63,7 +63,7 @@ async function withDbErrorHandling<T>(
 /**
  * Core repository interface for all entities
  */
-export interface IRepository<T, TRow, TCreate> {
+export interface IRepository<T, _TRow, TCreate> {
   create(data: TCreate): Promise<T>;
   findById(id: number): Promise<T | null>;
   findByUser(userId: string, options?: QueryOptions): Promise<T[]>;

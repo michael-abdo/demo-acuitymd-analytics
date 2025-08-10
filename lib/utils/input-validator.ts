@@ -476,7 +476,7 @@ export class InputValidator {
       fieldName?: string;
     } = {}
   ): ValidationResult<string> {
-    const { allowedTags = [], stripTags = true, fieldName = 'html' } = options;
+    const { allowedTags: _allowedTags = [], stripTags = true, fieldName: _fieldName = 'html' } = options;
     
     if (html == null) {
       return { isValid: true, value: '' };

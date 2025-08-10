@@ -127,7 +127,7 @@ export function LoadingPage({
 }
 
 /**
- * Button loading state
+ * Loading button component
  * Consolidates the pattern from upload component and compare page
  */
 export function LoadingButton({ 

@@ -79,7 +79,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   events: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile: _profile }) {
       logAuthentication('user-signed-in', user?.id, {
         email: user?.email,
         provider: account?.provider

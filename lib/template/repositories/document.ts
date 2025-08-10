@@ -10,9 +10,6 @@ import { TemplateDocument, DocumentStatus } from '@/types/template';
 import { TemplateDocumentRow } from '../types';
 import { JsonUtils } from '@/lib/utils';
 
-// Access config DB_CREATE_ACCESS
-const HAS_DB_ACCESS = (global as any)._templateMemoryStore ? false : true;
-
 // Access to in-memory store
 declare global {
   // eslint-disable-next-line no-var

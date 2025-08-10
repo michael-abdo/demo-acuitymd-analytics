@@ -62,7 +62,7 @@ export class StorageErrorHandler {
   /**
    * Classify error type and determine retry strategy
    */
-  private static classifyError(error: Error, context: StorageErrorContext): StorageErrorClassification {
+  private static classifyError(error: Error, _context: StorageErrorContext): StorageErrorClassification {
     const message = error.message.toLowerCase();
     
     // Network/connectivity errors

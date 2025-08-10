@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOptionalSession } from './dal';
 import { ApiErrors, TimestampUtils } from './utils';
-import { APP_CONSTANTS } from './config';
 
 /**
  * Consolidated API imports - eliminates duplicate import statements across API routes
@@ -140,18 +139,12 @@ export function withErrorHandler<T extends any[]>(
       };
       
       // Log the error with context
-      if (error instanceof ApiError) {
-        ErrorLogger.log(error, { ...context, ...error.context });
-        return NextResponse.json(
-          { error: error.message },
-          { status: error.statusCode }
-        );
-      } else if (error instanceof NextResponse) {
+      if (error instanceof NextResponse) {
         // Already a formatted response
         return error;
       } else {
         // Unknown error
-        ErrorLogger.log(error as Error, context);
+        console.error('Unknown API error:', error, context);
         return ApiErrors.serverError(
           error instanceof Error ? error.message : 'An unexpected error occurred'
         );

@@ -49,7 +49,7 @@ export function withApiLogging<T = any>(
         Logger.api.success(operation, message, metadata);
       },
       error: (message: string, error: Error, metadata?: any) => {
-        Logger.api.error(operation, message, error, metadata);
+        console.error(`${operation}: ${message} - ${error.message}`, metadata);
       }
     };
 
@@ -66,7 +66,7 @@ export function withApiLogging<T = any>(
       return response;
     } catch (error) {
       // Log error and return standardized error response
-      Logger.api.error(operation, 'Operation failed with unhandled error', error as Error, {
+      console.error(`${operation}: Operation failed with unhandled error - ${(error as Error).message}`, {
         userEmail,
         errorType: (error as Error).constructor.name
       });
@@ -117,7 +117,7 @@ export function withPerformanceLogging<T = any>(
       },
       error: (message: string, error: Error, metadata?: any) => {
         const elapsed = Date.now() - startTime;
-        Logger.api.error(operation, message, error, { ...metadata, elapsed: `${elapsed}ms` });
+        console.error(`${operation}: ${message} - ${error.message}`, { ...metadata, elapsed: `${elapsed}ms` });
       }
     };
 
@@ -134,7 +134,7 @@ export function withPerformanceLogging<T = any>(
       return response;
     } catch (error) {
       const totalTime = Date.now() - startTime;
-      Logger.api.error(operation, 'Operation failed', error as Error, {
+      console.error(`${operation}: Operation failed - ${(error as Error).message}`, {
         userEmail,
         totalTime: `${totalTime}ms`,
         errorType: (error as Error).constructor.name
@@ -178,7 +178,7 @@ export function withDetailedLogging<T = any>(
       },
       error: (message: string, error: Error, metadata?: any) => {
         const elapsed = Date.now() - startTime;
-        Logger.api.error(operation, message, error, { ...metadata, elapsed: `${elapsed}ms` });
+        console.error(`${operation}: ${message} - ${error.message}`, { ...metadata, elapsed: `${elapsed}ms` });
       }
     };
 
@@ -198,7 +198,7 @@ export function withDetailedLogging<T = any>(
       return response;
     } catch (error) {
       const totalTime = Date.now() - startTime;
-      Logger.api.error(operation, 'Operation failed with detailed logging', error as Error, {
+      console.error(`${operation}: Operation failed with detailed logging - ${(error as Error).message}`, {
         userEmail,
         totalTime: `${totalTime}ms`,
         errorType: (error as Error).constructor.name,
@@ -218,7 +218,7 @@ export const LogPatterns = {
    * Database operation patterns
    */
   database: {
-    fetch: (resource: string, criteria?: Record<string, any>) => ({
+    fetch: (resource: string, _criteria?: Record<string, any>) => ({
       start: `Fetching ${resource} from database`,
       success: (count?: number) => `${resource} fetched successfully${count !== undefined ? ` (${count} records)` : ''}`,
       error: `Failed to fetch ${resource} from database`,
@@ -353,10 +353,22 @@ export function withAutoLogging<T = any>(
       // Auto-log start patterns
       Object.entries(patterns).forEach(([category, items]) => {
         items?.forEach(item => {
-          const pattern = LogPatterns[category as keyof typeof LogPatterns];
-          if (pattern && pattern[item.type as keyof typeof pattern]) {
-            const messages = pattern[item.type as keyof typeof pattern](item.target || item.resource, item.id);
-            logger.step(messages.start);
+          try {
+            const pattern = LogPatterns[category as keyof typeof LogPatterns];
+            if (pattern && typeof pattern === 'object' && item.type in pattern) {
+              const patternFn = (pattern as any)[item.type];
+              if (typeof patternFn === 'function') {
+                const target = 'target' in item ? item.target : 'resource' in item ? item.resource : 'filename' in item ? item.filename : 'unknown';
+                const id = 'id' in item ? item.id : undefined;
+                const messages = patternFn(target, id);
+                if (messages && messages.start) {
+                  logger.step(messages.start);
+                }
+              }
+            }
+          } catch (error) {
+            // Skip logging for this item if there's an error
+            console.warn('Failed to log pattern message:', error);
           }
         });
       });
@@ -367,10 +379,21 @@ export function withAutoLogging<T = any>(
         // Auto-log success patterns
         Object.entries(patterns).forEach(([category, items]) => {
           items?.forEach(item => {
-            const pattern = LogPatterns[category as keyof typeof LogPatterns];
-            if (pattern && pattern[item.type as keyof typeof pattern]) {
-              const messages = pattern[item.type as keyof typeof pattern](item.target || item.resource, item.id);
-              logger.success(messages.success);
+            try {
+              const pattern = LogPatterns[category as keyof typeof LogPatterns];
+              if (pattern && typeof pattern === 'object' && item.type in pattern) {
+                const patternFn = (pattern as any)[item.type];
+                if (typeof patternFn === 'function') {
+                  const target = 'target' in item ? item.target : 'resource' in item ? item.resource : 'filename' in item ? item.filename : 'unknown';
+                  const id = 'id' in item ? item.id : undefined;
+                  const messages = patternFn(target, id);
+                  if (messages && messages.success) {
+                    logger.success(messages.success);
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to log success pattern message:', error);
             }
           });
         });
@@ -381,10 +404,21 @@ export function withAutoLogging<T = any>(
         // Auto-log error patterns
         Object.entries(patterns).forEach(([category, items]) => {
           items?.forEach(item => {
-            const pattern = LogPatterns[category as keyof typeof LogPatterns];
-            if (pattern && pattern[item.type as keyof typeof pattern]) {
-              const messages = pattern[item.type as keyof typeof pattern](item.target || item.resource, item.id);
-              logger.error(messages.error, error as Error);
+            try {
+              const pattern = LogPatterns[category as keyof typeof LogPatterns];
+              if (pattern && typeof pattern === 'object' && item.type in pattern) {
+                const patternFn = (pattern as any)[item.type];
+                if (typeof patternFn === 'function') {
+                  const target = 'target' in item ? item.target : 'resource' in item ? item.resource : 'filename' in item ? item.filename : 'unknown';
+                  const id = 'id' in item ? item.id : undefined;
+                  const messages = patternFn(target, id);
+                  if (messages && messages.error) {
+                    logger.error(messages.error, error as Error);
+                  }
+                }
+              }
+            } catch (logError) {
+              console.warn('Failed to log error pattern message:', logError);
             }
           });
         });
