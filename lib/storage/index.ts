@@ -47,8 +47,8 @@ export async function initializeStorage(storageConfig?: Partial<StorageConfig>):
   if (provider === StorageProvider.S3) {
     // Use S3 provider with centralized config as defaults
     const s3Config = {
-      bucket: storageConfig?.s3?.bucket || config.S3_BUCKET_NAME || 'vvg-cloud-storage',
-      region: storageConfig?.s3?.region || config.AWS_REGION || 'us-west-2',
+      bucket: storageConfig?.s3?.bucket || config.S3_BUCKET_NAME,
+      region: storageConfig?.s3?.region || config.AWS_REGION,
       accessKeyId: storageConfig?.s3?.accessKeyId || config.AWS_ACCESS_KEY_ID,
       secretAccessKey: storageConfig?.s3?.secretAccessKey || config.AWS_SECRET_ACCESS_KEY,
       endpoint: storageConfig?.s3?.endpoint || config.S3_ENDPOINT

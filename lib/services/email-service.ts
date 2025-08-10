@@ -35,7 +35,7 @@ class EmailService {
 
   constructor() {
     this.config = {
-      host: process.env.AWS_SES_SMTP_HOST || 'email-smtp.us-west-2.amazonaws.com',
+      host: process.env.AWS_SES_SMTP_HOST || `email-smtp.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com`,
       port: parseInt(process.env.AWS_SES_SMTP_PORT || '587', 10),
       secure: false, // true for 465, false for other ports
       auth: {
