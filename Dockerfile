@@ -63,8 +63,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Install only production dependencies and PM2
+RUN npm ci --only=production && npm install pm2 -g
 
 # Copy built application from builder stage
 COPY --from=builder /app/.next ./.next
@@ -75,11 +75,17 @@ COPY --from=builder /app/components ./components
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/lib ./lib
 
+# Copy PM2 ecosystem config
+COPY ecosystem.docker.config.js ./
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
 # Set environment to production (overridden by docker-compose env_file)
 # ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 3000
 
-# Start the production server
-CMD ["npm", "start"]
+# Start with PM2 runtime
+CMD ["pm2-runtime", "start", "ecosystem.docker.config.js"]
