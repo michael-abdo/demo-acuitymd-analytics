@@ -4,7 +4,7 @@ const nextConfig = {
     return [
       {
         // Apply CORS headers to all API routes
-        source: '/api/:path*',
+        source: `${process.env.BASE_PATH || ''}/api/:path*`,
         headers: [
           {
             key: 'Access-Control-Allow-Credentials',
@@ -13,8 +13,8 @@ const nextConfig = {
           {
             key: 'Access-Control-Allow-Origin',
             value: process.env.NODE_ENV === 'production' 
-              ? 'https://your-domain.com' 
-              : 'http://localhost:3000',
+              ? process.env.APP_URL || 'https://your-domain.com' 
+              : process.env.NEXTAUTH_URL || 'http://localhost:3000',
           },
           {
             key: 'Access-Control-Allow-Methods',

@@ -2,7 +2,6 @@ import { cache } from 'react';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from './auth-options';
 import { redirect } from 'next/navigation';
-import { pagePath } from './utils/path-utils';
 
 /**
  * Single Data Access Layer for Authentication
@@ -53,7 +52,7 @@ export const verifySession = cache(async () => {
     }
     
     // Production: redirect to sign-in
-    redirect(pagePath('/sign-in'));
+    redirect('/sign-in');
   }
   
   return session;

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { apiPath } from '@/lib/utils/path-utils';
 
 export interface UseApiDataOptions {
   refreshInterval?: number;
@@ -14,8 +13,8 @@ export function useApiData<T>(url: string, options: UseApiDataOptions = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Ensure API URLs have basePath prefix
-  const apiUrl = url.startsWith('/api') ? apiPath(url.replace('/api', '')) : url;
+  // API URLs are handled automatically by Next.js
+  const apiUrl = url;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,8 +75,8 @@ export interface UseFileUploadOptions {
 export function useFileUpload(endpoint: string, options: UseFileUploadOptions = {}) {
   const [uploading, setUploading] = useState(false);
 
-  // Ensure upload endpoints have basePath prefix
-  const uploadUrl = endpoint.startsWith('/api') ? apiPath(endpoint.replace('/api', '')) : endpoint;
+  // Upload URLs are handled automatically by Next.js
+  const uploadUrl = endpoint;
 
   const upload = async (fileOrFormData: File | FormData, additionalData?: Record<string, any>) => {
     try {
@@ -158,5 +157,3 @@ export function useAsyncOperation<T = any>(options: UseAsyncOperationOptions = {
   return { execute, loading, error, data, reset };
 }
 
-// Export the useBasePath hook
-export { useBasePath } from './hooks/use-basepath';

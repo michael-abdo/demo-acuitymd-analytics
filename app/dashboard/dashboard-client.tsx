@@ -7,7 +7,7 @@ import { FileUp, FileText, GitCompare, Download, RefreshCw } from "lucide-react"
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
 import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
-import { useApiData, useBasePath } from "@/lib/hooks";
+import { useApiData } from "@/lib/hooks";
 import { toast } from "@/lib/utils/toast";
 
 export default function DashboardClient() {
@@ -15,7 +15,6 @@ export default function DashboardClient() {
   const isAuthenticated = false; // Temporary until proper auth implemented
   const user = { name: "User" }; // Temporary mock
   const router = useRouter();
-  const { pagePath } = useBasePath();
 
   // Use consolidated API data hook
   const { 
@@ -128,7 +127,7 @@ export default function DashboardClient() {
             <Button 
               className="w-full justify-start" 
               size="lg"
-              onClick={() => router.push(pagePath('/upload'))}
+              onClick={() => router.push('/upload')}
             >
               <FileUp className="mr-2 h-5 w-5" />
               Upload Template Document
@@ -137,7 +136,7 @@ export default function DashboardClient() {
               className="w-full justify-start" 
               size="lg" 
               variant="outline"
-              onClick={() => router.push(pagePath('/compare'))}
+              onClick={() => router.push('/compare')}
             >
               <GitCompare className="mr-2 h-5 w-5" />
               Compare Templates
@@ -146,7 +145,7 @@ export default function DashboardClient() {
               className="w-full justify-start" 
               size="lg" 
               variant="outline"
-              onClick={() => router.push(pagePath('/documents'))}
+              onClick={() => router.push('/documents')}
             >
               <FileText className="mr-2 h-5 w-5" />
               View Documents

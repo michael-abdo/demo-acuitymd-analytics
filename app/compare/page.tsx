@@ -5,7 +5,6 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Select, Select
 import { AlertCircle, CheckCircle, Clock, FileText, Star, ArrowRight } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
 import { getFilenameFromPath } from '@/lib/utils';
-import { apiPath } from '@/lib/utils/path-utils';
 import { useApiData, useAsyncOperation } from '@/lib/hooks';
 
 // Generic document type for comparison functionality
@@ -52,7 +51,7 @@ export default function ComparePage() {
   const [recentComparisons, setRecentComparisons] = useState<Comparison[]>([]);
 
   // Use consolidated API data hook for documents
-  const { data: documents = [] } = useApiData<Document[]>(apiPath('/documents'), {
+  const { data: documents = [] } = useApiData<Document[]>('/api/documents', {
     autoLoad: false, // TODO: Will be enabled after implementing proper auth
     transform: (response) => response.data || [],
     deps: []
@@ -71,7 +70,7 @@ export default function ComparePage() {
 
   const startComparison = (standardDocId: string, thirdPartyDocId: string) => {
     return executeComparison(async () => {
-      const response = await fetch(apiPath('/compare'), {
+      const response = await fetch('/api/compare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ standardDocId, thirdPartyDocId }),

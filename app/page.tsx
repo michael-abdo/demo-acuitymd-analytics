@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileText, Shield, Zap } from "lucide-react";
-import { pagePath, apiPath } from "@/lib/utils/path-utils";
 
 export default function Home() {
   return (
@@ -17,12 +16,12 @@ export default function Home() {
             Built with TypeScript, Tailwind CSS, and enterprise-grade security.
           </p>
           <div className="flex gap-4 justify-center">
-            <Link href={pagePath("/sign-in")}>
+            <Link href="/sign-in">
               <Button size="lg" className="gap-2">
                 Get Started <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
-            <Link href={apiPath("/health")}>
+            <Link href="/api/health">
               <Button size="lg" variant="outline">
                 Check API Status
               </Button>
