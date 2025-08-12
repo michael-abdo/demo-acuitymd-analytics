@@ -83,3 +83,10 @@ logs
 .storage/ 
 # TypeScript
 tsconfig.tsbuildinfo
+
+# Next.js build artifacts
+.next*
+/.next-production*
+/.next-staging*
+/.next-*
+
