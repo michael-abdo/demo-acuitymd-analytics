@@ -9,7 +9,7 @@ import { LocalStorageProvider } from './local-provider';
 import { S3StorageProvider } from './s3-provider';
 import { config } from '@/lib/config';
 import { Logger } from '@/lib/services/logger';
-import { RetryUtils, PathResolver } from '@/lib/utils';
+import { RetryUtils } from '@/lib/utils';
 import { 
   IStorageProvider, 
   StorageProvider, 
@@ -57,7 +57,7 @@ export async function initializeStorage(storageConfig?: Partial<StorageConfig>):
   } else {
     // Use local provider with centralized config as default
     const basePath = storageConfig?.local?.basePath || 
-      PathResolver.getProjectPaths().storage;
+      './storage';
     
     console.log(`Initializing local storage provider at: ${basePath}`);
     const localProvider = new LocalStorageProvider(basePath);
@@ -245,32 +245,32 @@ export const storage = {
 };
 
 /**
- * Template-specific storage paths (DRY: now uses centralized PathResolver)
+ * Template-specific storage paths
  */
 export const templatePaths = {
   /**
    * Get the path for an uploaded document
    */
   document: (userId: string, fileHash: string, filename: string): string =>
-    PathResolver.storage.document(userId, fileHash, filename),
+    `documents/${userId}/${fileHash}/${filename}`,
   
   /**
    * Get the path for a comparison result
    */
   comparison: (userId: string, comparisonId: string | number): string =>
-    PathResolver.storage.comparison(userId, comparisonId),
+    `comparisons/${userId}/${comparisonId}/result.json`,
   
   /**
    * Get the path for an export
    */
   export: (userId: string, exportId: string | number, format: 'pdf' | 'docx'): string =>
-    PathResolver.storage.export(userId, exportId, format),
+    `exports/${userId}/${exportId}/export.${format}`,
   
   /**
    * Get the path for temporary files
    */
   temp: (filename: string): string => 
-    PathResolver.storage.temp(filename)
+    `temp/${filename}`
 };
 
 // Auto-initialize in development

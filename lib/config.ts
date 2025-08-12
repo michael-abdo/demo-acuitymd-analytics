@@ -24,7 +24,7 @@ export const config = {
   BASE_PATH: BASEPATH_CONFIG.resolved,
   // Table prefix for shared database isolation
   DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX || '',
-  NODE_ENV: process.env.NODE_ENV || 'development' as 'development' | 'production' | 'test' | 'staging',
+  NODE_ENV: (process.env.NODE_ENV || 'development') as 'development' | 'production' | 'test' | 'staging',
   
   // Commonly used properties (backward compatibility)
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
@@ -75,6 +75,7 @@ export const EnvironmentHelpers = {
   isDevelopment: () => config.NODE_ENV === 'development',
   isProduction: () => config.NODE_ENV === 'production',
   isTest: () => config.NODE_ENV === 'test',
+  isStaging: () => config.NODE_ENV === 'staging',
   
   requireDevelopment: () => {
     if (EnvironmentHelpers.isProduction()) {
@@ -177,13 +178,13 @@ export const ConfigValidation = {
         errors.push('NEXTAUTH_URL must be set to production domain');
       }
       
-      if (config.FEATURES.DEV_BYPASS) {
+      if (FEATURES.DEV_BYPASS) {
         console.warn('⚠️ DEV_BYPASS is enabled in production - security risk!');
       }
     }
     
     // Staging-specific validations
-    if (env === 'staging') {
+    if ((env as string) === 'staging') {
       if (!config.DB_TABLE_PREFIX) {
         console.warn('⚠️ No DB_TABLE_PREFIX set for staging - using production tables');
       }

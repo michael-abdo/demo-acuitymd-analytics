@@ -7,7 +7,7 @@
     "dev:no-basepath": "BASE_PATH= NEXT_PUBLIC_BASE_PATH= next dev --port ${PORT}",
     "dev:clean": "node scripts/dev/dev-clean.js",
     "dev:seed": "node scripts/dev/dev-with-seed.js",
-    "prebuild": "./scripts/check-memory.sh",
+    "prebuild-disabled": "./scripts/check-memory.sh",
     "build": "next build",
     "build:standalone": "npm run prebuild && next build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
     "start": "next start --port ${PORT}",

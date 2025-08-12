@@ -14,7 +14,6 @@ try {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Production deployment configuration
-  output: 'standalone',
   basePath: process.env.BASE_PATH || '',
   assetPrefix: process.env.BASE_PATH || '',
   generateBuildId: async () => 'build-' + Date.now(),

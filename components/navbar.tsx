@@ -12,6 +12,7 @@ export function Navbar() {
   const userName = user?.name || 'Sign In';
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
   const handleProfileClick = (e: React.MouseEvent) => {
     if (!session) {
@@ -57,7 +58,7 @@ export function Navbar() {
 
         {/* Center - Logo */}
         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <img src="/logo.svg" alt="Logo" className="w-6 h-6" />
+          <img src={`${basePath}/logo.svg`} alt="Logo" className="w-6 h-6" />
         </div>
 
         {/* Right side - User Profile button with dropdown */}
@@ -68,7 +69,7 @@ export function Navbar() {
           >
             <span className="text-[#152C5B] font-medium">{userName}</span>
             <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-              <img src="/user.svg" alt="User" className="w-4 h-4" />
+              <img src={`${basePath}/user.svg`} alt="User" className="w-4 h-4" />
             </div>
           </button>
 
