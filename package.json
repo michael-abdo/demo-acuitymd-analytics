@@ -31,7 +31,11 @@
     "test:db:infrastructure": "node tests/database/infrastructure-test.js",
     "test:db:connection": "node tests/database/connection-test.js",
     "test:db:repository": "node tests/database/repository-pattern-test.js",
-    "test:db:all": "npm run test:db:infrastructure && npm run test:db:repository && npm run test:db:connection"
+    "test:db:all": "npm run test:db:infrastructure && npm run test:db:repository && npm run test:db:connection",
+    "clean-reset": "./scripts/clean-reset.sh",
+    "clean-reset:force": "./scripts/clean-reset.sh --force",
+    "reset:staging": "./scripts/clean-reset.sh --skip-production",
+    "reset:production": "./scripts/clean-reset.sh --skip-staging"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
