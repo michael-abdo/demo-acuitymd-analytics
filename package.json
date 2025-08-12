@@ -84,7 +84,7 @@
     "pdf2pic": "^3.2.0",
     "pdfjs-dist": "^4.10.30",
     "pdfkit": "^0.17.1",
-    "puppeteer": "^21.11.0",
+    "puppeteer": "^24.16.1",
     "react": "^18",
     "react-day-picker": "8.10.1",
     "react-dom": "^18",
@@ -98,7 +98,6 @@
     "tesseract.js": "^5.1.0",
     "vaul": "^0.9.6",
     "winston": "^3.17.0",
-    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

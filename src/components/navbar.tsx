@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
@@ -58,7 +59,7 @@ export function Navbar() {
 
         {/* Center - Logo */}
         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <img src={`${basePath}/logo.svg`} alt="Logo" className="w-6 h-6" />
+          <Image src={`${basePath}/logo.svg`} alt="Logo" className="w-6 h-6" width={24} height={24} />
         </div>
 
         {/* Right side - User Profile button with dropdown */}
@@ -69,7 +70,7 @@ export function Navbar() {
           >
             <span className="text-[#152C5B] font-medium">{userName}</span>
             <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-              <img src={`${basePath}/user.svg`} alt="User" className="w-4 h-4" />
+              <Image src={`${basePath}/user.svg`} alt="User" className="w-4 h-4" width={16} height={16} />
             </div>
           </button>
 
@@ -84,7 +85,7 @@ export function Navbar() {
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                 onClick={() => setShowDropdown(false)}
               >
-                <img src="/settings.svg" alt="Settings" className="h-4 w-4 mr-2 text-gray-500" />
+                <Image src="/settings.svg" alt="Settings" className="h-4 w-4 mr-2 text-gray-500" width={16} height={16} />
                 Profile settings
               </Link>
               <button
@@ -94,7 +95,7 @@ export function Navbar() {
                 }}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
               >
-                <img src="/logout.svg" alt="Logout" className="h-4 w-4 mr-2 text-gray-500" />
+                <Image src="/logout.svg" alt="Logout" className="h-4 w-4 mr-2 text-gray-500" width={16} height={16} />
                 Log out
               </button>
             </div>

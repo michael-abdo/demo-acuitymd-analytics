@@ -16,6 +16,9 @@ export function useApiData<T>(url: string, options: UseApiDataOptions = {}) {
   // API URLs are handled automatically by Next.js
   const apiUrl = url;
 
+  // Destructure options to handle dependencies properly
+  const { autoLoad = true, transform, onError, deps = [] } = options;
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -25,23 +28,23 @@ export function useApiData<T>(url: string, options: UseApiDataOptions = {}) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         let result = await response.json();
-        if (options.transform) {
-          result = options.transform(result);
+        if (transform) {
+          result = transform(result);
         }
         setData(result);
         setError(null);
       } catch (err: any) {
         setError(err.message);
-        options.onError?.(err);
+        onError?.(err);
       } finally {
         setLoading(false);
       }
     };
 
-    if (options.autoLoad !== false) {
+    if (autoLoad !== false) {
       fetchData();
     }
-  }, [apiUrl, ...(options.deps || [])]);
+  }, [apiUrl, autoLoad, transform, onError, deps]);
 
   const reload = async () => {
     try {
@@ -51,14 +54,14 @@ export function useApiData<T>(url: string, options: UseApiDataOptions = {}) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       let result = await response.json();
-      if (options.transform) {
-        result = options.transform(result);
+      if (transform) {
+        result = transform(result);
       }
       setData(result);
       setError(null);
     } catch (err: any) {
       setError(err.message);
-      options.onError?.(err);
+      onError?.(err);
     } finally {
       setLoading(false);
     }
