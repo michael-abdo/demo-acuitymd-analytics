@@ -15,7 +15,7 @@
     "start:staging": "NODE_ENV=staging next start --port ${PORT}",
     "lint": "next lint",
     "lint:strict": "next lint --max-warnings 0",
-    "db:migrate": "tsx database/run-migrations.ts",
+    "db:migrate": "tsx scripts/database/run-migrations.ts",
     "test:e2e": "node scripts/test-e2e-simple.js",
     "validate": "node scripts/validate-template.js",
     "validate:paths": "./scripts/validate-paths.sh",
@@ -27,7 +27,11 @@
     "test:api": "node scripts/test-api-responses.js",
     "test:content": "node scripts/test-page-content.js",
     "test:complete": "node scripts/test-complete.js",
-    "test:ready": "./scripts/template-ready-check.sh"
+    "test:ready": "./scripts/template-ready-check.sh",
+    "test:db:infrastructure": "node tests/database/infrastructure-test.js",
+    "test:db:connection": "node tests/database/connection-test.js",
+    "test:db:repository": "node tests/database/repository-pattern-test.js",
+    "test:db:all": "npm run test:db:infrastructure && npm run test:db:repository && npm run test:db:connection"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
