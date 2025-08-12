@@ -1,3 +1,6 @@
+# worktrees (managed by git)
+/worktrees/
+
 # dependencies
 /node_modules
 /.pnp
