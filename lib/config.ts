@@ -1,9 +1,17 @@
 /**
- * Simplified Configuration - Industry Standard Approach
+ * Main Configuration Hub - Comprehensive Validation Layer
  * 
- * Following 2024 best practices for NextAuth.js and Azure AD configuration.
- * Minimal, clean configuration with only essential properties.
+ * Environment Loading Call Stack:
+ * 1. .env.{environment} → Next.js loads environment variables
+ * 2. next.config.mjs → BASE_PATH resolution with fallbacks
+ * 3. lib/basepath-config.ts → Path normalization and validation
+ * 4. THIS FILE → Comprehensive validation and config hub
+ * 5. Application components import from here
+ * 
+ * This acts as the singleton configuration processor with fail-fast validation.
  */
+
+import { BASEPATH_CONFIG } from './basepath-config';
 
 // Core application configuration - Industry Standard Approach
 export const config = {
@@ -13,7 +21,9 @@ export const config = {
   AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || '',
   NEXTAUTH_URL: process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT}`,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',
-  BASE_PATH: process.env.BASE_PATH || '',
+  BASE_PATH: BASEPATH_CONFIG.resolved,
+  // Table prefix for shared database isolation
+  DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX || '',
   NODE_ENV: process.env.NODE_ENV || 'development' as 'development' | 'production' | 'test' | 'staging',
   
   // Commonly used properties (backward compatibility)
@@ -30,11 +40,14 @@ export const config = {
   MYSQL_DATABASE: process.env.MYSQL_DATABASE || 'vvg_template',
   DATABASE_URL: process.env.DATABASE_URL || '',
   
-  // Storage configuration
+  // Storage configuration (shared resources)
   STORAGE_PROVIDER: process.env.STORAGE_PROVIDER || 'local',
-  AWS_REGION: process.env.AWS_REGION || 'us-east-1',
-  S3_BUCKET_NAME: process.env.S3_BUCKET_NAME || '',
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
+  AWS_REGION: process.env.AWS_REGION || 'us-west-2',
+  S3_BUCKET_NAME: process.env.S3_BUCKET_NAME || 'vvg-template-shared-bucket',
   S3_FOLDER_PREFIX: process.env.S3_FOLDER_PREFIX || 'documents/',
+  S3_ACCESS: process.env.S3_ACCESS === 'true',
   
   // Application properties
   app: {
@@ -82,10 +95,138 @@ export const FEATURES = {
   devBypass: process.env.FEATURE_DEV_BYPASS !== 'false'
 };
 
-// Extended config with FEATURES
+/**
+ * Comprehensive Configuration Validation Functions
+ */
+export const ConfigValidation = {
+  /**
+   * Validates essential authentication configuration
+   */
+  validateAuth: () => {
+    const errors: string[] = [];
+    
+    if (!config.AZURE_AD_CLIENT_ID) errors.push('AZURE_AD_CLIENT_ID is required');
+    if (!config.AZURE_AD_CLIENT_SECRET) errors.push('AZURE_AD_CLIENT_SECRET is required');
+    if (!config.AZURE_AD_TENANT_ID) errors.push('AZURE_AD_TENANT_ID is required');
+    if (!config.NEXTAUTH_SECRET || config.NEXTAUTH_SECRET === 'fallback-secret-for-build') {
+      errors.push('NEXTAUTH_SECRET must be set for production');
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Authentication configuration errors: ${errors.join(', ')}`);
+    }
+  },
+  
+  /**
+   * Validates database configuration
+   */
+  validateDatabase: () => {
+    const errors: string[] = [];
+    
+    if (!config.DATABASE_URL && !config.MYSQL_HOST) {
+      errors.push('Either DATABASE_URL or MYSQL_HOST must be provided');
+    }
+    
+    if (!config.DATABASE_URL && !config.MYSQL_DATABASE) {
+      errors.push('MYSQL_DATABASE is required when using individual MySQL settings');
+    }
+    
+    // Validate table prefix format
+    if (config.DB_TABLE_PREFIX && !/^[a-zA-Z_][a-zA-Z0-9_]*_?$/.test(config.DB_TABLE_PREFIX)) {
+      errors.push('DB_TABLE_PREFIX must contain only letters, numbers, underscores');
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Database configuration errors: ${errors.join(', ')}`);
+    }
+  },
+  
+  /**
+   * Validates storage configuration
+   */
+  validateStorage: () => {
+    const errors: string[] = [];
+    
+    if (config.STORAGE_PROVIDER === 's3' || config.S3_ACCESS) {
+      if (!config.AWS_ACCESS_KEY_ID) errors.push('AWS_ACCESS_KEY_ID is required for S3');
+      if (!config.AWS_SECRET_ACCESS_KEY) errors.push('AWS_SECRET_ACCESS_KEY is required for S3');
+      if (!config.S3_BUCKET_NAME) errors.push('S3_BUCKET_NAME is required for S3');
+      if (!config.AWS_REGION) errors.push('AWS_REGION is required for S3');
+    }
+    
+    // Validate S3 folder prefix format
+    if (config.S3_FOLDER_PREFIX && !config.S3_FOLDER_PREFIX.endsWith('/')) {
+      console.warn('S3_FOLDER_PREFIX should end with "/" for proper folder structure');
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Storage configuration errors: ${errors.join(', ')}`);
+    }
+  },
+  
+  /**
+   * Validates environment-specific settings
+   */
+  validateEnvironment: () => {
+    const errors: string[] = [];
+    const env = config.NODE_ENV;
+    
+    // Production-specific validations
+    if (env === 'production') {
+      if (!config.NEXTAUTH_URL || config.NEXTAUTH_URL.includes('localhost')) {
+        errors.push('NEXTAUTH_URL must be set to production domain');
+      }
+      
+      if (config.FEATURES.DEV_BYPASS) {
+        console.warn('⚠️ DEV_BYPASS is enabled in production - security risk!');
+      }
+    }
+    
+    // Staging-specific validations
+    if (env === 'staging') {
+      if (!config.DB_TABLE_PREFIX) {
+        console.warn('⚠️ No DB_TABLE_PREFIX set for staging - using production tables');
+      }
+      
+      if (!config.S3_FOLDER_PREFIX || !config.S3_FOLDER_PREFIX.includes('staging')) {
+        console.warn('⚠️ S3_FOLDER_PREFIX should include "staging" for isolation');
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Environment configuration errors: ${errors.join(', ')}`);
+    }
+  },
+  
+  /**
+   * Runs all validations - call this on app startup
+   */
+  validateAll: () => {
+    try {
+      ConfigValidation.validateAuth();
+      ConfigValidation.validateDatabase();
+      ConfigValidation.validateStorage();
+      ConfigValidation.validateEnvironment();
+      
+      console.log(`✅ [Config] All validations passed for ${config.NODE_ENV} environment`);
+    } catch (error) {
+      console.error(`❌ [Config] Validation failed:`, error);
+      if (config.NODE_ENV === 'production') {
+        throw error; // Fail fast in production
+      }
+    }
+  }
+};
+
+// Extended config with FEATURES and validation utilities
 export const extendedConfig = {
   ...config,
-  FEATURES
+  FEATURES,
+  validation: ConfigValidation,
+  basePath: {
+    resolved: BASEPATH_CONFIG.resolved,
+    utilities: BASEPATH_CONFIG.utilities
+  }
 };
 
 // Essential constants only

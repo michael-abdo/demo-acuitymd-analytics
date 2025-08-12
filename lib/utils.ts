@@ -55,12 +55,7 @@ export {
   rowConverter 
 } from './utils/row-converter';
 
-// Export PathResolver from path-resolver utility
-export { 
-  PathResolver, 
-  CommonPaths, 
-  pathResolver 
-} from './utils/path-resolver';
+// PathResolver utilities removed - using Next.js automatic basePath handling
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
