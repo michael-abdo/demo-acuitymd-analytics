@@ -5,10 +5,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 // import { config } from "@/lib/config"; // Removed to avoid circular dependencies
 import { CenteredFormLayout, ErrorTitle } from "@/components/ui";
+import { useBasePath } from "@/lib/hooks";
 
 function ErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const { pagePath } = useBasePath();
 
   const errorMessages: Record<string, { title: string; description: string }> = {
     OAuthCallback: {
@@ -44,7 +46,7 @@ function ErrorContent() {
             </div>
           )}
           <Link
-            href="/sign-in"
+            href={pagePath('/sign-in')}
             className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
           >
             Try Again

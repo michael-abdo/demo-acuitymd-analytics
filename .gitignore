@@ -28,13 +28,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # Environment files - Security critical
+.env
 .env.local
 .env*.local
-
-# Legacy environment files (remove after migration)
 .env.development
 .env.staging
 .env.test
+.env.production
 
 # vercel
 .vercel

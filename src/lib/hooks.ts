@@ -1,4 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
+import { pagePath, apiPath, assetPath } from './utils/path-utils';
 
 export interface UseApiDataOptions {
   refreshInterval?: number;
@@ -158,5 +161,19 @@ export function useAsyncOperation<T = any>(options: UseAsyncOperationOptions = {
   };
 
   return { execute, loading, error, data, reset };
+}
+
+/**
+ * useBasePath hook for client components
+ * 
+ * Provides path utilities for navigation and API calls in React components
+ */
+export function useBasePath() {
+  return {
+    pagePath,
+    apiPath,
+    assetPath,
+    basePath: process.env.NEXT_PUBLIC_BASE_PATH || ''
+  };
 }
 

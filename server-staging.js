@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Load environment variables from .env.staging
+require('dotenv').config({ path: '.env.staging' });
+
 // Custom Next.js server for staging with .next-staging directory
 process.env.NODE_ENV = 'production';
 process.env.ENVIRONMENT = 'staging';

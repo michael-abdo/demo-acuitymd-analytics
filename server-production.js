@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Load environment variables from .env.production
+require('dotenv').config({ path: '.env.production' });
+
 // Custom Next.js server for production with .next-production directory
 process.env.NODE_ENV = 'production';
 
