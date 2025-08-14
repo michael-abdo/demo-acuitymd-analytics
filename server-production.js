@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
-// Load environment variables from .env.production
-require('dotenv').config({ path: '.env.production' });
+// Load environment variables using industry standard approach
+// First load base .env, then overlay with env/.env.production
+require('dotenv').config({ path: '.env' });
+require('dotenv').config({ path: 'env/.env.production', override: true });
 
 // Custom Next.js server for production with .next-production directory
 process.env.NODE_ENV = 'production';
@@ -14,13 +16,10 @@ const dev = false;
 const hostname = 'localhost';
 const port = process.env.PORT || 3000;
 
-// Configure Next.js to use .next-production directory
+// Configure Next.js to use standard .next directory
 const app = next({ 
   dev,
-  dir: __dirname,
-  conf: {
-    distDir: '.next-production'
-  }
+  dir: __dirname
 });
 
 const handle = app.getRequestHandler();
