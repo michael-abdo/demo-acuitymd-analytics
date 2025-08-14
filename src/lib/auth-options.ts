@@ -2,8 +2,10 @@ import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import { config } from "./config";
 import { logAuthentication } from "./logger";
+import { getAuthorizationParamsWithWorkaround } from "./auth-nextauth-v4-workaround";
 
-// NextAuth.js will automatically handle redirect URIs based on NEXTAUTH_URL
+// NextAuth.js v4 workaround: manually include redirect_uri with basePath
+// Remove this workaround when upgrading to NextAuth v5
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,15 +14,16 @@ export const authOptions: NextAuthOptions = {
       clientSecret: config.AZURE_AD_CLIENT_SECRET,
       tenantId: config.AZURE_AD_TENANT_ID,
       authorization: {
-        params: {
+        params: getAuthorizationParamsWithWorkaround({
           scope: "openid profile email offline_access User.Read"
-        }
+        })
       }
     }),
   ],
   pages: {
     signIn: "/sign-in",
     signOut: "/auth/signout",
+    error: "/auth/error",
   },
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -50,32 +53,17 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      const fullBaseUrl = baseUrl + config.BASE_PATH;
+      // NextAuth v4 handles basePath automatically in most cases
+      // We just need to ensure relative URLs are properly handled
+      console.log('NextAuth redirect callback:', { url, baseUrl });
       
-      // Handle sign-in redirects
-      if (url.includes("/auth/signin")) {
-        return fullBaseUrl + "/sign-in";
-      }
-      
-      // Handle dashboard redirects
-      if (url === "/dashboard" || url.endsWith("/dashboard")) {
-        return fullBaseUrl + "/dashboard";
-      }
-      
-      // Handle relative URLs
+      // For relative URLs, ensure they have the baseUrl
       if (url.startsWith("/")) {
-        return fullBaseUrl + url;
+        return baseUrl + url;
       }
       
-      // Handle same-origin URLs
-      try {
-        if (new URL(url).origin === fullBaseUrl) return url;
-      } catch {
-        // Invalid URL - fall through to default
-      }
-      
-      // Default redirect to dashboard
-      return fullBaseUrl + "/dashboard";
+      // For absolute URLs, return as is
+      return url;
     },
   },
   events: {

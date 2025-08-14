@@ -11,7 +11,8 @@ import { CenteredFormLayout } from "@/components/ui";
 // Client component that uses useSearchParams
 function SignInRedirect() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const callbackUrl = searchParams.get("callbackUrl") || `${basePath}/dashboard`;
   const [isRedirecting, setIsRedirecting] = useState(false);
   
   useEffect(() => {
@@ -26,12 +27,16 @@ function SignInRedirect() {
         } else {
           console.error("Azure AD provider not configured");
           // Fallback to dashboard if provider is not available
-          window.location.href = callbackUrl;
+          window.location.href = callbackUrl.startsWith('/') && !callbackUrl.startsWith(basePath) 
+            ? `${basePath}${callbackUrl}` 
+            : callbackUrl;
         }
       } catch (error) {
         console.error("Sign-in error", error);
         // Fallback to dashboard on error
-        window.location.href = callbackUrl;
+        window.location.href = callbackUrl.startsWith('/') && !callbackUrl.startsWith(basePath) 
+          ? `${basePath}${callbackUrl}` 
+          : callbackUrl;
       }
     };
 

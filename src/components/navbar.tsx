@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
 import { useBasePath } from '@/lib/hooks';
+import { signOut } from '@/lib/auth-client-utils';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -19,8 +20,11 @@ export function Navbar() {
   const handleProfileClick = (e: React.MouseEvent) => {
     if (!session) {
       e.preventDefault();
-      // Use the current page as the callback URL when signing in
-      signIn("azure-ad", { callbackUrl: pathname || pagePath('/dashboard') });
+      // Instead of using signIn, redirect to our sign-in page directly
+      // This ensures basePath is maintained
+      // pathname already includes basePath, so use it directly
+      const currentPath = pathname || pagePath('/dashboard');
+      window.location.href = `${pagePath('/sign-in')}?callbackUrl=${encodeURIComponent(currentPath)}`;
     } else {
       e.preventDefault();
       setShowDropdown(!showDropdown);
@@ -91,7 +95,7 @@ export function Navbar() {
               </Link>
               <button
                 onClick={() => {
-                  signOut({ callbackUrl: pagePath('/dashboard') });
+                  signOut({ callbackUrl: pagePath('/') });
                   setShowDropdown(false);
                 }}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"

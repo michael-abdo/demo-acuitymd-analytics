@@ -56,15 +56,19 @@ export default isDisabled
         },
         pages: {
           signIn: "/sign-in",
+          error: "/auth/error",
         },
       }
     );
 
 // Export config - protect ALL routes except specific public ones
-// Note: Next.js requires static config, so we use a hardcoded matcher
+// Note: Next.js requires static config at build time
+// For basePath support, update this matcher when BASE_PATH changes
 export const config = {
   matcher: [
-    // Protect ALL routes except specific public ones (blacklist pattern)
-    "/((?!api/auth|sign-in|sign-up|_next/static|_next/image|favicon.ico|public).*)",
+    // With basePath - protect basePath routes except public ones
+    '/template/((?!api/auth|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).*)',
+    // Also match root-level auth routes that NextAuth might use
+    '/api/auth/:path*',
   ],
 };
