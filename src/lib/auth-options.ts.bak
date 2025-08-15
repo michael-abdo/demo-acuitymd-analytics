@@ -1,0 +1,136 @@
+import { NextAuthOptions } from "next-auth";
+import AzureADProvider from "next-auth/providers/azure-ad";
+import { config } from "./config";
+import { logAuthentication } from "./logger";
+import { getAuthorizationParamsWithWorkaround } from "./auth-nextauth-v4-workaround";
+
+// NextAuth.js v4 workaround: manually include redirect_uri with basePath
+// Remove this workaround when upgrading to NextAuth v5
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    AzureADProvider({
+      clientId: config.AZURE_AD_CLIENT_ID,
+      clientSecret: config.AZURE_AD_CLIENT_SECRET,
+      tenantId: config.AZURE_AD_TENANT_ID,
+      authorization: {
+        params: getAuthorizationParamsWithWorkaround({
+          scope: "openid profile email offline_access User.Read"
+        })
+      }
+    }),
+  ],
+  pages: {
+    signIn: "/sign-in",
+    signOut: "/auth/signout",
+    error: "/auth/error",
+  },
+  callbacks: {
+    async jwt({ token, account, profile }) {
+      if (account && profile) {
+        token.accessToken = account.access_token;
+        token.id = profile.sub || (profile as any).oid || profile.email;
+        
+        // Log successful authentication
+        logAuthentication('jwt-token-created', token.id as string, {
+          provider: account.provider,
+          email: profile.email
+        });
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.accessToken = token.accessToken as string;
+        
+        // Log session creation
+        logAuthentication('session-created', session.user.id, {
+          email: session.user.email,
+          name: session.user.name
+        });
+      }
+      return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Log for debugging
+      console.log('NextAuth redirect callback:', { url, baseUrl, basePath: config.BASE_PATH });
+      
+      // If URL already includes basePath, return as is
+      if (url.startsWith(config.BASE_PATH)) {
+        return baseUrl + url;
+      }
+      
+      // Handle NextAuth internal redirects
+      if (url.includes("/api/auth/")) {
+        // Don't modify auth API routes
+        return url;
+      }
+      
+      // Handle sign-in redirects
+      if (url.includes("/auth/signin") || url === "/sign-in") {
+        return baseUrl + config.BASE_PATH + "/sign-in";
+      }
+      
+      // Handle error redirects
+      if (url.includes("/auth/error")) {
+        return baseUrl + config.BASE_PATH + "/auth/error";
+      }
+      
+      // Handle dashboard redirects
+      if (url === "/dashboard" || url.endsWith("/dashboard")) {
+        return baseUrl + config.BASE_PATH + "/dashboard";
+      }
+      
+      // Handle relative URLs that don't start with basePath
+      if (url.startsWith("/") && !url.startsWith(config.BASE_PATH)) {
+        return baseUrl + config.BASE_PATH + url;
+      }
+      
+      // Handle absolute URLs on same origin
+      try {
+        const urlObj = new URL(url);
+        const baseUrlObj = new URL(baseUrl);
+        if (urlObj.origin === baseUrlObj.origin) {
+          // If same origin but missing basePath, add it
+          if (!urlObj.pathname.startsWith(config.BASE_PATH)) {
+            return baseUrl + config.BASE_PATH + urlObj.pathname + urlObj.search;
+          }
+          return url;
+        }
+      } catch {
+        // Invalid URL - continue
+      }
+      
+      // Default redirect to dashboard with basePath
+      return baseUrl + config.BASE_PATH + "/dashboard";
+    },
+  },
+  events: {
+    async signIn({ user, account, profile: _profile }) {
+      logAuthentication('user-signed-in', user?.id, {
+        email: user?.email,
+        provider: account?.provider
+      });
+    },
+    async signOut({ token }) {
+      logAuthentication('user-signed-out', token?.id as string);
+    },
+    async createUser({ user }) {
+      logAuthentication('user-created', user?.id, {
+        email: user?.email
+      });
+    },
+    async linkAccount({ user, account }) {
+      logAuthentication('account-linked', user?.id, {
+        provider: account?.provider
+      });
+    }
+  },
+  secret: config.NEXTAUTH_SECRET,
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
+  debug: false,
+};

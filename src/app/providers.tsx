@@ -1,12 +1,12 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { getAuthBasePath } from "@/lib/auth-client-utils";
+import { NEXTAUTH_BASE_PATH } from "@/lib/client-config";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider
-      basePath={getAuthBasePath()}
+      basePath={NEXTAUTH_BASE_PATH}
       refetchInterval={0}
       refetchOnWindowFocus={false}
     >

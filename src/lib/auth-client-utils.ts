@@ -1,13 +1,14 @@
 'use client';
 
 import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from 'next-auth/react';
-import { config } from './config';
+import { NEXTAUTH_BASE_PATH, CLIENT_BASE_PATH } from './client-config';
 
 /**
  * Get the auth base path for NextAuth client configuration
+ * Returns just the basePath for NextAuth v4 SessionProvider
  */
 export function getAuthBasePath() {
-  return process.env.NEXT_PUBLIC_BASE_PATH ? `${process.env.NEXT_PUBLIC_BASE_PATH}/api/auth` : '/api/auth';
+  return CLIENT_BASE_PATH;
 }
 
 /**
@@ -25,8 +26,8 @@ export async function signIn(
   }
   
   // Otherwise, redirect to our sign-in page with basePath
-  const callbackUrl = options?.callbackUrl || `${config.BASE_PATH}/dashboard`;
-  const signInUrl = `${config.BASE_PATH}/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  const callbackUrl = options?.callbackUrl || `${CLIENT_BASE_PATH}/dashboard`;
+  const signInUrl = `${CLIENT_BASE_PATH}/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   
   if (typeof window !== 'undefined') {
     window.location.href = signInUrl;
@@ -37,6 +38,6 @@ export async function signIn(
  * Custom signOut function that properly handles basePath
  */
 export async function signOut(options?: { callbackUrl?: string }) {
-  const callbackUrl = options?.callbackUrl || `${config.BASE_PATH}/`;
+  const callbackUrl = options?.callbackUrl || `${CLIENT_BASE_PATH}/`;
   return nextAuthSignOut({ callbackUrl });
 }
