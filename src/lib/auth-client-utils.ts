@@ -5,10 +5,10 @@ import { NEXTAUTH_BASE_PATH, CLIENT_BASE_PATH } from './client-config';
 
 /**
  * Get the auth base path for NextAuth client configuration
- * Returns just the basePath for NextAuth v4 SessionProvider
+ * Returns the FULL auth API path as required by NextAuth v4 SessionProvider
  */
 export function getAuthBasePath() {
-  return CLIENT_BASE_PATH;
+  return NEXTAUTH_BASE_PATH;
 }
 
 /**
