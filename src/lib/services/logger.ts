@@ -2,10 +2,11 @@
  * Centralized Logging Service
  * 
  * Consolidates all logging patterns used across API routes to follow DRY principle.
- * Replaces scattered console.log statements with standardized, categorized logging.
+ * Uses Pino for high-performance structured logging with conditional verbosity.
  */
 
 import { EnvironmentHelpers } from '../config';
+import { apiLogger, dbLogger, chatLogger, logger as pinoLogger, logIfEnabled } from '../pino-logger';
 
 interface LogContext {
   userEmail?: string;
@@ -14,47 +15,35 @@ interface LogContext {
   [key: string]: any;
 }
 
+// Check if API steps logging is enabled
+const LOG_API_STEPS = process.env.LOG_API_STEPS === 'true';
+
 export const Logger = {
   /**
    * API endpoint operation logging
    */
   api: {
     start: (endpoint: string, userEmail: string, details?: any) => {
-      console.log(`🔍 [${endpoint.toUpperCase()}] Endpoint called`);
-      console.log(`🔍 [${endpoint.toUpperCase()}] User: ${userEmail}`);
-      if (details) {
-        Object.entries(details).forEach(([key, value]) => {
-          console.log(`🔍 [${endpoint.toUpperCase()}] ${key}:`, value);
-        });
+      apiLogger.start('POST', endpoint);
+      if (LOG_API_STEPS || pinoLogger.api.isLevelEnabled('debug')) {
+        pinoLogger.api.debug({ endpoint, userEmail, ...details }, `Endpoint called: ${endpoint}`);
       }
     },
     
     success: (endpoint: string, message: string, details?: any) => {
-      console.log(`✅ [${endpoint.toUpperCase()}] ${message}`);
-      if (details) {
-        console.log(`✅ [${endpoint.toUpperCase()}] Details:`, details);
-      }
+      pinoLogger.api.info({ endpoint, ...details }, message);
     },
     
     error: (endpoint: string, message: string, error?: Error) => {
-      console.log(`❌ [${endpoint.toUpperCase()}] ${message}`);
-      if (error) {
-        console.error(`❌ [${endpoint.toUpperCase()}] Error:`, error.message);
-      }
+      apiLogger.error(error || new Error(message), { endpoint });
     },
     
     step: (endpoint: string, step: string, details?: any) => {
-      console.log(`🔍 [${endpoint.toUpperCase()}] ${step}`);
-      if (details) {
-        console.log(`🔍 [${endpoint.toUpperCase()}] ${step} details:`, details);
-      }
+      apiLogger.step(step, { endpoint, ...details });
     },
     
     warn: (endpoint: string, message: string, details?: any) => {
-      console.warn(`⚠️  [${endpoint.toUpperCase()}] ${message}`);
-      if (details) {
-        console.warn(`⚠️  [${endpoint.toUpperCase()}] Details:`, details);
-      }
+      pinoLogger.api.warn({ endpoint, ...details }, message);
     }
   },
 
@@ -63,27 +52,19 @@ export const Logger = {
    */
   db: {
     operation: (operation: string, details?: any) => {
-      console.log(`🗄️ [DB] ${operation}`);
-      if (details) {
-        console.log(`🗄️ [DB] Details:`, details);
-      }
+      logIfEnabled(pinoLogger.db, 'debug', operation, details);
     },
     
     found: (resource: string, count: number, context?: LogContext) => {
-      const userInfo = context?.userEmail ? ` for ${context.userEmail}` : '';
-      console.log(`🔍 [DB] Found ${count} ${resource}${userInfo}`);
+      logIfEnabled(pinoLogger.db, 'debug', `Found ${count} ${resource}`, context);
     },
     
     missing: (resource: string, context?: LogContext) => {
-      const userInfo = context?.userEmail ? ` for ${context.userEmail}` : '';
-      console.log(`❌ [DB] ${resource} not found${userInfo}`);
+      logIfEnabled(pinoLogger.db, 'debug', `${resource} not found`, context);
     },
     
     error: (message: string, error?: Error) => {
-      console.error(`❌ [DB] ${message}`);
-      if (error) {
-        console.error(`❌ [DB] Error:`, error.message);
-      }
+      dbLogger.error(error || new Error(message));
     }
   },
 
@@ -92,31 +73,19 @@ export const Logger = {
    */
   storage: {
     operation: (operation: string, details?: any) => {
-      console.log(`📁 [STORAGE] ${operation}`);
-      if (details) {
-        console.log(`📁 [STORAGE] Details:`, details);
-      }
+      pinoLogger.documents.debug({ operation, ...details }, operation);
     },
     
     initialized: (provider: string, path?: string) => {
-      console.log(`📁 [STORAGE] Initialized ${provider} provider`);
-      if (path) {
-        console.log(`📁 [STORAGE] Path: ${path}`);
-      }
+      pinoLogger.documents.info({ provider, path }, `Initialized ${provider} provider`);
     },
 
     success: (message: string, details?: any) => {
-      console.log(`✅ [STORAGE] ${message}`);
-      if (details) {
-        console.log(`📁 [STORAGE] Details:`, details);
-      }
+      pinoLogger.documents.info(details || {}, message);
     },
     
     error: (message: string, error?: Error) => {
-      console.error(`❌ [STORAGE] ${message}`);
-      if (error) {
-        console.error(`❌ [STORAGE] Error:`, error.message);
-      }
+      pinoLogger.documents.error({ err: error }, message);
     }
   },
 
@@ -125,32 +94,24 @@ export const Logger = {
    */
   openai: {
     start: (operation: string) => {
-      console.log(`🤖 [OPENAI] ${operation}`);
+      chatLogger.request(operation);
     },
     
     request: (details?: any) => {
-      console.log(`🤖 [OPENAI] Sending request to OpenAI...`);
-      if (details) {
-        console.log(`🤖 [OPENAI] Request details:`, details);
-      }
+      chatLogger.request(details?.model || 'unknown', details?.promptTokens);
     },
     
     response: (content: string) => {
-      console.log(`🤖 [OPENAI] Raw response content:`);
-      console.log('---START RAW RESPONSE---');
-      console.log(content);
-      console.log('---END RAW RESPONSE---');
+      // Only log content if chat details are enabled
+      chatLogger.content(content);
     },
     
     success: (message: string) => {
-      console.log(`✅ [OPENAI] ${message}`);
+      logIfEnabled(pinoLogger.chat, 'info', message);
     },
     
     error: (message: string, error?: Error) => {
-      console.log(`❌ [OPENAI] ${message}`);
-      if (error) {
-        console.error(`❌ [OPENAI] Error:`, error.message);
-      }
+      chatLogger.error(error || new Error(message));
     }
   },
 
@@ -159,25 +120,19 @@ export const Logger = {
    */
   extraction: {
     start: (documentId: number, filename: string) => {
-      console.log(`[Extraction] Starting text extraction for document ${documentId}`);
-      console.log(`[Extraction] Processing: ${filename}`);
+      pinoLogger.documents.info({ documentId, filename }, 'Starting text extraction');
     },
     
     progress: (step: string, details?: any) => {
-      console.log(`[Extraction] ${step}`);
-      if (details) {
-        console.log(`[Extraction] Details:`, details);
-      }
+      pinoLogger.documents.debug({ step, ...details }, step);
     },
     
     success: (documentId: number, length: number) => {
-      console.log(`[Extraction] Extracted ${length} characters`);
-      console.log(`[Extraction] ✅ Completed for document ${documentId}`);
+      pinoLogger.documents.info({ documentId, length }, `Extracted ${length} characters`);
     },
     
     error: (documentId: number, error: Error) => {
-      console.log(`[Extraction] ❌ Failed: ${error.message}`);
-      console.error(`[Extraction] Error for document ${documentId}:`, error);
+      pinoLogger.documents.error({ documentId, err: error }, 'Text extraction failed');
     }
   },
 
@@ -186,17 +141,11 @@ export const Logger = {
    */
   queue: {
     operation: (operation: string, details?: any) => {
-      console.log(`[Queue] ${operation}`);
-      if (details) {
-        console.log(`[Queue] Details:`, details);
-      }
+      pinoLogger.queue.info({ operation, ...details }, operation);
     },
     
     task: (action: string, taskId: number, details?: any) => {
-      console.log(`[Queue] ${action} task ${taskId}`);
-      if (details) {
-        console.log(`[Queue] Task details:`, details);
-      }
+      pinoLogger.queue.info({ action, taskId, ...details }, `${action} task ${taskId}`);
     }
   },
 
@@ -204,73 +153,60 @@ export const Logger = {
    * Generic logging utilities
    */
   info: (message: string, context?: LogContext) => {
-    console.log(`ℹ️ ${message}`);
-    if (context) {
-      console.log(`ℹ️ Context:`, context);
-    }
+    pinoLogger.base.info(context || {}, message);
   },
   
   warn: (message: string, context?: LogContext) => {
-    console.warn(`⚠️ ${message}`);
-    if (context) {
-      console.warn(`⚠️ Context:`, context);
-    }
+    pinoLogger.base.warn(context || {}, message);
   },
   
   error: (message: string, error?: Error, context?: LogContext) => {
-    console.error(`❌ ${message}`);
-    if (error) {
-      console.error(`❌ Error:`, error.message);
-      if (EnvironmentHelpers.isDevelopment()) {
-        console.error(`❌ Stack:`, error.stack);
-      }
-    }
-    if (context) {
-      console.error(`❌ Context:`, context);
-    }
+    pinoLogger.base.error({ err: error, ...context }, message);
   },
   
   debug: (message: string, data?: any) => {
-    if (EnvironmentHelpers.isDevelopment()) {
-      console.log(`🐛 [DEBUG] ${message}`);
-      if (data) {
-        console.log(`🐛 [DEBUG] Data:`, data);
-      }
-    }
+    pinoLogger.base.debug(data || {}, message);
   }
 };
 
 /**
  * Frontend logging utilities for consistent client-side logging
- * Consolidates mixed console.error/console.log usage (DRY: eliminates ~25-30 lines)
+ * Note: These still use console methods as Pino is server-side only
  */
 export const ClientLogger = {
   error: (context: string, message: string, error?: any) => {
-    console.error(`🔴 [${context}] ${message}`, error);
-    // In production, could send to logging service
+    if (typeof window !== 'undefined') {
+      console.error(`[${context}] ${message}`, error);
+    }
   },
   
   warn: (context: string, message: string, data?: any) => {
-    console.warn(`🟡 [${context}] ${message}`, data);
+    if (typeof window !== 'undefined') {
+      console.warn(`[${context}] ${message}`, data);
+    }
   },
   
   info: (context: string, message: string, data?: any) => {
-    console.info(`🔵 [${context}] ${message}`, data);
+    if (typeof window !== 'undefined' && EnvironmentHelpers.isDevelopment()) {
+      console.info(`[${context}] ${message}`, data);
+    }
   },
   
   debug: (context: string, message: string, data?: any) => {
-    if (EnvironmentHelpers.isDevelopment()) {
-      console.debug(`🟢 [${context}] ${message}`, data);
+    if (typeof window !== 'undefined' && EnvironmentHelpers.isDevelopment()) {
+      console.debug(`[${context}] ${message}`, data);
     }
   },
   
   apiError: (operation: string, error: any) => {
-    console.error(`🔴 [API] ${operation} failed:`, error);
+    if (typeof window !== 'undefined') {
+      console.error(`[API] ${operation} failed:`, error);
+    }
   },
   
   userAction: (action: string, data?: any) => {
-    if (EnvironmentHelpers.isDevelopment()) {
-      console.info(`👤 [USER] ${action}`, data);
+    if (typeof window !== 'undefined' && EnvironmentHelpers.isDevelopment()) {
+      console.info(`[USER] ${action}`, data);
     }
   }
 };

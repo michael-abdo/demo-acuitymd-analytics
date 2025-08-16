@@ -1,6 +1,7 @@
 import mysql from 'mysql2/promise'
 import { config } from './config'
-import { logDatabase, logError } from './logger'
+import { logError } from './logger'
+import { dbLogger } from './pino-logger'
 
 // Create a connection pool using centralized config
 const pool = mysql.createPool({
@@ -16,7 +17,7 @@ const pool = mysql.createPool({
 
 // Log connection pool creation (non-sensitive values only)
 if (config.MYSQL_HOST && config.MYSQL_DATABASE) {
-  console.log('MySQL connection pool created with config:', {
+  dbLogger.connection('created', {
     host: config.MYSQL_HOST,
     port: config.MYSQL_PORT,
     user: config.MYSQL_USER,
@@ -53,32 +54,18 @@ export async function executeQuery<T>({ query, values = [] }: { query: string; v
     const rowCount = Array.isArray(results) ? results.length : 
                     results.affectedRows !== undefined ? results.affectedRows : 0
     
-    // Log successful database operation
-    logDatabase(operation, table, duration, {
-      rowCount,
-      query: config.IS_DEVELOPMENT ? query : undefined,
-      values: config.IS_DEVELOPMENT ? values : undefined
-    })
+    // Log successful database operation (only if enabled)
+    dbLogger.query(
+      `${operation} ${table}`,
+      duration,
+      rowCount
+    )
     
     return results as T
   } catch (error) {
-    const duration = Date.now() - start
-    
-    // Log database error
-    logDatabase(operation, table, duration, {
-      error: true,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      query: config.IS_DEVELOPMENT ? query : undefined,
-      values: config.IS_DEVELOPMENT ? values : undefined
-    })
-    
+    // Always log database errors
     if (error instanceof Error) {
-      logError(error, {
-        type: 'database',
-        operation,
-        table,
-        query: config.IS_DEVELOPMENT ? query : undefined
-      })
+      dbLogger.error(error, `${operation} ${table}`)
     }
     
     throw error
@@ -119,8 +106,8 @@ export async function testDatabaseConnection() {
     conn.release();
     const duration = Date.now() - start
     
-    logDatabase('CONNECTION', 'pool', duration, {
-      status: 'success',
+    dbLogger.connection('success', {
+      duration,
       message: 'Connected to database'
     })
     
@@ -129,9 +116,8 @@ export async function testDatabaseConnection() {
   } catch (error) {
     const duration = Date.now() - start
     
-    logDatabase('CONNECTION', 'pool', duration, {
-      status: 'failed',
-      error: true,
+    dbLogger.connection('failed', {
+      duration,
       errorMessage: error instanceof Error ? error.message : String(error)
     })
     

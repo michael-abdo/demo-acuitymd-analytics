@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { logRequest, logError, logPerformance } from './logger'
+import { logError } from './logger'
+import { apiLogger } from './pino-logger'
 
 type ApiHandler = (req: NextRequest, context?: any) => Promise<NextResponse> | NextResponse
 
@@ -10,7 +11,8 @@ export function withLogging(handler: ApiHandler, operationName: string): ApiHand
     
     try {
       // Log incoming API request
-      console.log(`API → ${req.method} ${req.url} [${operationName}]`)
+      const startUrl = new URL(req.url)
+      apiLogger.start(req.method, startUrl.pathname, requestId)
       
       // Execute the handler
       const response = await handler(req, context)
@@ -19,13 +21,8 @@ export function withLogging(handler: ApiHandler, operationName: string): ApiHand
       const duration = Date.now() - start
       
       // Log the API response
-      logRequest(req.method, req.url, response.status, duration)
-      logPerformance(operationName, duration, {
-        requestId,
-        status: response.status,
-        method: req.method,
-        path: new URL(req.url).pathname
-      })
+      const endUrl = new URL(req.url)
+      apiLogger.end(req.method, endUrl.pathname, response.status, duration, requestId)
       
       // Add request ID to response headers
       response.headers.set('X-Request-ID', requestId)
@@ -36,11 +33,12 @@ export function withLogging(handler: ApiHandler, operationName: string): ApiHand
       const duration = Date.now() - start
       
       // Log the error
-      logError(error, {
+      const errorUrl = new URL(req.url)
+      apiLogger.error(error, {
         requestId,
         operation: operationName,
         method: req.method,
-        url: req.url,
+        path: errorUrl.pathname,
         duration
       })
       

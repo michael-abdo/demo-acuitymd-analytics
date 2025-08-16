@@ -40,7 +40,7 @@ const nextConfig = {
       ]
     })
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // Fix Node.js module resolution for client-side builds
     if (!isServer) {
       config.resolve.fallback = {
@@ -59,6 +59,14 @@ const nextConfig = {
         path: false,
       };
     }
+    
+    // Disable Fast Refresh logging in development
+    if (dev && !isServer) {
+      config.infrastructureLogging = {
+        level: 'error',
+      };
+    }
+    
     return config;
   },
   async headers() {
