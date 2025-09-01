@@ -14,7 +14,6 @@ export function getRedis(): Redis {
     
     redis = new Redis(redisUrl, {
       // Minimal config
-      retryDelayOnFailover: 1000,
       maxRetriesPerRequest: 3,
       // Fail gracefully if Redis is down
       lazyConnect: true,

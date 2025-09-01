@@ -1,22 +1,21 @@
-/**
- * Dashboard Statistics Types
- */
-
+// Dashboard types
 export interface DashboardStats {
-  documents: number;      // Total analyzed documents (status = 'processed')
-  comparisons: number;    // Total completed comparisons
-  suggestions: number;    // Total AI suggestions across all comparisons
-  exports: number;        // Total exports (currently not implemented)
-  lastUpdated: string;    // ISO timestamp of when stats were fetched
+  totalDocuments: number;
+  totalUsers: number;
+  processingJobs: number;
+  documents: number;
+  comparisons: number;
+  suggestions: number;
+  exports: number;
 }
 
 export interface DashboardStatsResponse {
-  success: boolean;
-  data?: DashboardStats;
-  error?: string;
+  stats: DashboardStats;
 }
 
-export interface DashboardStatsError {
-  metric: keyof DashboardStats;
-  error: string;
+export interface DashboardDocument {
+  id: string;
+  filename: string;
+  status: 'uploaded' | 'processing' | 'completed' | 'failed';
+  createdAt: Date;
 }

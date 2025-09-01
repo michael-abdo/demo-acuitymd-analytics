@@ -61,46 +61,25 @@ export const logger = {
   base: baseLogger,
 
   // API request/response logging
-  api: baseLogger.child({ 
-    module: 'api',
-    enabled: true 
-  }),
+  api: baseLogger.child({ module: 'api' }),
 
-  // Database operations (conditional)
-  db: baseLogger.child({ 
-    module: 'db',
-    enabled: LOG_DB_QUERIES 
-  }),
+  // Database operations
+  db: baseLogger.child({ module: 'db' }),
 
-  // Chat/OpenAI operations (conditional)
-  chat: baseLogger.child({ 
-    module: 'chat',
-    enabled: LOG_CHAT_DETAILS 
-  }),
+  // Chat/OpenAI operations
+  chat: baseLogger.child({ module: 'chat' }),
 
   // Queue processing
-  queue: baseLogger.child({ 
-    module: 'queue',
-    enabled: true 
-  }),
+  queue: baseLogger.child({ module: 'queue' }),
 
   // Document processing
-  documents: baseLogger.child({ 
-    module: 'documents',
-    enabled: true 
-  }),
+  documents: baseLogger.child({ module: 'documents' }),
 
   // Authentication
-  auth: baseLogger.child({ 
-    module: 'auth',
-    enabled: true 
-  }),
+  auth: baseLogger.child({ module: 'auth' }),
 
-  // Startup logging (conditional)
-  startup: baseLogger.child({ 
-    module: 'startup',
-    enabled: LOG_STARTUP 
-  }),
+  // Startup logging
+  startup: baseLogger.child({ module: 'startup' }),
 };
 
 // Helper functions for conditional logging

@@ -34,7 +34,7 @@ export const queue = {
       console.log(`✅ Job queued: ${jobId}`);
       return jobId;
     } catch (error) {
-      console.error(`❌ Failed to queue job ${jobId}:`, error.message);
+      console.error(`❌ Failed to queue job ${jobId}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   },
@@ -58,7 +58,7 @@ export const queue = {
       console.log(`✅ Job completed: ${job.id}`);
       return true;
     } catch (error) {
-      console.error('❌ Job processing failed:', error.message);
+      console.error('❌ Job processing failed:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }

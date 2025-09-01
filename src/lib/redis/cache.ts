@@ -15,7 +15,7 @@ export const cache = {
       const value = await redis.get(key);
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      console.warn(`Cache get failed for key ${key}:`, error.message);
+      console.warn(`Cache get failed for key ${key}:`, error instanceof Error ? error.message : String(error));
       return null; // Fail gracefully
     }
   },
@@ -28,7 +28,7 @@ export const cache = {
       const redis = getRedis();
       await redis.setex(key, ttlSeconds, JSON.stringify(value));
     } catch (error) {
-      console.warn(`Cache set failed for key ${key}:`, error.message);
+      console.warn(`Cache set failed for key ${key}:`, error instanceof Error ? error.message : String(error));
       // Continue without caching
     }
   },
