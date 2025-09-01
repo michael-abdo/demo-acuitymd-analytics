@@ -93,3 +93,6 @@ tsconfig.tsbuildinfo
 /.next-staging*
 /.next-*
 
+# Dev server pid files
+.dev-server-*.pid
+
