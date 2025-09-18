@@ -1,38 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, StatNumber } from "@/components/ui";
-import { LoadingCard } from "@/components/ui/loading";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@/components/ui";
 import { FileUp, FileText, GitCompare, Download, RefreshCw } from "lucide-react";
 import { PageContainer } from "@/components/page-container";
 import { PageTitle } from "@/components/page-title";
-import { DashboardStats, DashboardStatsResponse } from "@/types/dashboard";
-import { useApiData } from "@/lib/hooks";
 import { toast } from "@/lib/utils/toast";
 
 export default function DashboardClient() {
-  // TODO: Authentication will be handled at page level
-  const isAuthenticated = false; // Temporary until proper auth implemented
+  // TODO: Authentication will be handled at page level  
   const user = { name: "User" }; // Temporary mock
   const router = useRouter();
 
-  // Use consolidated API data hook
-  const { 
-    data: stats, 
-    loading, 
-    error: _error, 
-    reload: fetchStats 
-  } = useApiData<DashboardStats | null>('/api/dashboard/stats', {
-    autoLoad: isAuthenticated,
-    transform: (response: DashboardStatsResponse) => response.data || null,
-    onError: (error) => {
-      // Only show error toast if it's not an auth error
-      if (!error.message.includes('401')) {
-        toast.error.load("statistics", error.message);
-      }
-    },
-    deps: [isAuthenticated]
-  });
+  // Mock data for template - replace with your API calls
+  const stats = {
+    documents: 12,
+    comparisons: 8,
+    suggestions: 24,
+    exports: 6
+  };
+  const loading = false;
+  
+  const fetchStats = () => {
+    toast.info("Refresh clicked - implement your data fetching here");
+  };
 
   return (
     <PageContainer>
@@ -57,14 +48,8 @@ export default function DashboardClient() {
             <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <LoadingCard showDescription={true} />
-            ) : (
-              <>
-                <StatNumber>{stats?.documents || 0}</StatNumber>
-                <p className="text-xs text-muted-foreground">Documents analyzed</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">{stats.documents}</div>
+            <p className="text-xs text-muted-foreground">Documents analyzed</p>
           </CardContent>
         </Card>
         
@@ -73,14 +58,8 @@ export default function DashboardClient() {
             <CardTitle className="text-sm font-medium">Comparisons</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <LoadingCard showDescription={true} />
-            ) : (
-              <>
-                <StatNumber>{stats?.comparisons || 0}</StatNumber>
-                <p className="text-xs text-muted-foreground">Templates compared</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">{stats.comparisons}</div>
+            <p className="text-xs text-muted-foreground">Templates compared</p>
           </CardContent>
         </Card>
         
@@ -89,14 +68,8 @@ export default function DashboardClient() {
             <CardTitle className="text-sm font-medium">Suggestions</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <LoadingCard showDescription={true} />
-            ) : (
-              <>
-                <StatNumber>{stats?.suggestions || 0}</StatNumber>
-                <p className="text-xs text-muted-foreground">AI suggestions generated</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">{stats.suggestions}</div>
+            <p className="text-xs text-muted-foreground">AI suggestions generated</p>
           </CardContent>
         </Card>
         
@@ -105,14 +78,8 @@ export default function DashboardClient() {
             <CardTitle className="text-sm font-medium">Exports</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <LoadingCard showDescription={true} />
-            ) : (
-              <>
-                <StatNumber>{stats?.exports || 0}</StatNumber>
-                <p className="text-xs text-muted-foreground">Documents exported</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">{stats.exports}</div>
+            <p className="text-xs text-muted-foreground">Documents exported</p>
           </CardContent>
         </Card>
       </div>
@@ -155,7 +122,7 @@ export default function DashboardClient() {
               size="lg" 
               variant="outline"
               onClick={() => {
-                toast.info.custom("Feature coming soon", "Export functionality is being developed.");
+                toast.info("Feature coming soon - Export functionality is being developed.");
               }}
             >
               <Download className="mr-2 h-5 w-5" />

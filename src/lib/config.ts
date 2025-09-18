@@ -21,7 +21,7 @@ export const config = {
   AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || '',
   NEXTAUTH_URL: process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT}`,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',
-  BASE_PATH: BASEPATH_CONFIG.resolved,
+  BASE_PATH: BASEPATH_CONFIG.basePath,
   // Table prefix for shared database isolation
   DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX || '',
   NODE_ENV: (process.env.NODE_ENV || 'development') as 'development' | 'production' | 'test' | 'staging',
@@ -225,8 +225,8 @@ export const extendedConfig = {
   FEATURES,
   validation: ConfigValidation,
   basePath: {
-    resolved: BASEPATH_CONFIG.resolved,
-    utilities: BASEPATH_CONFIG.utilities
+    resolved: BASEPATH_CONFIG.basePath,
+    utilities: BASEPATH_CONFIG.publicBasePath
   }
 };
 

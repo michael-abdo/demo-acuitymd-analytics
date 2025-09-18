@@ -49,7 +49,7 @@ export function validateConfig(): RequiredConfig {
     if (!value) {
       errors.push(`Missing required: ${varName}`);
     } else {
-      config[varName as keyof RequiredConfig] = value as any;
+      (config as any)[varName] = value;
     }
   }
   

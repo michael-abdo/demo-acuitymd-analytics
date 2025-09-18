@@ -4,7 +4,7 @@
  */
 
 import mysql from 'mysql2/promise';
-import { logger } from '../pino-logger';
+// import { logger } from '../pino-logger';
 
 const pool = mysql.createPool({
   uri: process.env.DATABASE_URL!,
@@ -15,7 +15,7 @@ const pool = mysql.createPool({
 
 // Store globally for safe shutdown
 if (typeof global !== 'undefined') {
-  global.dbPool = pool;
+  (global as any).dbPool = pool;
 }
 
 export async function executeQuery(sql: string, params: any[] = []) {
@@ -25,7 +25,7 @@ export async function executeQuery(sql: string, params: any[] = []) {
   console.log(`Executing query ${queryId}: ${sql}`);
   
   try {
-    const [rows, fields] = await pool.execute(sql, params);
+    const [rows, _fields] = await pool.execute(sql, params);
     
     const duration = performance.now() - startTime;
     console.log(`Query ${queryId} completed in ${Math.round(duration)}ms`);
@@ -33,7 +33,6 @@ export async function executeQuery(sql: string, params: any[] = []) {
     return rows;
     
   } catch (error) {
-    const duration = performance.now() - startTime;
     console.error('❌ FATAL: Database operation failed');
     console.error(`💡 Query: ${sql}`);
     console.error(`💡 Error: ${error instanceof Error ? error.message : String(error)}`);
