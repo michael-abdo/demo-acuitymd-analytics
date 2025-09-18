@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:standalone": "tsc --noEmit && next build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "next lint && npm run type-check",
+    "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "docker:up": "docker-compose up -d",
     "queue:worker": "node scripts/queue-worker.js",
