@@ -1,23 +1,28 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/api/with-auth';
 
-export async function GET(_request: NextRequest) {
+export const GET = withAuth(async (_request, { userEmail }) => {
   try {
-    // Simplified documents endpoint to avoid circular dependencies
-    // In a real implementation, this would check authentication and fetch documents
+    // Now we have access to the authenticated session
+    // This follows the DAL pattern - authentication happens at data access level
     
+    // TODO: Implement actual document fetching logic here
+    // For now, return a success response with user info
     return NextResponse.json({
-      success: false,
-      error: 'Authentication required',
-      message: 'Document listing requires authentication',
+      success: true,
+      message: 'Documents retrieved successfully',
+      user: userEmail,
+      documents: [], // TODO: Fetch actual documents from database
       timestamp: new Date().toISOString()
-    }, { status: 401 });
+    }, { status: 200 });
     
   } catch (error) {
     return NextResponse.json({
       success: false,
       error: 'Failed to fetch documents',
+      details: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }, { status: 500 });
   }
-}
+});
