@@ -21,7 +21,7 @@ export function AuthGuard({ children, requireAuth = true }: AuthGuardProps) {
   useEffect(() => {
     if (requireAuth && status === 'unauthenticated') {
       console.log('🔒 Authentication required - redirecting to sign in');
-      router.push('/auth/signin');
+      router.push('/sign-in');
     }
   }, [status, requireAuth, router]);
 
