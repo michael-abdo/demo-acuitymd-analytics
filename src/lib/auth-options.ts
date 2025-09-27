@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import { config } from "./config";
 import { logAuthentication } from "./logger";
+import { constructRedirectUri } from "./auth-nextauth-v4-workaround";
 // Simple Azure AD configuration matching vvg_invoice pattern
 
 export const authOptions: NextAuthOptions = {
@@ -13,7 +14,9 @@ export const authOptions: NextAuthOptions = {
       tenantId: config.AZURE_AD_TENANT_ID,
       authorization: {
         params: {
-          scope: "openid profile email"
+          scope: "openid profile email",
+          // NextAuth v4 workaround: explicitly set redirect_uri
+          redirect_uri: constructRedirectUri('azure-ad')
         }
       }
     }),
@@ -125,7 +128,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
   // Configure cookies to work with proxy - Use BASE_PATH for cookie isolation
   cookies: {
     sessionToken: {

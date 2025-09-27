@@ -56,17 +56,8 @@ export function constructRedirectUri(provider: string = 'azure-ad'): string {
   return redirectUri;
 }
 
-/**
- * Gets the authorization parameters with the redirect_uri workaround
- * 
- * This adds the redirect_uri parameter that NextAuth v4 doesn't include automatically
- */
-export function getAuthorizationParamsWithWorkaround(additionalParams: Record<string, string> = {}) {
-  return {
-    ...additionalParams,
-    redirect_uri: constructRedirectUri('azure-ad')
-  };
-}
+// NOTE: getAuthorizationParamsWithWorkaround function was removed as it's no longer used
+// after aligning with vvg_invoice authentication pattern
 
 // TypeScript declaration for the global flag
 declare global {
