@@ -2,7 +2,6 @@ import { NextAuthOptions } from "next-auth";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import { config } from "./config";
 import { logAuthentication } from "./logger";
-import { constructRedirectUri } from "./auth-nextauth-v4-workaround";
 // Simple Azure AD configuration matching vvg_invoice pattern
 
 export const authOptions: NextAuthOptions = {
@@ -15,8 +14,7 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: {
           scope: "openid profile email",
-          // NextAuth v4 workaround: explicitly set redirect_uri
-          redirect_uri: constructRedirectUri('azure-ad')
+          redirect_uri: `${config.NEXTAUTH_URL || 'http://localhost:3000'}/api/auth/callback/azure-ad`
         }
       }
     }),
