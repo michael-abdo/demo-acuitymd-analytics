@@ -31,7 +31,7 @@ function AuthErrorContent() {
       <p className="text-gray-600 mb-6">{getErrorMessage(error)}</p>
       <div className="flex gap-4 justify-center">
         <Button
-          onClick={() => router.push(pagePath('/sign-in'))}
+          onClick={() => router.push(pagePath('/sign-in?manual=true'))}
           variant="default"
         >
           Try Again
