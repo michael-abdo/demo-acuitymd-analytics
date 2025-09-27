@@ -66,7 +66,9 @@ export default isDisabled
 // For basePath support, update this matcher when BASE_PATH changes
 export const config = {
   matcher: [
-    // With basePath - protect basePath routes except public ones
+    // Root routes (when BASE_PATH is empty) - protect all except public ones
+    '/((?!api/auth|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).*)',
+    // With basePath - protect basePath routes except public ones  
     '/template/((?!api/auth|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).*)',
     // Also match root-level auth routes that NextAuth might use
     '/api/auth/:path*',
