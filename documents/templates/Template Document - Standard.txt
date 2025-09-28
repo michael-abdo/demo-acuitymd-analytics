@@ -1,0 +1,35 @@
+GENERIC DOCUMENT TEMPLATE - STANDARD FORMAT
+
+This is a sample template document that can be used for testing the document processing capabilities of the VVG Template system.
+
+SECTION 1: OVERVIEW
+This template document demonstrates the structure and format that can be processed by the system. It includes various sections that would typically be found in business documents.
+
+SECTION 2: STANDARD PROVISIONS
+- Document processing and text extraction
+- File upload and storage capabilities  
+- User authentication and authorization
+- Queue-based asynchronous processing
+
+SECTION 3: TECHNICAL SPECIFICATIONS
+The system supports the following file formats:
+- PDF documents (.pdf)
+- Microsoft Word documents (.docx)
+- Plain text files (.txt)
+
+SECTION 4: PROCESSING FEATURES
+Key features available:
+1. Automatic text extraction from uploaded documents
+2. Secure file storage (local or AWS S3)
+3. User document management
+4. Health monitoring and logging
+
+SECTION 5: CONFIGURATION
+The template system is highly configurable and can be adapted for various document types including:
+- Legal contracts
+- Policy documents
+- Technical specifications
+- Business agreements
+- Standard operating procedures
+
+This template document serves as an example of the type of content that can be processed by the system.
