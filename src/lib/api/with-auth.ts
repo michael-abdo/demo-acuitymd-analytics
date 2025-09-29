@@ -6,10 +6,20 @@
  * at the data access level, following 2025 best practices.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth/session-validator';
 import { Session } from 'next-auth';
 import logger from '@/lib/pino-logger';
+import { documentService } from '@/lib/services';
+import { IDocumentService } from '@/lib/services/interfaces/document.service.interface';
+import { ApiResponseUtil } from '@/lib/response';
+
+/**
+ * Services container for dependency injection
+ */
+export interface ServiceContainer {
+  documentService: IDocumentService;
+}
 
 /**
  * Context passed to authenticated route handlers
@@ -17,6 +27,7 @@ import logger from '@/lib/pino-logger';
 export interface AuthContext {
   session: Session;
   userEmail: string;
+  services: ServiceContainer;
 }
 
 /**
@@ -29,17 +40,34 @@ type AuthenticatedRouteHandler = (
 ) => Promise<Response> | Response;
 
 /**
- * Wraps an API route handler with authentication
+ * Optional configuration for withAuth wrapper
+ */
+export interface WithAuthOptions {
+  services?: Partial<ServiceContainer>;
+}
+
+/**
+ * Wraps an API route handler with authentication and service dependency injection
+ * 
+ * @param handler - The route handler function to wrap
+ * @param options - Optional configuration including custom services for testing
  * 
  * @example
  * ```typescript
- * export const GET = withAuth(async (request, { session, userEmail }) => {
- *   // Route handler has access to authenticated session
- *   return NextResponse.json({ user: userEmail });
+ * export const GET = withAuth(async (request, { session, userEmail, services }) => {
+ *   // Route handler has access to authenticated session and injected services
+ *   const documents = await services.documentService.getUserDocuments(userEmail);
+ *   return ApiResponseUtil.success(documents);
  * });
  * ```
+ * 
+ * @example Custom services for testing:
+ * ```typescript
+ * const mockDocumentService = new MockDocumentService();
+ * export const GET = withAuth(handler, { services: { documentService: mockDocumentService } });
+ * ```
  */
-export function withAuth(handler: AuthenticatedRouteHandler) {
+export function withAuth(handler: AuthenticatedRouteHandler, options?: WithAuthOptions) {
   return async (request: NextRequest, params?: any) => {
     try {
       // Authenticate request using existing requireAuth utility
@@ -52,13 +80,25 @@ export function withAuth(handler: AuthenticatedRouteHandler) {
         userEmail: session.user?.email,
       });
 
-      // Create auth context
+      // Create default services container
+      const defaultServices: ServiceContainer = {
+        documentService,
+      };
+
+      // Merge with custom services if provided (useful for testing)
+      const services: ServiceContainer = {
+        ...defaultServices,
+        ...options?.services,
+      };
+
+      // Create auth context with injected services
       const context: AuthContext = {
         session,
         userEmail: session.user?.email || '',
+        services,
       };
 
-      // Call the wrapped handler with auth context
+      // Call the wrapped handler with auth context and injected services
       return await handler(request, context, params);
       
     } catch (error) {
@@ -69,14 +109,8 @@ export function withAuth(handler: AuthenticatedRouteHandler) {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
-      // Return 401 Unauthorized for auth failures
-      return NextResponse.json(
-        { 
-          error: 'Unauthorized',
-          message: 'Authentication required to access this resource'
-        },
-        { status: 401 }
-      );
+      // Return 401 Unauthorized for auth failures using standardized response utility
+      return ApiResponseUtil.unauthorized('Authentication required to access this resource');
     }
   };
 }
