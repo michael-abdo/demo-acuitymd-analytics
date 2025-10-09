@@ -3,7 +3,13 @@
  * Provides consistent error handling patterns for service layer operations
  */
 
-import { ServiceError } from './service-errors';
+import { 
+  ServiceError, 
+  ValidationError, 
+  InfrastructureError, 
+  NotFoundError, 
+  AuthorizationError 
+} from './service-errors';
 
 /**
  * Configuration for error handling behavior
@@ -85,7 +91,6 @@ export class ServiceErrorHandler {
       if (error instanceof Error) {
         if (error.message.includes('Database operation failed')) {
           // Infrastructure error from repository layer
-          const { InfrastructureError } = require('./service-errors');
           throw new InfrastructureError(
             `${serviceName} operation failed: ${operationName}`,
             'database',
@@ -96,7 +101,6 @@ export class ServiceErrorHandler {
         
         if (error.message.includes('not found')) {
           // Not found error
-          const { NotFoundError } = require('./service-errors');
           throw new NotFoundError(
             error.message,
             serviceName.replace('Service', '').toLowerCase(),
@@ -107,7 +111,6 @@ export class ServiceErrorHandler {
         
         if (error.message.includes('Access denied')) {
           // Authorization error
-          const { AuthorizationError } = require('./service-errors');
           throw new AuthorizationError(
             error.message,
             userId,
@@ -118,7 +121,6 @@ export class ServiceErrorHandler {
       }
       
       // Default: wrap as infrastructure error
-      const { InfrastructureError } = require('./service-errors');
       throw new InfrastructureError(
         `Unexpected error in ${serviceName}.${operationName}`,
         serviceName,
@@ -137,7 +139,6 @@ export class ServiceErrorHandler {
     context?: Record<string, any>
   ): void {
     if (value === undefined || value === null) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} is required`,
         fieldName,
@@ -147,7 +148,6 @@ export class ServiceErrorHandler {
     }
     
     if (typeof value === 'string' && value.trim() === '') {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} cannot be empty`,
         fieldName,
@@ -168,7 +168,6 @@ export class ServiceErrorHandler {
     context?: Record<string, any>
   ): void {
     if (typeof value !== 'number' || isNaN(value)) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be a valid number`,
         fieldName,
@@ -178,7 +177,6 @@ export class ServiceErrorHandler {
     }
     
     if (min !== undefined && value < min) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be at least ${min}`,
         fieldName,
@@ -188,7 +186,6 @@ export class ServiceErrorHandler {
     }
     
     if (max !== undefined && value > max) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be at most ${max}`,
         fieldName,
@@ -209,7 +206,6 @@ export class ServiceErrorHandler {
     context?: Record<string, any>
   ): void {
     if (typeof value !== 'string') {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be a string`,
         fieldName,
@@ -219,7 +215,6 @@ export class ServiceErrorHandler {
     }
     
     if (minLength !== undefined && value.length < minLength) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be at least ${minLength} characters`,
         fieldName,
@@ -229,7 +224,6 @@ export class ServiceErrorHandler {
     }
     
     if (maxLength !== undefined && value.length > maxLength) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be at most ${maxLength} characters`,
         fieldName,
@@ -249,7 +243,6 @@ export class ServiceErrorHandler {
     context?: Record<string, any>
   ): void {
     if (!allowedValues.includes(value)) {
-      const { ValidationError } = require('./service-errors');
       throw new ValidationError(
         `${fieldName} must be one of: ${allowedValues.join(', ')}`,
         fieldName,
@@ -270,7 +263,6 @@ export class ServiceErrorHandler {
     context?: Record<string, any>
   ): void {
     if (resourceUserId !== currentUserId) {
-      const { AuthorizationError } = require('./service-errors');
       throw new AuthorizationError(
         `Access denied: ${resourceType} does not belong to user`,
         currentUserId,
@@ -290,7 +282,6 @@ export class ServiceErrorHandler {
     context?: Record<string, any>
   ): void {
     if (!resource) {
-      const { NotFoundError } = require('./service-errors');
       throw new NotFoundError(
         `${resourceType} not found`,
         resourceType,

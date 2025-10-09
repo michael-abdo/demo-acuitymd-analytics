@@ -10,7 +10,7 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth/session-validator';
 import { Session } from 'next-auth';
 import logger from '@/lib/pino-logger';
-import { documentService } from '@/lib/services';
+import { simpleDocumentService as documentService } from '@/lib/services/document.service.simple';
 import { IDocumentService } from '@/lib/services/interfaces/document.service.interface';
 import { ApiResponseUtil } from '@/lib/response';
 

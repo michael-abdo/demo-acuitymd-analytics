@@ -13,6 +13,7 @@ import { DocumentRow, IDocumentRepository } from '../repositories/interfaces/doc
 // @ts-ignore - Used as default parameter in constructor
 import { documentRepository } from '../repositories/document.repository';
 import { ServiceErrorHandler } from './errors/service-error-handler';
+import { ValidationError } from './errors/service-errors';
 
 export class DocumentService implements IDocumentService {
   
@@ -137,7 +138,6 @@ export class DocumentService implements IDocumentService {
         
         // Validate there are updates to process
         if (!updates || Object.keys(updates).length === 0) {
-          const { ValidationError } = require('./errors/service-errors');
           throw new ValidationError('No updates provided', 'updates', updates);
         }
         
