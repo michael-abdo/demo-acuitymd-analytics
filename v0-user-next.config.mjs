@@ -4,7 +4,7 @@ const nextConfig = {
     return [
       {
         // Apply CORS headers to all API routes
-        source: `${process.env.BASE_PATH || ''}/api/:path*`,
+        source: '/api/:path*',
         headers: [
           {
             key: 'Access-Control-Allow-Credentials',

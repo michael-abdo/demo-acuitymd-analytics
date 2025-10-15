@@ -1,0 +1,96 @@
+export const dynamic = "force-dynamic";
+
+import { NextRequest } from 'next/server';
+import { withAuth } from '@/lib/api/with-auth';
+import { ApiResponseUtil } from '@/lib/response';
+import { DocumentStatus } from '@/lib/repositories/interfaces/document.repository.interface';
+import { ALLOWED_STATUSES, mapServiceError } from '../utils';
+
+const parseDocumentId = (rawId: string | undefined): number | null => {
+  if (!rawId) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(rawId, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const extractId = (params?: { params?: { id?: string } }): number | null => {
+  const idParam = params?.params?.id;
+  return parseDocumentId(idParam);
+};
+
+export const GET = withAuth(async (_request: NextRequest, { userEmail, services }, params) => {
+  try {
+    const documentId = extractId(params);
+    if (!documentId) {
+      return ApiResponseUtil.validationError('Invalid document id', 'id');
+    }
+
+    const document = await services.documentService.getDocumentById(documentId, userEmail);
+    return ApiResponseUtil.success(
+      document,
+      { requestId: crypto.randomUUID() }
+    );
+  } catch (error) {
+    console.error('API Error in GET /api/documents/[id]:', error);
+    return mapServiceError(error);
+  }
+});
+
+export const PUT = withAuth(async (request: NextRequest, { userEmail, services }, params) => {
+  try {
+    const documentId = extractId(params);
+    if (!documentId) {
+      return ApiResponseUtil.validationError('Invalid document id', 'id');
+    }
+
+    const body = await request.json();
+    const payload = {
+      filename: body?.filename,
+      status: body?.status && ALLOWED_STATUSES.includes(body.status as DocumentStatus)
+        ? (body.status as DocumentStatus)
+        : body?.status
+    };
+
+    const hasUpdates = Object.values(payload).some((value) => value !== undefined);
+    if (!hasUpdates) {
+      return ApiResponseUtil.validationError('No valid fields to update', undefined);
+    }
+
+    const updatedDocument = await services.documentService.updateDocument(documentId, payload, userEmail);
+    return ApiResponseUtil.success(
+      updatedDocument,
+      { requestId: crypto.randomUUID() }
+    );
+  } catch (error) {
+    console.error('API Error in PUT /api/documents/[id]:', error);
+    if (error instanceof SyntaxError) {
+      return ApiResponseUtil.validationError('Invalid JSON payload');
+    }
+    return mapServiceError(error);
+  }
+});
+
+export const DELETE = withAuth(async (_request: NextRequest, { userEmail, services }, params) => {
+  try {
+    const documentId = extractId(params);
+    if (!documentId) {
+      return ApiResponseUtil.validationError('Invalid document id', 'id');
+    }
+
+    await services.documentService.deleteDocument(documentId, userEmail);
+    return ApiResponseUtil.success(
+      null,
+      { requestId: crypto.randomUUID() },
+      204
+    );
+  } catch (error) {
+    console.error('API Error in DELETE /api/documents/[id]:', error);
+    return mapServiceError(error);
+  }
+});

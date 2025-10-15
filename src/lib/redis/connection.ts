@@ -1,6 +1,6 @@
 /**
  * Minimal Redis Connection
- * Single Redis client for both cache and queue
+ * Single Redis client for cache operations
  */
 
 import Redis from 'ioredis';

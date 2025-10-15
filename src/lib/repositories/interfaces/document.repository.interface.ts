@@ -9,6 +9,10 @@ export interface IDocumentRepository {
 
   // Read operations
   getUserDocuments(userId: string): Promise<DocumentRow[]>;
+  getUserDocumentsWithFilters(
+    userId: string,
+    options: DocumentQueryOptions
+  ): Promise<PaginatedDocumentsResult>;
   getDocumentById(id: number): Promise<DocumentRow | null>;
 
   // Update operations
@@ -24,11 +28,12 @@ export interface CreateDocumentData {
   file_path: string;
   file_size: number;
   user_id: string;
+  status?: DocumentStatus;
 }
 
 export interface UpdateDocumentData {
   filename?: string;
-  status?: 'uploaded' | 'processing' | 'completed' | 'failed';
+  status?: DocumentStatus;
 }
 
 export interface DocumentRow {
@@ -37,7 +42,25 @@ export interface DocumentRow {
   file_path: string;
   file_size: number;
   user_id: string;
-  status: 'uploaded' | 'processing' | 'completed' | 'failed';
+  status: DocumentStatus;
   created_at: Date;
   updated_at: Date;
+}
+
+export type DocumentStatus = 'uploaded' | 'processing' | 'completed' | 'failed';
+
+export interface DocumentQueryOptions {
+  status?: DocumentStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: 'created_at' | 'filename';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedDocumentsResult {
+  documents: DocumentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

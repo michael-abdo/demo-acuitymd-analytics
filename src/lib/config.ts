@@ -3,8 +3,8 @@
  * 
  * Environment Loading Call Stack:
  * 1. .env.{environment} → Next.js loads environment variables
- * 2. next.config.mjs → BASE_PATH resolution with fallbacks
- * 3. lib/basepath-config.ts → Path normalization and validation
+ * 2. next.config.mjs → core Next.js configuration (root path)
+ * 3. lib/basepath-config.ts → legacy helper (now fixed to root)
  * 4. THIS FILE → Comprehensive validation and config hub
  * 5. Application components import from here
  * 
@@ -28,7 +28,6 @@ export const config = {
   
   // Commonly used properties (backward compatibility)
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
-  QUEUE_SYSTEM_TOKEN: process.env.QUEUE_SYSTEM_TOKEN || 'development-queue-token',
   IS_DEVELOPMENT: process.env.NODE_ENV === 'development',
   IS_PRODUCTION: process.env.NODE_ENV === 'production',
   
@@ -267,4 +266,3 @@ export const APP_CONSTANTS = {
 export const NODE_ENV = config.NODE_ENV;
 export const IS_DEVELOPMENT = EnvironmentHelpers.isDevelopment();
 export const IS_PRODUCTION = EnvironmentHelpers.isProduction();
-export const QUEUE_SYSTEM_TOKEN = process.env.QUEUE_SYSTEM_TOKEN || 'development-queue-token';

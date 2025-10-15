@@ -7,26 +7,53 @@ import {
   IDocumentService, 
   CreateDocumentInput, 
   UpdateDocumentInput, 
-  DocumentResponse 
+  DocumentResponse,
+  DocumentListResponse
 } from './interfaces/document.service.interface';
-import { DocumentRow, IDocumentRepository } from '../repositories/interfaces/document.repository.interface';
+import { 
+  DocumentRow, 
+  IDocumentRepository,
+  DocumentQueryOptions 
+} from '../repositories/interfaces/document.repository.interface';
 // @ts-ignore - Used as default parameter in constructor
-import { documentRepository } from '../repositories/document.repository';
+import { documentRepository as defaultDocumentRepository } from '../repositories/document.repository';
 
 export class SimpleDocumentService implements IDocumentService {
-  
-  constructor(private documentRepository: IDocumentRepository = documentRepository) {
-    // Dependency injection for repository
+  private readonly documentRepository: IDocumentRepository;
+
+  constructor(documentRepository?: IDocumentRepository) {
+    this.documentRepository = documentRepository ?? defaultDocumentRepository;
   }
   
-  async getUserDocuments(userId: string): Promise<DocumentResponse[]> {
+  async getUserDocuments(userId: string, options: DocumentQueryOptions = {}): Promise<DocumentListResponse> {
     try {
       if (!userId || typeof userId !== 'string' || userId.trim() === '') {
         throw new Error('Valid userId is required');
       }
-      
-      const documents = await this.documentRepository.getUserDocuments(userId);
-      return this.transformDocumentsForAPI(documents);
+
+      const normalizedOptions: DocumentQueryOptions = {
+        page: options.page ?? 1,
+        pageSize: options.pageSize ?? 25,
+        status: options.status,
+        search: options.search?.trim(),
+        sortBy: options.sortBy ?? 'created_at',
+        sortOrder: options.sortOrder ?? 'desc'
+      };
+
+      const { documents, total, page, pageSize } =
+        await this.documentRepository.getUserDocumentsWithFilters(userId, normalizedOptions);
+      const transformed = this.transformDocumentsForAPI(documents);
+      const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+
+      return {
+        documents: transformed,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages
+        }
+      };
     } catch (error) {
       console.error('Error in getUserDocuments:', error);
       throw new Error('Failed to get documents');
@@ -72,7 +99,8 @@ export class SimpleDocumentService implements IDocumentService {
         filename: data.filename.trim(),
         file_path: data.file_path.trim(),
         file_size: data.file_size,
-        user_id: userId
+        user_id: userId,
+        status: data.status
       };
       
       const result = await this.documentRepository.createDocument(documentData);

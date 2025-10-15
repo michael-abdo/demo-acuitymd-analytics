@@ -3,11 +3,18 @@
  * Defines the contract for document business logic operations
  */
 
-import { DocumentRow } from '../../repositories/interfaces/document.repository.interface';
+import { 
+  DocumentRow, 
+  DocumentQueryOptions, 
+  DocumentStatus 
+} from '../../repositories/interfaces/document.repository.interface';
 
 export interface IDocumentService {
   // Service-level operations with business logic
-  getUserDocuments(userId: string): Promise<DocumentResponse[]>;
+  getUserDocuments(
+    userId: string,
+    options?: DocumentQueryOptions
+  ): Promise<DocumentListResponse>;
   getDocumentById(id: number, userId: string): Promise<DocumentResponse>;
   createDocument(data: CreateDocumentInput, userId: string): Promise<DocumentResponse>;
   updateDocument(id: number, updates: UpdateDocumentInput, userId: string): Promise<DocumentResponse>;
@@ -23,11 +30,12 @@ export interface CreateDocumentInput {
   filename: string;
   file_path: string;
   file_size: number;
+  status?: DocumentStatus;
 }
 
 export interface UpdateDocumentInput {
   filename?: string;
-  status?: 'uploaded' | 'processing' | 'completed' | 'failed';
+  status?: DocumentStatus;
 }
 
 export interface DocumentResponse {
@@ -36,10 +44,20 @@ export interface DocumentResponse {
   file_path: string;
   file_size: number;
   user_id: string;
-  status: 'uploaded' | 'processing' | 'completed' | 'failed';
+  status: DocumentStatus;
   created_at: string;
   updated_at: string;
   // Additional computed fields
   formatted_size: string;
   download_url?: string;
+}
+
+export interface DocumentListResponse {
+  documents: DocumentResponse[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }

@@ -7,32 +7,63 @@ import {
   IDocumentService, 
   CreateDocumentInput, 
   UpdateDocumentInput, 
-  DocumentResponse 
+  DocumentResponse,
+  DocumentListResponse
 } from './interfaces/document.service.interface';
-import { DocumentRow, IDocumentRepository } from '../repositories/interfaces/document.repository.interface';
+import { 
+  DocumentRow, 
+  IDocumentRepository,
+  DocumentQueryOptions
+} from '../repositories/interfaces/document.repository.interface';
 // @ts-ignore - Used as default parameter in constructor
-import { documentRepository } from '../repositories/document.repository';
+import { documentRepository as defaultDocumentRepository } from '../repositories/document.repository';
 import { ServiceErrorHandler } from './errors/service-error-handler';
 import { ValidationError } from './errors/service-errors';
 
 export class DocumentService implements IDocumentService {
-  
-  constructor(private documentRepository: IDocumentRepository = documentRepository) {
-    // Dependency injection for repository
+  private readonly documentRepository: IDocumentRepository;
+
+  constructor(documentRepository?: IDocumentRepository) {
+    this.documentRepository = documentRepository ?? defaultDocumentRepository;
   }
   
-  async getUserDocuments(userId: string): Promise<DocumentResponse[]> {
+  async getUserDocuments(
+    userId: string,
+    options: DocumentQueryOptions = {}
+  ): Promise<DocumentListResponse> {
     return ServiceErrorHandler.withErrorHandling(
       async () => {
         // Validate required input
         ServiceErrorHandler.validateRequired(userId, 'userId');
         ServiceErrorHandler.validateString(userId, 'userId', 1, 255);
+
+        // Normalize pagination options
+        const normalizedOptions: DocumentQueryOptions = {
+          page: options.page ?? 1,
+          pageSize: options.pageSize ?? 25,
+          status: options.status,
+          search: options.search?.trim(),
+          sortBy: options.sortBy ?? 'created_at',
+          sortOrder: options.sortOrder ?? 'desc'
+        };
         
         // Business logic: Get documents from repository
-        const documents = await this.documentRepository.getUserDocuments(userId);
+        const { documents, total, page, pageSize } =
+          await this.documentRepository.getUserDocumentsWithFilters(userId, normalizedOptions);
         
         // Transform for API response
-        return this.transformDocumentsForAPI(documents);
+        const transformed = this.transformDocumentsForAPI(documents);
+        const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+
+        return {
+          documents: transformed,
+          pagination: {
+            page,
+            pageSize,
+            total,
+            totalPages
+          }
+        };
       },
       {
         serviceName: 'DocumentService',
@@ -94,13 +125,18 @@ export class DocumentService implements IDocumentService {
         ServiceErrorHandler.validateString(data.file_path, 'file_path', 1, 500);
         ServiceErrorHandler.validateRequired(data.file_size, 'file_size');
         ServiceErrorHandler.validateNumeric(data.file_size, 'file_size', 1, 100 * 1024 * 1024); // 100MB max
+        if (data.status !== undefined) {
+          const validStatuses: Array<DocumentRow['status']> = ['uploaded', 'processing', 'completed', 'failed'];
+          ServiceErrorHandler.validateEnum(data.status, 'status', validStatuses);
+        }
         
         // Business logic: Prepare data for repository
         const documentData = {
           filename: data.filename.trim(),
           file_path: data.file_path.trim(),
           file_size: data.file_size,
-          user_id: userId
+          user_id: userId,
+          status: data.status
         };
         
         // Create document via repository

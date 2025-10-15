@@ -56,8 +56,8 @@ export interface WithAuthOptions {
  * ```typescript
  * export const GET = withAuth(async (request, { session, userEmail, services }) => {
  *   // Route handler has access to authenticated session and injected services
- *   const documents = await services.documentService.getUserDocuments(userEmail);
- *   return ApiResponseUtil.success(documents);
+ *   const result = await services.documentService.getUserDocuments(userEmail);
+ *   return ApiResponseUtil.success(result);
  * });
  * ```
  * 

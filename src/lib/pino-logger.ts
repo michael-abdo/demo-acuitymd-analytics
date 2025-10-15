@@ -69,9 +69,6 @@ export const logger = {
   // Chat/OpenAI operations
   chat: baseLogger.child({ module: 'chat' }),
 
-  // Queue processing
-  queue: baseLogger.child({ module: 'queue' }),
-
   // Document processing
   documents: baseLogger.child({ module: 'documents' }),
 

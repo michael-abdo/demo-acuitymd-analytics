@@ -5,16 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:standalone": "tsc --noEmit && next build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
     "start": "next start",
-    "lint": "next lint && npm run type-check",
-    "type-check": "tsc --noEmit",
+    "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "docker:up": "docker-compose up -d",
     "test:redis": "node scripts/test-redis.js",
     "validate": "node scripts/startup-validation.js",
     "test": "./scripts/smoke-test-strict.sh",
-    "deploy:prod": "NODE_ENV=production pm2 start ecosystem.config.js --only vvg-app"
+    "deploy:prod": "NODE_ENV=production pm2 start ecosystem.config.js --only vvg-app,vvg-worker"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",

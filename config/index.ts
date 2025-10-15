@@ -52,15 +52,8 @@ const config = {
   // ONLY for special cases where Next.js doesn't handle basePath
   // (like constructing external URLs or manual window.location redirects)
   paths: {
-    // The basePath from Next.js config (rarely needed)
-    base: process.env.NEXT_PUBLIC_BASE_PATH || '',
-    
-    // Only use for edge cases like window.location redirects
-    buildFullUrl: (path: string): string => {
-      if (typeof window === 'undefined') return path;
-      const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
-      return `${base}${path}`;
-    }
+    base: '',
+    buildFullUrl: (path: string): string => path,
   }
 } as const;
 

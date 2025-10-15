@@ -5,13 +5,11 @@ import { Providers } from './providers'
 import PendoScript from '@/components/PendoScript'
 import { Toaster } from '@/components/ui/toaster'
 
-const basePath = process.env.BASE_PATH || '';
-
 export const metadata: Metadata = {
   icons: {
-    icon: `${basePath}/logo.svg`,
-    shortcut: `${basePath}/logo.svg`,
-    apple: `${basePath}/logo.svg`,
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
   },
   title: {
     default: 'VVG Document Processing Template',

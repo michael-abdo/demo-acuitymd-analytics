@@ -1,38 +1,80 @@
 export const dynamic = "force-dynamic";
-import { NextRequest } from 'next/server';
-import { requireAuth } from '@/lib/auth/session-validator';
-import { ApiResponseUtil } from '@/lib/response';
 
-export async function GET(_request: NextRequest) {
+import { NextRequest } from 'next/server';
+import { withAuth } from '@/lib/api/with-auth';
+import { DocumentStatus } from '@/lib/repositories/interfaces/document.repository.interface';
+import { ApiResponseUtil } from '@/lib/response';
+import { 
+  ALLOWED_SORT_BY,
+  ALLOWED_SORT_ORDER,
+  ALLOWED_STATUSES,
+  mapServiceError,
+  parseNumberParam
+} from './utils';
+
+export const GET = withAuth(async (request: NextRequest, { userEmail, services }) => {
   try {
-    // Authenticate request
-    const session = await requireAuth();
-    const userEmail = session.user?.email || '';
-    
-    // TODO: Replace with actual database query
-    // For now, return mock data to test the build
-    const mockDocuments = [
+    const params = request.nextUrl.searchParams;
+    const statusParam = params.get('status');
+    const status = statusParam && ALLOWED_STATUSES.includes(statusParam as DocumentStatus)
+      ? (statusParam as DocumentStatus)
+      : undefined;
+
+    const sortByParam = params.get('sortBy') ?? 'created_at';
+    const sortOrderParam = params.get('sortOrder') ?? 'desc';
+
+    const options = {
+      status,
+      search: params.get('search') ?? undefined,
+      page: parseNumberParam(params.get('page'), 1),
+      pageSize: parseNumberParam(params.get('pageSize'), 25),
+      sortBy: ALLOWED_SORT_BY.has(sortByParam) ? (sortByParam as 'created_at' | 'filename') : 'created_at',
+      sortOrder: ALLOWED_SORT_ORDER.has(sortOrderParam?.toLowerCase() ?? '')
+        ? (sortOrderParam.toLowerCase() as 'asc' | 'desc')
+        : 'desc'
+    };
+
+    const result = await services.documentService.getUserDocuments(userEmail, options);
+
+    return ApiResponseUtil.success(
       {
-        id: 1,
-        filename: 'example.pdf',
-        file_path: '/documents/example.pdf',
-        file_size: 1024000,
-        user_id: userEmail,
-        status: 'completed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        formatted_size: '1.0 MB',
-        download_url: '/api/documents/1/download'
+        documents: result.documents,
+        pagination: result.pagination
+      },
+      {
+        requestId: crypto.randomUUID(),
+        pagination: result.pagination
       }
-    ];
-    
-    // Return successful response using standardized response utility
-    return ApiResponseUtil.success(mockDocuments, {
-      requestId: crypto.randomUUID()
-    });
-    
+    );
   } catch (error) {
     console.error('API Error in GET /api/documents:', error);
-    return ApiResponseUtil.unauthorized('Authentication required to access this resource');
+    return mapServiceError(error);
   }
-}
+});
+
+export const POST = withAuth(async (request: NextRequest, { userEmail, services }) => {
+  try {
+    const body = await request.json();
+
+    const payload = {
+      filename: body?.filename,
+      file_path: body?.file_path,
+      file_size: body?.file_size,
+      status: body?.status as DocumentStatus | undefined
+    };
+
+    const createdDocument = await services.documentService.createDocument(payload, userEmail);
+
+    return ApiResponseUtil.success(
+      createdDocument,
+      { requestId: crypto.randomUUID() },
+      201
+    );
+  } catch (error) {
+    console.error('API Error in POST /api/documents:', error);
+    if (error instanceof SyntaxError) {
+      return ApiResponseUtil.validationError('Invalid JSON payload');
+    }
+    return mapServiceError(error);
+  }
+});
