@@ -7,8 +7,7 @@ import { Suspense } from 'react';
 import { useBasePath } from '@/lib/hooks';
 
 function AuthErrorContent() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+  const error = useSearchParams()?.get('error') ?? null;
   const router = useRouter();
   const { pagePath } = useBasePath();
 

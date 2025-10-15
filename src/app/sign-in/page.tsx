@@ -15,12 +15,12 @@ function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isRedirecting, setIsRedirecting] = useState(false);
-  
+
   // Check if manual mode is enabled via query parameter
-  const isManualMode = searchParams.get('manual') === 'true';
-  
+  const isManualMode = searchParams?.get('manual') === 'true';
+
   // Extract callbackUrl from searchParams or default to dashboard
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
 
   // Simple manual sign-in function (only used in manual mode)
   const handleManualSignIn = async () => {
