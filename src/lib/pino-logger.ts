@@ -75,6 +75,9 @@ export const logger = {
   // Authentication
   auth: baseLogger.child({ module: 'auth' }),
 
+  // Email operations
+  email: baseLogger.child({ module: 'email' }),
+
   // Startup logging
   startup: baseLogger.child({ module: 'startup' }),
 };

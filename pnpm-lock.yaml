@@ -116,9 +116,6 @@ importers:
       docx:
         specifier: ^9.5.1
         version: 9.5.1
-      dotenv:
-        specifier: ^17.0.1
-        version: 17.2.1
       embla-carousel-react:
         specifier: 8.5.1
         version: 8.5.1(react@18.3.1)
@@ -2395,11 +2392,6 @@ packages:
   docx@9.5.1:
     resolution: {integrity: sha512-ABDI7JEirFD2+bHhOBlsGZxaG1UgZb2M/QMKhLSDGgVNhxDesTCDcP+qoDnDGjZ4EOXTRfUjUgwHVuZ6VSTfWQ==}
     engines: {node: '>=10'}
-
-  dotenv@17.2.1:
-    resolution: {integrity: sha512-kQhDYKZecqnM0fCnzI5eIv5L4cAe/iRI+HqMbO/hbRdTAeXDG+M9FjipUxNfbARuEg4iHIbhnhs78BCHNbSxEQ==}
-    engines: {node: '>=12'}
-
   duck@0.1.12:
     resolution: {integrity: sha512-wkctla1O6VfP89gQ+J/yDesM0S7B7XLXjKGzXxMDVFg7uEn706niAtyYovKbyq1oT9YwDcly721/iUWoc8MVRg==}
 
@@ -6668,9 +6660,6 @@ snapshots:
       nanoid: 5.1.5
       xml: 1.0.1
       xml-js: 1.6.11
-
-  dotenv@17.2.1: {}
-
   duck@0.1.12:
     dependencies:
       underscore: 1.13.7

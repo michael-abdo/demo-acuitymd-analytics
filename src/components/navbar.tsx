@@ -47,20 +47,33 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#152C5B] h-14">
       <div className="container mx-auto flex h-full max-w-screen-2xl items-center justify-between px-4">
-        {/* Left side - Anomaly Detector button */}
-        <Link href="/dashboard" className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
-          {/* Document icon */}
-          <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-          </div>
-          <span className="text-[#152C5B] font-medium">{process.env.NEXT_PUBLIC_APP_NAME || 'Template App'}</span>
-        </Link>
+        {/* Left side navigation */}
+        <div className="flex items-center gap-3">
+          <Link href={pagePath('/dashboard')} className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
+            {/* Document icon */}
+            <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <span className="text-[#152C5B] font-medium">{process.env.NEXT_PUBLIC_APP_NAME || 'Template App'}</span>
+          </Link>
+
+          <Link
+            href={pagePath('/email/send')}
+            className={`rounded-full py-1 px-4 text-sm font-medium transition-colors ${
+              pathname?.includes('/email')
+                ? 'bg-white text-[#152C5B]'
+                : 'bg-transparent text-white hover:bg-white/10'
+            }`}
+          >
+            Email Notifications
+          </Link>
+        </div>
 
         {/* Center - Logo */}
         <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">

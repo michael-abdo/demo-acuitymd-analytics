@@ -13,12 +13,14 @@ import logger from '@/lib/pino-logger';
 import { simpleDocumentService as documentService } from '@/lib/services/document.service.simple';
 import { IDocumentService } from '@/lib/services/interfaces/document.service.interface';
 import { ApiResponseUtil } from '@/lib/response';
+import { EmailService, emailService } from '@/lib/services/email.service';
 
 /**
  * Services container for dependency injection
  */
 export interface ServiceContainer {
   documentService: IDocumentService;
+  emailService: EmailService;
 }
 
 /**
@@ -83,6 +85,7 @@ export function withAuth(handler: AuthenticatedRouteHandler, options?: WithAuthO
       // Create default services container
       const defaultServices: ServiceContainer = {
         documentService,
+        emailService,
       };
 
       // Merge with custom services if provided (useful for testing)
