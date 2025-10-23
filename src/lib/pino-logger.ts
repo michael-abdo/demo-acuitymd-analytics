@@ -1,11 +1,10 @@
 import pino from 'pino';
 
-// Determine if we're in production
-const isProduction = process.env.NODE_ENV === 'production';
-const isDevelopment = process.env.NODE_ENV === 'development';
+const runtimeEnv = process.env.NODE_ENV || 'development';
+const isDevelopment = runtimeEnv === 'development';
 
 // Get log level from environment or default based on NODE_ENV
-const LOG_LEVEL = process.env.LOG_LEVEL || (isProduction ? 'warn' : 'info');
+const LOG_LEVEL = process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
 
 // Feature flags for verbose logging
 const LOG_DB_QUERIES = process.env.LOG_DB_QUERIES === 'true';
@@ -115,7 +114,7 @@ export const sampleLog = (loggerInstance: pino.Logger, sampleRate: number = 0.1)
 export const apiLogger = {
   start: (method: string, path: string, requestId?: string) => {
     if (!LOG_API_STEPS && logger.api.level !== 'debug') {
-      // Only log start/end in production, not steps
+      // Only log start/end when detailed step logging is disabled
       logger.api.info({ method, path, requestId }, `→ ${method} ${path}`);
     }
   },

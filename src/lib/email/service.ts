@@ -114,7 +114,7 @@ export class EmailService {
       },
       requestedRecipients: payload.recipients,
       includeAdmin: options.includeAdmin ?? true,
-      includeTest: options.includeTestRecipient ?? config.baseEnvironment !== 'production',
+      includeTest: options.includeTestRecipient ?? config.baseEnvironment === 'development',
     });
 
     if (resolvedRecipients.all.length === 0 || resolvedRecipients.primary.length === 0) {

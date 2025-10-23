@@ -9,7 +9,7 @@ export interface EmailFeatureConfig {
   smtpPort: number;
   smtpUsername?: string;
   smtpPassword?: string;
-  baseEnvironment: 'development' | 'production' | 'test' | 'staging';
+  baseEnvironment: string;
   adminEmail?: string;
   testRecipient?: string;
 }
@@ -20,8 +20,7 @@ function readNumber(value: string | undefined, fallback: number): number {
 }
 
 export function resolveEmailConfig(): EmailFeatureConfig {
-  const baseEnv =
-    (process.env.NODE_ENV as EmailFeatureConfig['baseEnvironment']) || 'development';
+  const baseEnv = process.env.NODE_ENV || 'development';
 
   // Use optional chain because config module can be deleted in certain workspace states
   const emailNotificationsEnabled = Boolean(appConfig?.features?.emailNotifications);

@@ -45,8 +45,6 @@ const config = {
   // Environment
   env: {
     isDevelopment: process.env.NODE_ENV === 'development',
-    isProduction: process.env.NODE_ENV === 'production',
-    isTest: process.env.NODE_ENV === 'test',
   },
 
   // ONLY for special cases where Next.js doesn't handle basePath

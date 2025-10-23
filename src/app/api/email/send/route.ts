@@ -125,7 +125,7 @@ export const POST = withAuth(async (request: NextRequest, { userEmail, session, 
   try {
     const result = await services.emailService.sendEmail(payload, {
       includeAdmin: body.includeAdmin ?? true,
-      includeTestRecipient: body.includeTestRecipient ?? config.baseEnvironment !== 'production',
+      includeTestRecipient: body.includeTestRecipient ?? config.baseEnvironment === 'development',
     });
 
     return ApiResponseUtil.success(result, undefined, 202);

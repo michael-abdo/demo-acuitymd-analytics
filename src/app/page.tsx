@@ -12,7 +12,7 @@ export default function Home() {
             Document Processing Template
           </h1>
           <p className="text-xl text-gray-600 mb-8">
-            A production-ready Next.js template for document upload, processing, and comparison.
+            A Next.js starter for document upload, processing, and comparison.
             Built with TypeScript, Tailwind CSS, and enterprise-grade security.
           </p>
           <div className="flex gap-4 justify-center">

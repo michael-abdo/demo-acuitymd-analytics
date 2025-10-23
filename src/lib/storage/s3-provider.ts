@@ -1,7 +1,7 @@
 /**
  * S3 Storage Provider
  * 
- * Implements storage using AWS S3 for production use.
+ * Implements storage using AWS S3 when you connect to cloud storage.
  */
 
 import {

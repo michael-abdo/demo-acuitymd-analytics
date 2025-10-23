@@ -66,7 +66,7 @@ export const POST = withAuth(async (request: NextRequest, { userEmail, services 
       reason: recipient.reason,
     })),
     includeAdmin: body.includeAdmin ?? true,
-    includeTest: body.includeTestRecipient ?? config.baseEnvironment !== 'production',
+    includeTest: body.includeTestRecipient ?? config.baseEnvironment === 'development',
   });
 
   const recipients = routingResult.all.map((recipient) => ({

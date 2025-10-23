@@ -13,6 +13,8 @@
 
 import { BASEPATH_CONFIG } from './basepath-config';
 
+const runtimeEnv = process.env.NODE_ENV || 'development';
+
 // Core application configuration - Industry Standard Approach
 export const config = {
   // Authentication (Essential)
@@ -24,12 +26,11 @@ export const config = {
   BASE_PATH: BASEPATH_CONFIG.basePath,
   // Table prefix for shared database isolation
   DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX || '',
-  NODE_ENV: (process.env.NODE_ENV || 'development') as 'development' | 'production' | 'test' | 'staging',
+  NODE_ENV: runtimeEnv,
   
   // Commonly used properties (backward compatibility)
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
-  IS_DEVELOPMENT: process.env.NODE_ENV === 'development',
-  IS_PRODUCTION: process.env.NODE_ENV === 'production',
+  IS_DEVELOPMENT: runtimeEnv === 'development',
   
   // Database configuration
   MYSQL_HOST: process.env.MYSQL_HOST || 'localhost',
@@ -72,20 +73,6 @@ export const config = {
 // Environment helpers
 export const EnvironmentHelpers = {
   isDevelopment: () => config.NODE_ENV === 'development',
-  isProduction: () => config.NODE_ENV === 'production',
-  isTest: () => config.NODE_ENV === 'test',
-  isStaging: () => config.NODE_ENV === 'staging',
-  
-  requireDevelopment: () => {
-    if (EnvironmentHelpers.isProduction()) {
-      throw new Error('Development-only feature accessed in production');
-    }
-  },
-  
-  devOnlyResponse: () => EnvironmentHelpers.isProduction() 
-    ? new Response(null, { status: 404 })
-    : null,
-    
   hasDbAccess: () => !!(config.DATABASE_URL || (config.MYSQL_HOST && config.MYSQL_DATABASE)),
 };
 
@@ -109,7 +96,7 @@ export const ConfigValidation = {
     if (!config.AZURE_AD_CLIENT_SECRET) errors.push('AZURE_AD_CLIENT_SECRET is required');
     if (!config.AZURE_AD_TENANT_ID) errors.push('AZURE_AD_TENANT_ID is required');
     if (!config.NEXTAUTH_SECRET || config.NEXTAUTH_SECRET === 'fallback-secret-for-build') {
-      errors.push('NEXTAUTH_SECRET must be set for production');
+      errors.push('NEXTAUTH_SECRET must be a securely generated value');
     }
     
     if (errors.length > 0) {
@@ -165,40 +152,6 @@ export const ConfigValidation = {
   },
   
   /**
-   * Validates environment-specific settings
-   */
-  validateEnvironment: () => {
-    const errors: string[] = [];
-    const env = config.NODE_ENV;
-    
-    // Production-specific validations
-    if (env === 'production') {
-      if (!config.NEXTAUTH_URL || config.NEXTAUTH_URL.includes('localhost')) {
-        errors.push('NEXTAUTH_URL must be set to production domain');
-      }
-      
-      if (FEATURES.DEV_BYPASS) {
-        console.warn('⚠️ DEV_BYPASS is enabled in production - security risk!');
-      }
-    }
-    
-    // Staging-specific validations
-    if ((env as string) === 'staging') {
-      if (!config.DB_TABLE_PREFIX) {
-        console.warn('⚠️ No DB_TABLE_PREFIX set for staging - using production tables');
-      }
-      
-      if (!config.S3_FOLDER_PREFIX || !config.S3_FOLDER_PREFIX.includes('staging')) {
-        console.warn('⚠️ S3_FOLDER_PREFIX should include "staging" for isolation');
-      }
-    }
-    
-    if (errors.length > 0) {
-      throw new Error(`Environment configuration errors: ${errors.join(', ')}`);
-    }
-  },
-  
-  /**
    * Runs all validations - call this on app startup
    */
   validateAll: () => {
@@ -206,14 +159,11 @@ export const ConfigValidation = {
       ConfigValidation.validateAuth();
       ConfigValidation.validateDatabase();
       ConfigValidation.validateStorage();
-      ConfigValidation.validateEnvironment();
       
       console.log(`✅ [Config] All validations passed for ${config.NODE_ENV} environment`);
     } catch (error) {
       console.error(`❌ [Config] Validation failed:`, error);
-      if (config.NODE_ENV === 'production') {
-        throw error; // Fail fast in production
-      }
+      throw error;
     }
   }
 };
@@ -265,4 +215,3 @@ export const APP_CONSTANTS = {
 // Legacy exports for backward compatibility - will be removed after migration
 export const NODE_ENV = config.NODE_ENV;
 export const IS_DEVELOPMENT = EnvironmentHelpers.isDevelopment();
-export const IS_PRODUCTION = EnvironmentHelpers.isProduction();

@@ -24,7 +24,7 @@ interface RequiredConfig {
   REDIS_URL?: string;
   
   // Application (strict values)
-  NODE_ENV: 'development' | 'staging' | 'production';
+  NODE_ENV: 'development';
   PORT: string;
   
   // Logging (no console fallback)
@@ -59,7 +59,7 @@ export function validateConfig(): RequiredConfig {
   }
   
   // Validate specific formats
-  if (config.NODE_ENV && !['development', 'staging', 'production'].includes(config.NODE_ENV)) {
+  if (config.NODE_ENV && config.NODE_ENV !== 'development') {
     errors.push(`Invalid NODE_ENV: ${config.NODE_ENV}`);
   }
   

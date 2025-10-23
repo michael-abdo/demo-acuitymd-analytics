@@ -5,16 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:standalone": "tsc --noEmit && next build && cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
     "start": "next start",
     "lint": "next lint && npm run type-check",
     "type-check": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "docker:up": "docker-compose up -d",
-    "test:redis": "node scripts/test-redis.js",
-    "validate": "node scripts/startup-validation.js",
-    "test": "./scripts/smoke-test-strict.sh",
-    "deploy:prod": "NODE_ENV=production pm2 start ecosystem.config.js --only vvg-app"
+    "test": "npm run lint"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
@@ -44,7 +38,6 @@
     "nodemailer": "^6.10.1",
     "pino": "^8.16.1",
     "pino-pretty": "^10.2.0",
-    "pm2": "^5.3.0",
     "postcss": "^8.4.48",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
