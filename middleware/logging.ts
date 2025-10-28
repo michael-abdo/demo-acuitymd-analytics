@@ -1,30 +1,22 @@
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { logRequest } from '@/lib/logger'
+import { NextResponse } from 'next/server'
 
-export function loggingMiddleware(request: NextRequest) {
+/**
+ * Shared logging middleware that stamps a request id header and emits request logs.
+ * Accepts an optional response so callers can chain additional middleware logic.
+ */
+export function loggingMiddleware(request: NextRequest, existingResponse?: NextResponse) {
   const start = Date.now()
-  
-  // Log incoming request
+
   console.log(`→ ${request.method} ${request.nextUrl.pathname}`)
-  
-  // Create a response handler
-  const response = NextResponse.next()
-  
-  // Log response time when available
-  const duration = Date.now() - start
-  
-  // Add request ID header for tracking
+
+  const response = existingResponse ?? NextResponse.next()
+
   const requestId = crypto.randomUUID()
   response.headers.set('X-Request-ID', requestId)
-  
-  // Log the request details
-  logRequest(
-    request.method,
-    request.nextUrl.pathname,
-    response.status || 200,
-    duration
-  )
-  
+
+  const duration = Date.now() - start
+  console.log(`← ${request.method} ${request.nextUrl.pathname} ${response.status || 200} ${duration}ms (requestId=${requestId})`)
+
   return response
 }

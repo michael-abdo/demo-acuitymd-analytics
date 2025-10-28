@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import { EnvironmentHelpers } from "@/lib/config";
+import { loggingMiddleware } from "../middleware/logging";
 
 // Check if middleware should be disabled
 const isDisabled = process.env.DISABLE_MIDDLEWARE === 'true';
@@ -12,33 +13,18 @@ export default isDisabled
     }
   : withAuth(
       function middleware(req) {
-        const start = Date.now();
-        
-        // Log incoming request
-        console.log(`→ ${req.method} ${req.nextUrl.pathname}`);
+        const response = loggingMiddleware(req, NextResponse.next());
         
         // Check for dev bypass header in development
         if (EnvironmentHelpers.isDevelopment() &&
             req.headers.get("X-Dev-Bypass") === "true") {
-          const response = NextResponse.next();
-          const duration = Date.now() - start;
-          console.log(`← ${req.method} ${req.nextUrl.pathname} 200 ${duration}ms`);
           return response;
         }
 
         // Add inline security headers for all requests
-        const response = NextResponse.next();
         response.headers.set('X-Content-Type-Options', 'nosniff');
         response.headers.set('X-Frame-Options', 'DENY');
         response.headers.set('X-XSS-Protection', '1; mode=block');
-        
-        // Add request ID for tracking
-        const requestId = crypto.randomUUID();
-        response.headers.set('X-Request-ID', requestId);
-        
-        // Log the request
-        const duration = Date.now() - start;
-        console.log(`← ${req.method} ${req.nextUrl.pathname} 200 ${duration}ms`);
 
         // Additional custom middleware logic could be added here if needed
         return response;
@@ -66,7 +52,8 @@ export default isDisabled
 // Protect all routes (root-level deployment)
 export const config = {
   matcher: [
-    '/((?!api/auth|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).*)',
+    '/',
+    '/((?!api/auth|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).+)',
     // Also match root-level auth routes that NextAuth might use
     '/api/auth/:path*',
   ],
