@@ -13,6 +13,11 @@
 
 import { BASEPATH_CONFIG } from './basepath-config';
 
+const parseNumber = (value: string | undefined, fallback: number): number => {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
+
 const runtimeEnv = process.env.NODE_ENV || 'development';
 
 // Core application configuration - Industry Standard Approach
@@ -53,6 +58,12 @@ export const config = {
   app: {
     name: process.env.PROJECT_NAME || 'vvg-template',
     email: process.env.SES_FROM_EMAIL || 'noreply@example.com',
+  },
+  queue: {
+    pollIntervalMs: parseNumber(process.env.QUEUE_POLL_INTERVAL_MS, 1000),
+    errorBackoffMs: parseNumber(process.env.QUEUE_ERROR_BACKOFF_MS, 10000),
+    retryDelaySeconds: parseNumber(process.env.QUEUE_RETRY_DELAY_SECONDS, 30),
+    maxAttemptsDefault: parseNumber(process.env.QUEUE_MAX_ATTEMPTS_DEFAULT, 5),
   },
   
   // Email configuration (commonly used)
