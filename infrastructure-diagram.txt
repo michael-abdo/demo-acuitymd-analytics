@@ -1,4 +1,6 @@
-8-Component Infrastructure Pattern - VTC Systems
+Legacy 8-Component Infrastructure Pattern - VTC Systems (PM2/nginx stack)
+NOTE: This diagram documents the historical deployment architecture.
+The current template targets local development only.
 ═══════════════════════════════════════════════════════════
 
 ┌─────────────────────────────────────────────────────────────────┐

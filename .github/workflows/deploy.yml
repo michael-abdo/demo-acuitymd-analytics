@@ -1,4 +1,6 @@
-name: Deploy VVG Template
+# Legacy deployment workflow (PM2/nginx)
+# Retained for reference; current project targets local development only.
+name: Deploy VVG Template (Legacy)
 
 on:
   # Deploy to staging on push to main-staging
