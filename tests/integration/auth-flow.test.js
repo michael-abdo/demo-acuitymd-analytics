@@ -19,6 +19,24 @@ async function testAuthFlow() {
       process.exit(1);
     }
   }
+
+  const basePathEnv = process.env.BASE_PATH;
+  const publicBasePathEnv = process.env.NEXT_PUBLIC_BASE_PATH;
+  const isNullish = (value) => {
+    if (!value) return true;
+    const normalized = value.trim().toLowerCase();
+    return normalized === '' || normalized === 'null';
+  };
+
+  if (!isNullish(basePathEnv)) {
+    console.error(`❌ FATAL: BASE_PATH must be unset (found '${basePathEnv}')`);
+    process.exit(1);
+  }
+
+  if (!isNullish(publicBasePathEnv)) {
+    console.error(`❌ FATAL: NEXT_PUBLIC_BASE_PATH must be unset (found '${publicBasePathEnv}')`);
+    process.exit(1);
+  }
   
   // Validate format
   if (process.env.NEXTAUTH_SECRET.length < 32) {

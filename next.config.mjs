@@ -14,8 +14,6 @@ try {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Production deployment configuration
-  basePath: '',
-  assetPrefix: '',
   generateBuildId: async () => 'build-' + Date.now(),
   
   eslint: {

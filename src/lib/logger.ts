@@ -20,7 +20,7 @@ export function logStartup() {
   startupLogger.info({ env: process.env.NODE_ENV || 'development' }, 'Environment');
   startupLogger.info({ version: process.version }, 'Node Version');
   startupLogger.info({ url: process.env.NEXTAUTH_URL || 'http://localhost:3000' }, 'Next.js URL');
-  startupLogger.info({ basePath: process.env.BASE_PATH || '(root)' }, 'Base Path');
+  startupLogger.info({ basePath: process.env.BASE_PATH ?? null }, 'Base Path');
   startupLogger.info({ pid: process.pid, platform: process.platform }, 'Process Info');
   
   // Only log detailed config in debug mode
