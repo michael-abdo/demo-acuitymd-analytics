@@ -30,13 +30,6 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
     forceSwcTransforms: true,
-    ...(process.env.NODE_ENV === 'development' && {
-      allowedDevOrigins: [
-        '.ngrok.io', '.ngrok-free.app',
-        `localhost:${process.env.PORT}`, 
-        `127.0.0.1:${process.env.PORT}`
-      ]
-    })
   },
   webpack: (config, { isServer, dev }) => {
     // Fix Node.js module resolution for client-side builds
@@ -68,10 +61,34 @@ const nextConfig = {
     return config;
   },
   async headers() {
+    // Content Security Policy - adjust as needed for your app
+    const cspDirectives = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Next.js dev
+      "style-src 'self' 'unsafe-inline'", // inline styles for UI components
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+    ].join('; ');
+
     return [
       {
         source: '/:path*',
         headers: [
+          // HSTS - enforce HTTPS (1 year, include subdomains, preload)
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload',
+          },
+          // CSP - prevent XSS and injection attacks
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives,
+          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',

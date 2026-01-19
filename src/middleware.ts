@@ -7,6 +7,42 @@ import { loggingMiddleware } from "../middleware/logging";
 const isDisabled = process.env.DISABLE_MIDDLEWARE === 'true';
 
 /**
+ * Simple in-memory rate limiter for middleware
+ * Note: For production edge deployments, use Redis or similar distributed store
+ */
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_MAX = 100; // requests per window
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute window
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetTime: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  // Cleanup old entries periodically (every 1000 checks)
+  if (rateLimitMap.size > 10000) {
+    for (const [key, val] of rateLimitMap.entries()) {
+      if (now > val.resetTime) rateLimitMap.delete(key);
+    }
+  }
+
+  // No entry or expired - create new window
+  if (!entry || now > entry.resetTime) {
+    const resetTime = now + RATE_LIMIT_WINDOW_MS;
+    rateLimitMap.set(ip, { count: 1, resetTime });
+    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetTime };
+  }
+
+  // Check if over limit
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return { allowed: false, remaining: 0, resetTime: entry.resetTime };
+  }
+
+  // Increment and allow
+  entry.count++;
+  return { allowed: true, remaining: RATE_LIMIT_MAX - entry.count, resetTime: entry.resetTime };
+}
+
+/**
  * Check if test auth is allowed and header is valid
  * Used for development/CI testing without real sessions
  */
@@ -29,7 +65,39 @@ export default isDisabled
     }
   : withAuth(
       function middleware(req) {
+        // Global rate limiting by IP
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || 'unknown';
+
+        const rateLimit = checkRateLimit(ip);
+
+        if (!rateLimit.allowed) {
+          return new NextResponse(
+            JSON.stringify({
+              error: 'Too many requests',
+              message: 'Rate limit exceeded. Please try again later.',
+              retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+            }),
+            {
+              status: 429,
+              headers: {
+                'Content-Type': 'application/json',
+                'X-RateLimit-Limit': RATE_LIMIT_MAX.toString(),
+                'X-RateLimit-Remaining': '0',
+                'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+                'Retry-After': Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
+              }
+            }
+          );
+        }
+
         const response = loggingMiddleware(req);
+
+        // Add rate limit headers to response
+        response.headers.set('X-RateLimit-Limit', RATE_LIMIT_MAX.toString());
+        response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
+        response.headers.set('X-RateLimit-Reset', rateLimit.resetTime.toString());
 
         // Check for dev bypass header in development
         if (EnvironmentHelpers.isDevelopment() &&
