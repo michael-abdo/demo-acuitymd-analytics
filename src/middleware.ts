@@ -6,15 +6,31 @@ import { loggingMiddleware } from "../middleware/logging";
 // Check if middleware should be disabled
 const isDisabled = process.env.DISABLE_MIDDLEWARE === 'true';
 
+/**
+ * Check if test auth is allowed and header is valid
+ * Used for development/CI testing without real sessions
+ */
+function isTestAuthValid(req: { headers: { get: (key: string) => string | null } }): boolean {
+  // Only allow in non-production when explicitly enabled
+  if (process.env.NODE_ENV === 'production') return false;
+  if (process.env.ALLOW_TEST_AUTH !== 'true') return false;
+
+  const testAuthHeader = req.headers.get('X-Test-Auth');
+  if (!testAuthHeader) return false;
+
+  const expectedSecret = process.env.TEST_AUTH_SECRET;
+  return expectedSecret === testAuthHeader;
+}
+
 // Export middleware - either pass-through or full auth middleware
-export default isDisabled 
-  ? function middleware() { 
+export default isDisabled
+  ? function middleware() {
       return NextResponse.next();
     }
   : withAuth(
       function middleware(req) {
-        const response = loggingMiddleware(req, NextResponse.next());
-        
+        const response = loggingMiddleware(req);
+
         // Check for dev bypass header in development
         if (EnvironmentHelpers.isDevelopment() &&
             req.headers.get("X-Dev-Bypass") === "true") {
@@ -35,6 +51,10 @@ export default isDisabled
             // Allow dev bypass in development
             if (EnvironmentHelpers.isDevelopment() &&
                 req.headers.get("X-Dev-Bypass") === "true") {
+              return true;
+            }
+            // Allow test auth header for API testing (dev/CI)
+            if (isTestAuthValid(req)) {
               return true;
             }
             return !!token;
