@@ -127,9 +127,11 @@ export class DocumentRepository implements IDocumentRepository {
       const orderColumn = allowedSortColumns.has(sortBy ?? '') ? sortBy : 'created_at';
       const orderDirection = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
+      // Note: LIMIT and OFFSET are interpolated directly because mysql2 prepared statements
+      // have issues with these as placeholders. Values are already validated integers.
       const documents = await executeQuery(
-        `SELECT * FROM documents ${whereClause} ORDER BY ${orderColumn} ${orderDirection} LIMIT ? OFFSET ?`,
-        [...args, normalizedPageSize, offset]
+        `SELECT * FROM documents ${whereClause} ORDER BY ${orderColumn} ${orderDirection} LIMIT ${normalizedPageSize} OFFSET ${offset}`,
+        args
       ) as DocumentRow[];
 
       const countResult = await executeQuery(

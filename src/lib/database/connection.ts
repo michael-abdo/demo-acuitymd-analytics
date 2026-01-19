@@ -37,9 +37,9 @@ export async function executeQuery(sql: string, params: any[] = []) {
     console.error(`💡 Query: ${sql}`);
     console.error(`💡 Error: ${error instanceof Error ? error.message : String(error)}`);
     console.error('💡 Check database connection and query syntax');
-    
-    // No fallback - exit immediately
-    process.exit(1);
+
+    // Throw error instead of exit to allow graceful handling
+    throw error;
   }
 }
 
