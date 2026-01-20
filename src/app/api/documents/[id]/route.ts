@@ -19,14 +19,16 @@ const parseDocumentId = (rawId: string | undefined): number | null => {
   return parsed;
 };
 
-const extractId = (params?: { params?: { id?: string } }): number | null => {
-  const idParam = params?.params?.id;
-  return parseDocumentId(idParam);
+// Next.js 15: params is now a Promise
+const extractId = async (paramsPromise?: Promise<{ id?: string }>): Promise<number | null> => {
+  if (!paramsPromise) return null;
+  const params = await paramsPromise;
+  return parseDocumentId(params?.id);
 };
 
-export const GET = withAuth(async (_request: NextRequest, { userEmail, services }, params) => {
+export const GET = withAuth(async (_request: NextRequest, { userEmail, services }, routeParams) => {
   try {
-    const documentId = extractId(params);
+    const documentId = await extractId(routeParams?.params);
     if (!documentId) {
       return ApiResponseUtil.validationError('Invalid document id', 'id');
     }
@@ -42,9 +44,9 @@ export const GET = withAuth(async (_request: NextRequest, { userEmail, services 
   }
 });
 
-export const PUT = withAuth(async (request: NextRequest, { userEmail, services }, params) => {
+export const PUT = withAuth(async (request: NextRequest, { userEmail, services }, routeParams) => {
   try {
-    const documentId = extractId(params);
+    const documentId = await extractId(routeParams?.params);
     if (!documentId) {
       return ApiResponseUtil.validationError('Invalid document id', 'id');
     }
@@ -76,19 +78,16 @@ export const PUT = withAuth(async (request: NextRequest, { userEmail, services }
   }
 });
 
-export const DELETE = withAuth(async (_request: NextRequest, { userEmail, services }, params) => {
+export const DELETE = withAuth(async (_request: NextRequest, { userEmail, services }, routeParams) => {
   try {
-    const documentId = extractId(params);
+    const documentId = await extractId(routeParams?.params);
     if (!documentId) {
       return ApiResponseUtil.validationError('Invalid document id', 'id');
     }
 
     await services.documentService.deleteDocument(documentId, userEmail);
-    return ApiResponseUtil.success(
-      null,
-      { requestId: crypto.randomUUID() },
-      204
-    );
+    // 204 No Content - no body allowed
+    return new Response(null, { status: 204 });
   } catch (error) {
     console.error('API Error in DELETE /api/documents/[id]:', error);
     return mapServiceError(error);

@@ -40,18 +40,8 @@ const baseLogger = pino({
     ],
     censor: '[REDACTED]',
   },
-  ...(isDevelopment && {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-        messageFormat: '{msg}',
-        errorLikeObjectKeys: ['err', 'error'],
-      },
-    },
-  }),
+  // Note: pino-pretty disabled due to Next.js worker bundling issues
+  // Use LOG_LEVEL=silent to disable logging if needed
 });
 
 // Create module-specific child loggers

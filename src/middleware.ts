@@ -141,7 +141,7 @@ export default isDisabled
 export const config = {
   matcher: [
     '/',
-    '/((?!api/auth|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).+)',
+    '/((?!api/auth|api/health|api/db-health|api/storage-health|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).+)',
     // Also match root-level auth routes that NextAuth might use
     '/api/auth/:path*',
   ],

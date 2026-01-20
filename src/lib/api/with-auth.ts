@@ -75,12 +75,16 @@ export function withAuth(handler: AuthenticatedRouteHandler, options?: WithAuthO
       // Authenticate request using existing requireAuth utility
       const session = await requireAuth();
       
-      // Log successful authentication
-      logger.base.info('API route authenticated', {
-        method: request.method,
-        url: request.url,
-        userEmail: session.user?.email,
-      });
+      // Log successful authentication (wrapped to prevent pino worker crashes)
+      try {
+        logger.base.info('API route authenticated', {
+          method: request.method,
+          url: request.url,
+          userEmail: session.user?.email,
+        });
+      } catch {
+        // Ignore logger errors
+      }
 
       // Create default services container
       const defaultServices: ServiceContainer = {

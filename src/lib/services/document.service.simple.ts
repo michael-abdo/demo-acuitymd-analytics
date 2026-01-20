@@ -3,20 +3,21 @@
  * Minimal version without complex error handling to fix build issues
  */
 
-import { 
-  IDocumentService, 
-  CreateDocumentInput, 
-  UpdateDocumentInput, 
+import {
+  IDocumentService,
+  CreateDocumentInput,
+  UpdateDocumentInput,
   DocumentResponse,
   DocumentListResponse
 } from './interfaces/document.service.interface';
-import { 
-  DocumentRow, 
+import {
+  DocumentRow,
   IDocumentRepository,
-  DocumentQueryOptions 
+  DocumentQueryOptions
 } from '../repositories/interfaces/document.repository.interface';
 // @ts-ignore - Used as default parameter in constructor
 import { documentRepository as defaultDocumentRepository } from '../repositories/document.repository';
+import { NotFoundError, AuthorizationError, ValidationError } from './errors/service-errors';
 
 export class SimpleDocumentService implements IDocumentService {
   private readonly documentRepository: IDocumentRepository;
@@ -63,22 +64,22 @@ export class SimpleDocumentService implements IDocumentService {
   async getDocumentById(id: number, userId: string): Promise<DocumentResponse> {
     try {
       if (!id || typeof id !== 'number' || id < 1) {
-        throw new Error('Valid document ID is required');
+        throw new ValidationError('Valid document ID is required', 'id', id);
       }
       if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-        throw new Error('Valid userId is required');
+        throw new ValidationError('Valid userId is required', 'userId');
       }
-      
+
       const document = await this.documentRepository.getDocumentById(id);
-      
+
       if (!document) {
-        throw new Error('Document not found');
+        throw new NotFoundError('Document not found', 'document', id);
       }
-      
+
       if (document.user_id !== userId) {
-        throw new Error('Access denied');
+        throw new AuthorizationError('Access denied', userId, id);
       }
-      
+
       return this.transformDocumentForAPI(document);
     } catch (error) {
       console.error('Error in getDocumentById:', error);
@@ -120,23 +121,23 @@ export class SimpleDocumentService implements IDocumentService {
   async updateDocument(id: number, updates: UpdateDocumentInput, userId: string): Promise<DocumentResponse> {
     try {
       if (!id || typeof id !== 'number' || id < 1) {
-        throw new Error('Valid document ID is required');
+        throw new ValidationError('Valid document ID is required', 'id', id);
       }
       if (!updates || Object.keys(updates).length === 0) {
-        throw new Error('No updates provided');
+        throw new ValidationError('No updates provided', 'updates');
       }
       if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-        throw new Error('Valid userId is required');
+        throw new ValidationError('Valid userId is required', 'userId');
       }
-      
+
       const existingDocument = await this.documentRepository.getDocumentById(id);
-      
+
       if (!existingDocument) {
-        throw new Error('Document not found');
+        throw new NotFoundError('Document not found', 'document', id);
       }
-      
+
       if (existingDocument.user_id !== userId) {
-        throw new Error('Access denied');
+        throw new AuthorizationError('Access denied', userId, id);
       }
       
       const updateData: any = {};
@@ -164,22 +165,22 @@ export class SimpleDocumentService implements IDocumentService {
   async deleteDocument(id: number, userId: string): Promise<void> {
     try {
       if (!id || typeof id !== 'number' || id < 1) {
-        throw new Error('Valid document ID is required');
+        throw new ValidationError('Valid document ID is required', 'id', id);
       }
       if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-        throw new Error('Valid userId is required');
+        throw new ValidationError('Valid userId is required', 'userId');
       }
-      
+
       const existingDocument = await this.documentRepository.getDocumentById(id);
-      
+
       if (!existingDocument) {
-        throw new Error('Document not found');
+        throw new NotFoundError('Document not found', 'document', id);
       }
-      
+
       if (existingDocument.user_id !== userId) {
-        throw new Error('Access denied');
+        throw new AuthorizationError('Access denied', userId, id);
       }
-      
+
       await this.documentRepository.deleteDocument(id);
     } catch (error) {
       console.error('Error in deleteDocument:', error);

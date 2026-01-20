@@ -43,6 +43,7 @@ async function checkTestAuth(): Promise<Session | null> {
       name: 'Test User',
     },
     expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    accessToken: 'test-access-token',
   };
 }
 
