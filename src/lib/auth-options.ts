@@ -128,33 +128,37 @@ export const authOptions: NextAuthOptions = {
   },
   debug: process.env.NODE_ENV === 'development',
   // Configure cookies to work with proxy - Use BASE_PATH for cookie isolation
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: config.BASE_PATH || '/', // Use root path if BASE_PATH is empty
-        // Secure will be auto-detected from X-Forwarded-Proto header
-        secure: false, // Let NextAuth detect from proxy headers
+  // SECURITY: Use secure cookies in production (HTTPS required)
+  cookies: (() => {
+    const useSecureCookies = process.env.NODE_ENV === 'production';
+    const cookiePath = config.BASE_PATH || '/';
+    return {
+      sessionToken: {
+        name: `next-auth.session-token`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax' as const,
+          path: cookiePath,
+          secure: useSecureCookies,
+        },
       },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        sameSite: 'lax',
-        path: config.BASE_PATH || '/', // Use root path if BASE_PATH is empty
-        secure: false, // Let NextAuth detect from proxy headers
+      callbackUrl: {
+        name: `next-auth.callback-url`,
+        options: {
+          sameSite: 'lax' as const,
+          path: cookiePath,
+          secure: useSecureCookies,
+        },
       },
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: config.BASE_PATH || '/', // Use root path if BASE_PATH is empty
-        secure: false, // Let NextAuth detect from proxy headers
+      csrfToken: {
+        name: `next-auth.csrf-token`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax' as const,
+          path: cookiePath,
+          secure: useSecureCookies,
+        },
       },
-    },
-  },
+    };
+  })(),
 };

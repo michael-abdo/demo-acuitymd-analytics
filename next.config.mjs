@@ -61,10 +61,18 @@ const nextConfig = {
     return config;
   },
   async headers() {
-    // Content Security Policy - adjust as needed for your app
+    // Content Security Policy - environment-based for security
+    const isDev = process.env.NODE_ENV === 'development';
+
+    // In production: strict CSP without unsafe-eval
+    // In development: allow unsafe-eval for Next.js hot reload
+    const scriptSrc = isDev
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      : "script-src 'self' 'unsafe-inline'"; // Production: no unsafe-eval
+
     const cspDirectives = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Next.js dev
+      scriptSrc,
       "style-src 'self' 'unsafe-inline'", // inline styles for UI components
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
