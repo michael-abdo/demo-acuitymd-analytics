@@ -1,6 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { EnvironmentHelpers } from "@/lib/config";
+import { EnvironmentHelpers, FEATURES } from "@/lib/config";
 import { loggingMiddleware } from "../middleware/logging";
 
 // Check if middleware should be disabled
@@ -99,9 +99,11 @@ export default isDisabled
         response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString());
         response.headers.set('X-RateLimit-Reset', rateLimit.resetTime.toString());
 
-        // Check for dev bypass header in development
+        // Check for dev bypass header in development (requires explicit feature flag)
         if (EnvironmentHelpers.isDevelopment() &&
+            FEATURES.DEV_BYPASS &&
             req.headers.get("X-Dev-Bypass") === "true") {
+          console.warn('⚠️ [Security] Auth bypassed via X-Dev-Bypass header - FEATURE_DEV_BYPASS=true');
           return response;
         }
 
@@ -116,8 +118,9 @@ export default isDisabled
       {
         callbacks: {
           authorized: ({ token, req }) => {
-            // Allow dev bypass in development
+            // Allow dev bypass in development (requires explicit feature flag)
             if (EnvironmentHelpers.isDevelopment() &&
+                FEATURES.DEV_BYPASS &&
                 req.headers.get("X-Dev-Bypass") === "true") {
               return true;
             }

@@ -87,11 +87,28 @@ export const EnvironmentHelpers = {
   hasDbAccess: () => !!(config.DATABASE_URL || (config.MYSQL_HOST && config.MYSQL_DATABASE)),
 };
 
-// Development features
+// Development features - Security: Bypass features default to OFF
 export const FEATURES = {
-  DEV_BYPASS: process.env.FEATURE_DEV_BYPASS !== 'false',
-  devBypass: process.env.FEATURE_DEV_BYPASS !== 'false'
+  DEV_BYPASS: process.env.FEATURE_DEV_BYPASS === 'true',
+  devBypass: process.env.FEATURE_DEV_BYPASS === 'true'
 };
+
+// Security: Log warnings for enabled dev bypasses at startup
+if (typeof window === 'undefined') {
+  // Server-side only
+  if (FEATURES.DEV_BYPASS) {
+    console.warn('⚠️ [Security] FEATURE_DEV_BYPASS=true - Auth bypass via X-Dev-Bypass header is ENABLED');
+  }
+  if (process.env.DISABLE_AUTH === 'true') {
+    console.warn('⚠️ [Security] DISABLE_AUTH=true - Authentication is DISABLED');
+  }
+  if (process.env.ALLOW_TEST_AUTH === 'true') {
+    console.warn('⚠️ [Security] ALLOW_TEST_AUTH=true - Test auth header bypass is ENABLED');
+  }
+  if (process.env.DISABLE_MIDDLEWARE === 'true') {
+    console.warn('⚠️ [Security] DISABLE_MIDDLEWARE=true - Auth middleware is DISABLED');
+  }
+}
 
 /**
  * Comprehensive Configuration Validation Functions
