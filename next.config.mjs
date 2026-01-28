@@ -70,10 +70,13 @@ const nextConfig = {
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
       : "script-src 'self' 'unsafe-inline'"; // Production: no unsafe-eval
 
+    // SECURITY: CSP directives
+    // Note: 'unsafe-inline' for styles is required for Tailwind CSS/React
+    // Future improvement: implement nonce-based CSP for scripts
     const cspDirectives = [
       "default-src 'self'",
       scriptSrc,
-      "style-src 'self' 'unsafe-inline'", // inline styles for UI components
+      "style-src 'self' 'unsafe-inline'", // Required for Tailwind/React
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https:",
@@ -81,6 +84,8 @@ const nextConfig = {
       "form-action 'self'",
       "base-uri 'self'",
       "object-src 'none'",
+      "upgrade-insecure-requests", // Force HTTPS for all resources
+      "block-all-mixed-content", // Block HTTP resources on HTTPS pages
     ].join('; ');
 
     return [

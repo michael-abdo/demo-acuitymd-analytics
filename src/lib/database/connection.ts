@@ -18,27 +18,39 @@ if (typeof global !== 'undefined') {
   (global as any).dbPool = pool;
 }
 
+// SECURITY: Only log queries in development to prevent data leakage
+const isDev = process.env.NODE_ENV === 'development';
+const enableQueryLogging = isDev && process.env.LOG_QUERIES === 'true';
+
 export async function executeQuery(sql: string, params: any[] = []) {
-  const queryId = crypto.randomUUID();
+  const queryId = crypto.randomUUID().slice(0, 8);
   const startTime = performance.now();
-  
-  console.log(`Executing query ${queryId}: ${sql}`);
-  
+
+  // SECURITY: Never log full queries in production (may contain sensitive data)
+  if (enableQueryLogging) {
+    console.log(`[DB] Query ${queryId}: ${sql.slice(0, 100)}${sql.length > 100 ? '...' : ''}`);
+  }
+
   try {
     const [rows, _fields] = await pool.execute(sql, params);
-    
-    const duration = performance.now() - startTime;
-    console.log(`Query ${queryId} completed in ${Math.round(duration)}ms`);
-    
-    return rows;
-    
-  } catch (error) {
-    console.error('❌ FATAL: Database operation failed');
-    console.error(`💡 Query: ${sql}`);
-    console.error(`💡 Error: ${error instanceof Error ? error.message : String(error)}`);
-    console.error('💡 Check database connection and query syntax');
 
-    // Throw error instead of exit to allow graceful handling
+    const duration = performance.now() - startTime;
+    if (enableQueryLogging) {
+      console.log(`[DB] Query ${queryId} completed in ${Math.round(duration)}ms`);
+    }
+
+    return rows;
+
+  } catch (error) {
+    // SECURITY: Log error without full query in production
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (isDev) {
+      console.error(`[DB] Query ${queryId} failed: ${sql}`);
+      console.error(`[DB] Error: ${errorMessage}`);
+    } else {
+      console.error(`[DB] Query ${queryId} failed: ${errorMessage}`);
+    }
+
     throw error;
   }
 }

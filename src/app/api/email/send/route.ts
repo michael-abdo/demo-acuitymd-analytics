@@ -10,6 +10,7 @@ import {
 } from '@/lib/services/email.service';
 import { resolveEmailConfig, isEmailSendingAllowed } from '@/lib/email/config';
 import { logger } from '@/lib/pino-logger';
+import { validateEmail } from '@/lib/validation/email';
 
 interface RequestRecipient {
   email: string;
@@ -30,12 +31,21 @@ interface SendRequestBody {
 }
 
 function normalizeRecipient(input: string | RequestRecipient): EmailRecipient | null {
-  if (typeof input === 'string') {
-    return { email: input.trim() };
+  const emailStr = typeof input === 'string' ? input : input?.email;
+  if (!emailStr) return null;
+
+  // SECURITY: Validate email format
+  const validation = validateEmail(emailStr);
+  if (!validation.isValid || !validation.sanitized) {
+    return null;
   }
-  if (!input?.email) return null;
+
+  if (typeof input === 'string') {
+    return { email: validation.sanitized };
+  }
+
   return {
-    email: input.email.trim(),
+    email: validation.sanitized,
     name: input.name,
     type: input.type as EmailRecipient['type'],
   };

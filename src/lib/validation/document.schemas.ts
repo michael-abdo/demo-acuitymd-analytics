@@ -3,6 +3,8 @@
  * Validation utilities for document-related operations
  */
 
+import { APP_CONSTANTS } from '../config';
+
 // Validation result type
 export interface ValidationResult {
   isValid: boolean;
@@ -13,6 +15,90 @@ export interface ValidationError {
   field: string;
   message: string;
   code: string;
+}
+
+// SECURITY: File validation utilities
+const ALLOWED_EXTENSIONS = new Set(APP_CONSTANTS.FILE_LIMITS.ALLOWED_EXTENSIONS);
+const ALLOWED_MIME_TYPES = new Set(APP_CONSTANTS.FILE_LIMITS.ALLOWED_MIME_TYPES);
+const MAX_FILE_SIZE = APP_CONSTANTS.FILE_LIMITS.MAX_SIZE;
+
+/**
+ * SECURITY: Validate file extension
+ */
+export function validateFileExtension(filename: string): boolean {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
+  return ALLOWED_EXTENSIONS.has(ext);
+}
+
+/**
+ * SECURITY: Validate MIME type
+ */
+export function validateMimeType(mimeType: string): boolean {
+  return ALLOWED_MIME_TYPES.has(mimeType);
+}
+
+/**
+ * SECURITY: Validate file for upload
+ * Checks extension, MIME type, and size
+ */
+export function validateFileUpload(file: {
+  filename: string;
+  mimeType?: string;
+  size: number;
+}): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  // Check file extension
+  if (!validateFileExtension(file.filename)) {
+    errors.push({
+      field: 'filename',
+      message: `File type not allowed. Allowed: ${Array.from(ALLOWED_EXTENSIONS).join(', ')}`,
+      code: 'INVALID_FILE_TYPE'
+    });
+  }
+
+  // Check MIME type if provided
+  if (file.mimeType && !validateMimeType(file.mimeType)) {
+    errors.push({
+      field: 'mimeType',
+      message: `MIME type not allowed. Allowed: ${Array.from(ALLOWED_MIME_TYPES).join(', ')}`,
+      code: 'INVALID_MIME_TYPE'
+    });
+  }
+
+  // Check file size
+  if (file.size > MAX_FILE_SIZE) {
+    errors.push({
+      field: 'size',
+      message: `File too large. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+      code: 'FILE_TOO_LARGE'
+    });
+  }
+
+  if (file.size <= 0) {
+    errors.push({
+      field: 'size',
+      message: 'File cannot be empty',
+      code: 'FILE_EMPTY'
+    });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * SECURITY: Sanitize filename to prevent path traversal
+ */
+export function sanitizeFilename(filename: string): string {
+  // Remove path separators and null bytes
+  return filename
+    .replace(/[/\\]/g, '_')
+    .replace(/\0/g, '')
+    .replace(/\.\./g, '_')
+    .trim();
 }
 
 // Document creation input validation
