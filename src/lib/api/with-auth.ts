@@ -14,6 +14,7 @@ import { simpleDocumentService as documentService } from '@/lib/services/documen
 import { IDocumentService } from '@/lib/services/interfaces/document.service.interface';
 import { ApiResponseUtil } from '@/lib/response';
 import { EmailService, emailService } from '@/lib/services/email.service';
+import { validateCsrf, isCsrfEnabled } from './csrf';
 
 /**
  * Services container for dependency injection
@@ -74,7 +75,23 @@ export function withAuth(handler: AuthenticatedRouteHandler, options?: WithAuthO
     try {
       // Authenticate request using existing requireAuth utility
       const session = await requireAuth();
-      
+
+      // SECURITY: Validate CSRF token for state-changing requests
+      if (isCsrfEnabled()) {
+        const csrfResult = validateCsrf(request);
+        if (!csrfResult.valid) {
+          logger.base.warn('CSRF validation failed', {
+            method: request.method,
+            url: request.url,
+            error: csrfResult.error,
+          });
+          return ApiResponseUtil.error(
+            { code: 'CSRF_INVALID', message: csrfResult.error || 'CSRF validation failed' },
+            403
+          );
+        }
+      }
+
       // Log successful authentication (wrapped to prevent pino worker crashes)
       try {
         logger.base.info('API route authenticated', {

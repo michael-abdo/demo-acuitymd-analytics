@@ -104,9 +104,11 @@ export class DocumentRepository implements IDocumentRepository {
         sortOrder = 'desc'
       } = options;
 
-      const normalizedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
-      const normalizedPageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.floor(pageSize) : 25;
-      const offset = (normalizedPage - 1) * normalizedPageSize;
+      // SECURITY: Explicit integer sanitization with bounds to prevent SQL injection
+      const MAX_PAGE_SIZE = 100;
+      const normalizedPage = Math.max(1, Math.floor(Math.abs(Number(page) || 1)));
+      const normalizedPageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(Math.abs(Number(pageSize) || 25))));
+      const offset = Math.max(0, (normalizedPage - 1) * normalizedPageSize);
 
       const conditions: string[] = ['user_id = ?'];
       const args: any[] = [userId];
@@ -127,8 +129,8 @@ export class DocumentRepository implements IDocumentRepository {
       const orderColumn = allowedSortColumns.has(sortBy ?? '') ? sortBy : 'created_at';
       const orderDirection = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-      // Note: LIMIT and OFFSET are interpolated directly because mysql2 prepared statements
-      // have issues with these as placeholders. Values are already validated integers.
+      // SECURITY: LIMIT and OFFSET are interpolated because mysql2 has issues with placeholders.
+      // Values are sanitized above: bounded integers only (page 1+, pageSize 1-100, offset 0+).
       const documents = await executeQuery(
         `SELECT * FROM documents ${whereClause} ORDER BY ${orderColumn} ${orderDirection} LIMIT ${normalizedPageSize} OFFSET ${offset}`,
         args
