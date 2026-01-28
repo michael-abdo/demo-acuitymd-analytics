@@ -34,13 +34,23 @@ export async function getDocumentById(id: number) {
   return Array.isArray(results) ? results[0] : null;
 }
 
+// SECURITY: Whitelist of allowed columns for updates to prevent SQL injection
+const ALLOWED_UPDATE_COLUMNS = new Set(['filename', 'status', 'file_path', 'file_size']);
+
 export async function updateDocument(id: number, updates: Partial<{
   filename: string;
   status: string;
 }>) {
-  const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-  const values = [...Object.values(updates), id];
-  
+  // SECURITY: Filter to only allowed columns
+  const safeUpdates = Object.entries(updates).filter(([key]) => ALLOWED_UPDATE_COLUMNS.has(key));
+
+  if (safeUpdates.length === 0) {
+    throw new Error('No valid update fields provided');
+  }
+
+  const setClause = safeUpdates.map(([key]) => `${key} = ?`).join(', ');
+  const values = [...safeUpdates.map(([, value]) => value), id];
+
   return executeQuery(
     `UPDATE documents SET ${setClause}, updated_at = NOW() WHERE id = ?`,
     values

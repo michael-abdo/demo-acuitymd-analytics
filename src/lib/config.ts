@@ -27,7 +27,14 @@ export const config = {
   AZURE_AD_CLIENT_SECRET: process.env.AZURE_AD_CLIENT_SECRET || '',
   AZURE_AD_TENANT_ID: process.env.AZURE_AD_TENANT_ID || '',
   NEXTAUTH_URL: process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT}`,
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-build',
+  // SECURITY: No fallback - fail fast if not configured (except during build)
+  NEXTAUTH_SECRET: (() => {
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
+      throw new Error('CRITICAL: NEXTAUTH_SECRET must be set in production');
+    }
+    return secret || 'build-time-placeholder-not-for-runtime';
+  })(),
   BASE_PATH: BASEPATH_CONFIG.basePath,
   // Table prefix for shared database isolation
   DB_TABLE_PREFIX: process.env.DB_TABLE_PREFIX || '',

@@ -127,7 +127,8 @@ export const authOptions: ExtendedAuthOptions = {
   secret: config.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    // SECURITY: Reduced from 30 days to 7 days to limit exposure if JWT is compromised
+    maxAge: 7 * 24 * 60 * 60,
   },
   // Trust X-Forwarded-Host header when behind reverse proxy (ALB, Nginx, etc.)
   // Fixes redirect URLs using localhost instead of actual domain

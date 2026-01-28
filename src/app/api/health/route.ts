@@ -7,9 +7,9 @@ import { ApiResponseUtil } from '@/lib/response';
  * Returns system status without authentication
  */
 export async function GET() {
+  // SECURITY: Return minimal info - don't expose environment or internal details
   return ApiResponseUtil.success({
     status: 'healthy',
-    service: 'vvg-template',
-    environment: process.env.NODE_ENV || 'development'
+    timestamp: new Date().toISOString()
   });
 }
