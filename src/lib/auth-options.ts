@@ -4,7 +4,10 @@ import { config } from "./config";
 import { logAuthentication } from "./logger";
 // Simple Azure AD configuration matching vvg_invoice pattern
 
-export const authOptions: NextAuthOptions = {
+// Extend NextAuthOptions to include trustHost (available in v4.24+ but not in types)
+type ExtendedAuthOptions = NextAuthOptions & { trustHost?: boolean };
+
+export const authOptions: ExtendedAuthOptions = {
   providers: [
     AzureADProvider({
       id: "azure-ad",
@@ -126,6 +129,9 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
+  // Trust X-Forwarded-Host header when behind reverse proxy (ALB, Nginx, etc.)
+  // Fixes redirect URLs using localhost instead of actual domain
+  trustHost: true,
   debug: process.env.NODE_ENV === 'development',
   // Configure cookies to work with proxy - Use BASE_PATH for cookie isolation
   // SECURITY: Use secure cookies in production (HTTPS required)
