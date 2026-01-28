@@ -10,6 +10,7 @@
     "lint": "next lint && npm run type-check",
     "type-check": "tsc --noEmit",
     "test": "npm run lint",
+    "test:errors": "bash scripts/smoke-test-errors.sh",
     "setup": "bash scripts/setup.sh",
     "db:setup": "mysql < database/schema.sql",
     "db:reset": "mysql -e 'DROP DATABASE IF EXISTS vvg_template;' && npm run db:setup",
