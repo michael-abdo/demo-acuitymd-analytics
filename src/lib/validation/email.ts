@@ -88,8 +88,41 @@ export function validateEmails(emails: string[]): {
 
 /**
  * SECURITY: Sanitize email for safe usage
+ *
+ * Note: This function returns null for invalid emails without details.
+ * Use validateEmail() instead if you need to know why validation failed.
+ * Use validateEmails() for bulk validation with detailed error reporting.
  */
 export function sanitizeEmail(email: string): string | null {
   const result = validateEmail(email);
-  return result.isValid ? result.sanitized || null : null;
+  if (!result.isValid) {
+    console.warn(`[Email Validation] Invalid email "${email}": ${result.error}`);
+    return null;
+  }
+  return result.sanitized || null;
+}
+
+/**
+ * SECURITY: Sanitize multiple emails with detailed failure reporting
+ * Returns both sanitized valid emails and details about which ones failed
+ */
+export function sanitizeEmailsWithReport(emails: string[]): {
+  sanitized: string[];
+  failed: Array<{ email: string; reason: string }>;
+  summary: string;
+} {
+  const result = validateEmails(emails);
+  const summary = result.invalid.length > 0
+    ? `${result.valid.length} valid, ${result.invalid.length} invalid: ${result.invalid.map(e => `"${e.email}" (${e.error})`).join(', ')}`
+    : `All ${result.valid.length} emails valid`;
+
+  if (result.invalid.length > 0) {
+    console.warn(`[Email Validation] ${summary}`);
+  }
+
+  return {
+    sanitized: result.valid,
+    failed: result.invalid.map(e => ({ email: e.email, reason: e.error })),
+    summary
+  };
 }

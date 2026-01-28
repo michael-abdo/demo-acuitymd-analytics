@@ -50,13 +50,22 @@ export function validateCsrf(request: NextRequest): { valid: boolean; error?: st
   // Get token from header
   const headerToken = request.headers.get(CSRF_HEADER);
   if (!headerToken) {
-    return { valid: false, error: 'Missing CSRF token header' };
+    return {
+      valid: false,
+      error: `Missing CSRF token. Add the 'x-csrf-token' header to your request. ` +
+             `Get the token with: const token = await getCsrfToken(); ` +
+             `See docs/SECURITY.md for examples.`
+    };
   }
 
   // Get expected hash from cookie
   const expectedHash = getExpectedCsrfHash(request);
   if (!expectedHash) {
-    return { valid: false, error: 'Missing CSRF cookie' };
+    return {
+      valid: false,
+      error: 'CSRF cookie not found. Ensure you are logged in and cookies are enabled. ' +
+             'The next-auth.csrf-token cookie is set automatically after sign-in.'
+    };
   }
 
   // Hash the provided token and compare
@@ -64,7 +73,11 @@ export function validateCsrf(request: NextRequest): { valid: boolean; error?: st
   const tokenHash = hashToken(headerToken, secret);
 
   if (tokenHash !== expectedHash) {
-    return { valid: false, error: 'Invalid CSRF token' };
+    return {
+      valid: false,
+      error: 'CSRF token mismatch. The token may have expired - try refreshing the page. ' +
+             'Get a fresh token with: const token = await getCsrfToken();'
+    };
   }
 
   return { valid: true };

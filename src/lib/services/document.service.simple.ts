@@ -29,7 +29,7 @@ export class SimpleDocumentService implements IDocumentService {
   async getUserDocuments(userId: string, options: DocumentQueryOptions = {}): Promise<DocumentListResponse> {
     try {
       if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-        throw new Error('Valid userId is required');
+        throw new Error('Valid userId is required. This should be the user email from authentication (e.g., user@company.com).');
       }
 
       const normalizedOptions: DocumentQueryOptions = {
@@ -57,7 +57,14 @@ export class SimpleDocumentService implements IDocumentService {
       };
     } catch (error) {
       console.error('Error in getUserDocuments:', error);
-      throw new Error('Failed to get documents');
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(
+        'Failed to retrieve documents.\n' +
+        'Possible causes:\n' +
+        '1. Database connection issue - check your DATABASE_URL\n' +
+        '2. Missing documents table - run: npm run db:setup\n' +
+        `Technical details: ${errorMsg}`
+      );
     }
   }
 
@@ -89,11 +96,26 @@ export class SimpleDocumentService implements IDocumentService {
 
   async createDocument(data: CreateDocumentInput, userId: string): Promise<DocumentResponse> {
     try {
-      if (!data || !data.filename || !data.file_path || !data.file_size) {
-        throw new Error('Missing required document data');
+      const missing: string[] = [];
+      if (!data) {
+        throw new Error(
+          'Missing document data. Required fields: filename, file_path, file_size.\n' +
+          'Example: { "filename": "report.pdf", "file_path": "/uploads/report.pdf", "file_size": 102400 }'
+        );
+      }
+      if (!data.filename) missing.push('filename (e.g., "report.pdf")');
+      if (!data.file_path) missing.push('file_path (e.g., "/uploads/report.pdf")');
+      if (!data.file_size) missing.push('file_size (in bytes, e.g., 102400)');
+
+      if (missing.length > 0) {
+        throw new Error(
+          `Missing required fields: ${missing.join(', ')}.\n` +
+          'Example valid request:\n' +
+          '{ "filename": "report.pdf", "file_path": "/uploads/report.pdf", "file_size": 102400 }'
+        );
       }
       if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-        throw new Error('Valid userId is required');
+        throw new Error('Valid userId is required. This should be the user email from authentication.');
       }
       
       const documentData = {

@@ -32,8 +32,12 @@ async function checkTestAuth(): Promise<Session | null> {
   // SECURITY: Require a strong secret
   const expectedSecret = process.env.TEST_AUTH_SECRET;
   if (!expectedSecret || expectedSecret.length < 32) {
-    console.error('⚠️ [Security] TEST_AUTH_SECRET must be at least 32 characters');
-    return null;
+    throw new Error(
+      'TEST_AUTH_SECRET must be at least 32 characters when ALLOW_TEST_AUTH=true.\n' +
+      'Generate one with: openssl rand -base64 32\n' +
+      'Then add to your .env file: TEST_AUTH_SECRET=your-generated-secret\n' +
+      'Or disable test auth: ALLOW_TEST_AUTH=false'
+    );
   }
 
   const headersList = await headers();

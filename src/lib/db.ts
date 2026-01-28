@@ -129,11 +129,37 @@ export async function testDatabaseConnection() {
       })
     }
     
-    console.error('Failed to connect to MySQL database:', error);
-    return { 
-      success: false, 
-      message: 'Failed to connect to database',
-      error: error instanceof Error ? error.message : String(error)
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const isConnectionRefused = errorMsg.includes('ECONNREFUSED');
+    const isAccessDenied = errorMsg.includes('Access denied');
+    const isUnknownDb = errorMsg.includes('Unknown database');
+
+    let helpMessage = 'Failed to connect to MySQL database.\n\n';
+
+    if (isConnectionRefused) {
+      helpMessage += 'MySQL server is not running or not reachable.\n';
+      helpMessage += 'Try:\n';
+      helpMessage += '  macOS:  brew services start mysql\n';
+      helpMessage += '  Linux:  sudo systemctl start mysql\n';
+      helpMessage += '  Check:  mysql -u root -p (to verify MySQL is running)\n';
+    } else if (isAccessDenied) {
+      helpMessage += 'Wrong username or password.\n';
+      helpMessage += 'Check your DATABASE_URL or MYSQL_USER/MYSQL_PASSWORD in .env\n';
+      helpMessage += 'Format: mysql://USER:PASSWORD@HOST:PORT/DATABASE\n';
+    } else if (isUnknownDb) {
+      helpMessage += `Database "${config.MYSQL_DATABASE}" does not exist.\n`;
+      helpMessage += 'Create it with: npm run db:setup\n';
+      helpMessage += 'Or manually: mysql -u root -p -e "CREATE DATABASE vvg_template"\n';
+    } else {
+      helpMessage += `Error: ${errorMsg}\n`;
+      helpMessage += 'Check your database configuration in .env\n';
+    }
+
+    console.error(helpMessage);
+    return {
+      success: false,
+      message: helpMessage,
+      error: errorMsg
     };
   }
 }

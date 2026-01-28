@@ -31,7 +31,11 @@ export const config = {
   NEXTAUTH_SECRET: (() => {
     const secret = process.env.NEXTAUTH_SECRET;
     if (!secret && process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
-      throw new Error('CRITICAL: NEXTAUTH_SECRET must be set in production');
+      throw new Error(
+        'CRITICAL: NEXTAUTH_SECRET must be set in production.\n' +
+        'Generate one with: openssl rand -base64 32\n' +
+        'Then add to your .env file: NEXTAUTH_SECRET=your-generated-secret'
+      );
     }
     return secret || 'build-time-placeholder-not-for-runtime';
   })(),

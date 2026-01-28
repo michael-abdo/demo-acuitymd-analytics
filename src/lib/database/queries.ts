@@ -45,7 +45,12 @@ export async function updateDocument(id: number, updates: Partial<{
   const safeUpdates = Object.entries(updates).filter(([key]) => ALLOWED_UPDATE_COLUMNS.has(key));
 
   if (safeUpdates.length === 0) {
-    throw new Error('No valid update fields provided');
+    const providedFields = Object.keys(updates).join(', ') || 'none';
+    throw new Error(
+      `No valid update fields provided.\n` +
+      `Allowed fields: ${Array.from(ALLOWED_UPDATE_COLUMNS).join(', ')}\n` +
+      `You provided: ${providedFields}`
+    );
   }
 
   const setClause = safeUpdates.map(([key]) => `${key} = ?`).join(', ');

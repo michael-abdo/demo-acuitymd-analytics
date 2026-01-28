@@ -73,7 +73,13 @@ export const POST = withAuth(async (request: NextRequest, { userEmail, services 
   } catch (error) {
     console.error('API Error in POST /api/documents:', error);
     if (error instanceof SyntaxError) {
-      return ApiResponseUtil.validationError('Invalid JSON payload');
+      return ApiResponseUtil.validationError(
+        'Invalid JSON in request body. Ensure:\n' +
+        '1. All strings use double quotes (not single quotes)\n' +
+        '2. No trailing commas after the last item\n' +
+        '3. All braces {} and brackets [] are matched\n' +
+        'Example: {"filename": "doc.pdf", "file_path": "/uploads/doc.pdf", "file_size": 1024}'
+      );
     }
     return mapServiceError(error);
   }

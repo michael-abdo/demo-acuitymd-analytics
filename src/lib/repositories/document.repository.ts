@@ -20,8 +20,27 @@ export class DocumentRepository implements IDocumentRepository {
     try {
       return await operation();
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(`Repository error in ${operationName}:`, error);
-      throw new Error(`Database operation failed: ${operationName}`);
+
+      // Provide beginner-friendly error messages based on the error type
+      let helpMessage = `Database error during "${operationName}".\n`;
+
+      if (errorMsg.includes('ECONNREFUSED')) {
+        helpMessage += 'MySQL server is not running. Start it with: brew services start mysql (macOS) or sudo systemctl start mysql (Linux)';
+      } else if (errorMsg.includes("doesn't exist") || errorMsg.includes('Unknown table')) {
+        helpMessage += 'Database table is missing. Run: npm run db:setup';
+      } else if (errorMsg.includes('Duplicate entry')) {
+        helpMessage += 'A document with this data already exists.';
+      } else if (errorMsg.includes('Data too long')) {
+        helpMessage += 'Input data exceeds maximum length. Filename must be under 255 characters.';
+      } else if (errorMsg.includes('Access denied')) {
+        helpMessage += 'Database credentials are incorrect. Check DATABASE_URL in .env';
+      } else {
+        helpMessage += `Technical details: ${errorMsg}`;
+      }
+
+      throw new Error(helpMessage);
     }
   }
 

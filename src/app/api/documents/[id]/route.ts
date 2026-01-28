@@ -30,7 +30,11 @@ export const GET = withAuth(async (_request: NextRequest, { userEmail, services 
   try {
     const documentId = await extractId(routeParams?.params);
     if (!documentId) {
-      return ApiResponseUtil.validationError('Invalid document id', 'id');
+      return ApiResponseUtil.validationError(
+        'Invalid document ID. Expected a positive integer (e.g., /api/documents/5). ' +
+        'Document IDs are numeric values returned when you create a document.',
+        'id'
+      );
     }
 
     const document = await services.documentService.getDocumentById(documentId, userEmail);
@@ -48,7 +52,11 @@ export const PUT = withAuth(async (request: NextRequest, { userEmail, services }
   try {
     const documentId = await extractId(routeParams?.params);
     if (!documentId) {
-      return ApiResponseUtil.validationError('Invalid document id', 'id');
+      return ApiResponseUtil.validationError(
+        'Invalid document ID. Expected a positive integer (e.g., /api/documents/5). ' +
+        'Document IDs are numeric values returned when you create a document.',
+        'id'
+      );
     }
 
     const body = await request.json();
@@ -61,7 +69,12 @@ export const PUT = withAuth(async (request: NextRequest, { userEmail, services }
 
     const hasUpdates = Object.values(payload).some((value) => value !== undefined);
     if (!hasUpdates) {
-      return ApiResponseUtil.validationError('No valid fields to update', undefined);
+      return ApiResponseUtil.validationError(
+        'No valid fields to update. Allowed fields: filename, status.\n' +
+        'Example: {"filename": "new-name.pdf"} or {"status": "completed"}\n' +
+        'Valid status values: uploaded, processing, completed, failed',
+        undefined
+      );
     }
 
     const updatedDocument = await services.documentService.updateDocument(documentId, payload, userEmail);
@@ -72,7 +85,13 @@ export const PUT = withAuth(async (request: NextRequest, { userEmail, services }
   } catch (error) {
     console.error('API Error in PUT /api/documents/[id]:', error);
     if (error instanceof SyntaxError) {
-      return ApiResponseUtil.validationError('Invalid JSON payload');
+      return ApiResponseUtil.validationError(
+        'Invalid JSON in request body. Ensure:\n' +
+        '1. All strings use double quotes (not single quotes)\n' +
+        '2. No trailing commas after the last item\n' +
+        '3. All braces {} and brackets [] are matched\n' +
+        'Example: {"filename": "new-name.pdf", "status": "completed"}'
+      );
     }
     return mapServiceError(error);
   }
@@ -82,7 +101,11 @@ export const DELETE = withAuth(async (_request: NextRequest, { userEmail, servic
   try {
     const documentId = await extractId(routeParams?.params);
     if (!documentId) {
-      return ApiResponseUtil.validationError('Invalid document id', 'id');
+      return ApiResponseUtil.validationError(
+        'Invalid document ID. Expected a positive integer (e.g., /api/documents/5). ' +
+        'Document IDs are numeric values returned when you create a document.',
+        'id'
+      );
     }
 
     await services.documentService.deleteDocument(documentId, userEmail);
