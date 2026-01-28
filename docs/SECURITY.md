@@ -9,6 +9,7 @@ This document covers the security features implemented in the VVG Template.
 - [Test Authentication (Dev/CI)](#test-authentication-devci)
 - [Rate Limiting](#rate-limiting)
 - [Environment Variables](#environment-variables)
+- [Troubleshooting Security Issues](#troubleshooting-security-issues)
 
 ---
 
@@ -308,3 +309,138 @@ The application logs warnings at startup if dev features are enabled:
 # Generate a 64-character random secret
 openssl rand -base64 48
 ```
+
+---
+
+## Troubleshooting Security Issues
+
+### Error Decision Tree
+
+```
+What HTTP status code are you getting?
+│
+├── 401 Unauthorized
+│   ├── "no session found" → Not logged in, go to /sign-in
+│   ├── "session expired" → Sign out and sign back in
+│   └── "session missing user data" → Azure AD config issue (check .env)
+│
+├── 403 Forbidden
+│   ├── "CSRF" in error message
+│   │   ├── "Missing CSRF token" → Add x-csrf-token header
+│   │   ├── "CSRF cookie not found" → Not logged in or cookies disabled
+│   │   └── "CSRF token mismatch" → Token expired, refresh page
+│   └── "Access denied" → You don't own this resource
+│
+└── 429 Too Many Requests
+    └── Rate limited → Wait 60 seconds before retrying
+```
+
+### Debugging CSRF Issues
+
+**Step 1: Check if you're logged in**
+```javascript
+// In browser console
+document.cookie.includes('next-auth.session-token')
+// Should return true
+```
+
+**Step 2: Verify CSRF cookie exists**
+```javascript
+// In browser console
+document.cookie.includes('next-auth.csrf-token')
+// Should return true
+```
+
+**Step 3: Check your request headers**
+```javascript
+// Your fetch call must include:
+headers: {
+  'x-csrf-token': await getCsrfToken(),
+  'Content-Type': 'application/json',
+}
+```
+
+**Step 4: Check server logs**
+Look for this line in the terminal running `npm run dev`:
+```
+CSRF validation failed { method: 'POST', url: '...', error: '...' }
+```
+
+### Debugging Authentication Issues
+
+**Symptom: Can't log in at all**
+1. Verify Azure AD credentials in `.env`:
+   ```bash
+   grep AZURE .env
+   ```
+2. Check redirect URI in Azure Portal matches `http://localhost:3000/api/auth/callback/azure-ad`
+3. Look for errors in server console after clicking "Sign in"
+
+**Symptom: Logged in but API returns 401**
+1. Check if session cookie exists (see Step 1 above)
+2. Session may have expired - sign out and back in
+3. If using test auth, verify `X-Test-Auth` header matches `TEST_AUTH_SECRET` exactly
+
+**Symptom: "Session missing user data"**
+This is a server-side issue. Check:
+1. Azure AD app has correct permissions (User.Read scope)
+2. `AZURE_AD_TENANT_ID` is correct
+
+### Where to Find Security Logs
+
+**Server Console (Terminal running `npm run dev`):**
+```bash
+# Security warnings
+⚠️ [Security] ...
+
+# Auth failures
+❌ FATAL: Authentication required
+💡 User must be signed in...
+
+# CSRF failures
+CSRF validation failed { method: 'POST', url: '...', error: '...' }
+
+# Test auth usage (dev only)
+🧪 [Security Audit] Test auth active { email: '...' }
+```
+
+**Browser Console (DevTools → Console):**
+- Network errors (CORS, failed requests)
+- NextAuth client-side errors
+
+**Browser Network Tab (DevTools → Network):**
+- Check request headers for `x-csrf-token`
+- Check response status codes
+- Check `Set-Cookie` headers after login
+
+### Enable Verbose Logging
+
+Add to `.env`:
+```bash
+LOG_LEVEL=debug
+LOG_QUERIES=true  # Also log database queries (dev only)
+```
+
+### Common Mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Missing CSRF header | 403 "Missing CSRF token" | Add `x-csrf-token` header |
+| Not logged in | 401 "no session found" | Go to /sign-in |
+| Wrong `TEST_AUTH_SECRET` | Test auth silently fails | Check secret length (32+ chars) |
+| CSRF token cached | 403 "token mismatch" | Call `getCsrfToken()` fresh each request |
+| Cookies disabled | 403 "cookie not found" | Enable cookies in browser |
+| Rate limited | 429 response | Wait 60 seconds |
+
+### Security Validation Script
+
+Run to verify your security configuration:
+```bash
+npm run security:check
+```
+
+This checks:
+- Required environment variables are set
+- CSRF protection is enabled
+- Auth endpoints are responding
+- Test auth is configured correctly (if enabled)

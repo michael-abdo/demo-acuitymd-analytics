@@ -202,6 +202,83 @@ fetch('/api/documents', {
 
 ---
 
+## Security Error Guide
+
+### Quick Decision Tree: Which Error Do I Have?
+
+```
+API returns error
+    │
+    ├── Status 401 "Unauthorized"
+    │   └── You're not logged in → Go to /sign-in
+    │
+    ├── Status 403 "Forbidden"
+    │   ├── Message mentions "CSRF" → Add x-csrf-token header (see above)
+    │   └── Message says "Access denied" → You don't own this resource
+    │
+    └── Status 429 "Too Many Requests"
+        └── Rate limited → Wait 1 minute, then retry
+```
+
+### 401 Unauthorized
+
+**What it means:** You're not logged in, or your session expired.
+
+**How to fix:**
+1. Go to `/sign-in` and log in with Azure AD
+2. If already logged in, your session may have expired - sign out and back in
+3. Check browser DevTools > Application > Cookies for `next-auth.session-token`
+
+### 403 Forbidden
+
+**What it means:** Either CSRF protection blocked your request, or you're trying to access someone else's data.
+
+**How to tell which:**
+- Error message contains "CSRF" → Missing or invalid CSRF token
+- Error message says "Access denied" → You don't have permission
+
+**CSRF fix:** See "CSRF validation failed" section above.
+
+**Access denied fix:** You can only access your own documents. Check the document ID.
+
+### 429 Too Many Requests
+
+**What it means:** You've hit the rate limit (100 requests per minute).
+
+**How to fix:**
+1. Wait 60 seconds before retrying
+2. If testing, slow down your requests
+3. Check for infinite loops in your code
+
+### Where to Find Logs
+
+Security events are logged to the **server console** (the terminal running `npm run dev`).
+
+Look for:
+- `⚠️ [Security]` - Security warnings
+- `❌ FATAL` - Critical auth failures
+- `🧪 [Security Audit]` - Test auth usage (dev only)
+
+**Enable verbose logging:**
+```bash
+# In .env
+LOG_LEVEL=debug
+```
+
+### Validate Security Configuration
+
+Run the security check script:
+```bash
+npm run security:check
+```
+
+This verifies:
+- Required environment variables are set
+- CSRF protection is enabled
+- Auth endpoints are responding
+
+---
+
 ## Deployment
 
 ### Production Checklist
