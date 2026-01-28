@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 127.0.0.1",
+    "start:exposed": "next start",
     "lint": "next lint && npm run type-check",
     "type-check": "tsc --noEmit",
     "test": "npm run lint",
