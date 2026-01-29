@@ -12,6 +12,38 @@ Database (SQL) → Repository (data access) → Service (business logic) → API
 
 You'll create files in each layer, working from bottom to top.
 
+---
+
+## How Hard Is This? (TL;DR)
+
+The security patterns work for **ANY data type**. Creating a new secure entity is:
+
+| Task | Effort |
+|------|--------|
+| Security (auth, CSRF, rate limiting) | **Zero** - automatic via `withApiAuth` |
+| Repository + Service + Routes | **Copy & rename** (~30 min) |
+| Define your fields | **Your only real work** |
+
+### Quick Start (5 steps)
+
+1. Copy `documents` table → rename to `projects` (or your entity)
+2. Copy `document.repository.ts` → `project.repository.ts` (find/replace)
+3. Copy `document.service.ts` → `project.service.ts` (find/replace)
+4. Copy `api/documents/route.ts` → `api/projects/route.ts` (find/replace)
+5. Register in `withApiAuth` ServiceContainer
+
+### The Ownership Pattern (Always the Same)
+
+```
+Database:  user_id VARCHAR(255) NOT NULL
+Service:   if (entity.user_id !== userId) throw AuthorizationError
+Route:     withApiAuth handles the rest
+```
+
+Every entity follows this exact pattern. The only thing that changes is your field names.
+
+---
+
 ## Quick Checklist
 
 - [ ] Step 1: Add database table
