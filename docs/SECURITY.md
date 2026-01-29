@@ -649,3 +649,74 @@ FEATURE_DEV_BYPASS=  # empty or false
 ALLOW_TEST_AUTH=     # empty or false
 DISABLE_AUTH=        # empty or false
 ```
+
+---
+
+## Security Testing Checklist
+
+Use this checklist before deploying any new feature or entity.
+
+### Pre-Deployment Checklist
+
+#### Authentication & Authorization
+- [ ] All API routes wrapped in `withApiAuth`?
+- [ ] Every service method checks `user_id` for ownership?
+- [ ] Unauthenticated request returns 401?
+- [ ] Accessing another user's data returns 403?
+
+#### CSRF Protection
+- [ ] POST/PUT/DELETE requests require `x-csrf-token` header?
+- [ ] Frontend calls `await getCsrfToken()` before mutations?
+- [ ] Request without token returns 403?
+- [ ] Request with invalid token returns 403?
+
+#### Input Validation
+- [ ] All numeric IDs validated as positive integers?
+- [ ] All string inputs have length limits?
+- [ ] File uploads validated (type, size)?
+- [ ] Sort/filter parameters use whitelist validation?
+- [ ] Invalid input returns 400 (not 500)?
+
+#### SQL Security
+- [ ] All queries use prepared statements (`?` placeholders)?
+- [ ] No string concatenation/interpolation in SQL?
+- [ ] Pagination limits enforced (max 100)?
+
+#### Rate Limiting
+- [ ] Rate limiting enabled in production?
+- [ ] Exceeding limit returns 429 with `Retry-After` header?
+
+#### Error Handling
+- [ ] Errors don't expose database details?
+- [ ] Stack traces not sent to client?
+- [ ] Generic error message returned for 500 errors?
+
+#### Production Environment
+- [ ] `npm run security:check` passes?
+- [ ] No `DISABLE_*` flags set to `true`?
+- [ ] `NEXTAUTH_SECRET` is 32+ random characters?
+- [ ] `NEXTAUTH_URL` matches production domain exactly?
+- [ ] HTTPS enabled?
+
+### Quick Test Commands
+
+```bash
+# Test unauthenticated access (should return 401)
+curl -i http://localhost:3000/api/documents
+
+# Test CSRF (should return 403 "Missing CSRF token")
+curl -i -X POST http://localhost:3000/api/documents \
+  -H "Content-Type: application/json" \
+  -d '{"title": "test"}'
+
+# Run automated security validation
+npm run security:check
+```
+
+---
+
+## Additional Resources
+
+- **New to web security?** Start with [SECURITY-CRASHCOURSE.md](SECURITY-CRASHCOURSE.md) for beginner-friendly explanations of CSRF, SQL injection, and authorization bypass attacks.
+- **Adding a new entity?** See [ADDING-NEW-ENTITY.md](ADDING-NEW-ENTITY.md) for step-by-step security implementation.
+- **Rate limiting details:** See rate limiting configuration in `src/lib/api/with-auth.ts`.

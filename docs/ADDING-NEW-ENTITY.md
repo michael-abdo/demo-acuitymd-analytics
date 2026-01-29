@@ -970,8 +970,64 @@ The `withApiAuth` wrapper:
 
 ---
 
+## Common Security Mistakes (Quick Reference)
+
+Avoid these mistakes when adding a new entity. See [SECURITY-CRASHCOURSE.md](SECURITY-CRASHCOURSE.md) for detailed explanations.
+
+### Mistake #1: Forgetting CSRF Token
+```typescript
+// WRONG
+fetch('/api/tasks', { method: 'POST', body: JSON.stringify(data) });
+
+// RIGHT
+fetch('/api/tasks', {
+  method: 'POST',
+  headers: { 'x-csrf-token': await getCsrfToken() },
+  body: JSON.stringify(data)
+});
+```
+
+### Mistake #2: String Concatenation in SQL
+```typescript
+// WRONG - SQL Injection!
+const query = `SELECT * FROM tasks WHERE id = ${id}`;
+
+// RIGHT - Prepared statement
+await executeQuery('SELECT * FROM tasks WHERE id = ?', [id]);
+```
+
+### Mistake #3: Missing Ownership Check
+```typescript
+// WRONG - Anyone can access any task!
+async getTask(id: number) {
+  return this.repository.getTaskById(id);
+}
+
+// RIGHT - Check ownership
+async getTask(id: number, userId: string) {
+  const task = await this.repository.getTaskById(id);
+  if (!task) throw new NotFoundError();
+  if (task.user_id !== userId) throw new AuthorizationError();  // KEY LINE
+  return task;
+}
+```
+
+### Mistake #4: Frontend-Only Validation
+```typescript
+// WRONG - Can be bypassed with curl
+// (only checking on frontend)
+
+// RIGHT - Always validate on server
+if (!data.title?.trim()) {
+  return ApiResponseUtil.validationError('Title is required');
+}
+```
+
+---
+
 ## Need Help?
 
-- Security issues: [docs/SECURITY.md](SECURITY.md)
-- Setup issues: [README.md](../README.md)
-- Run `npm run security:check` to validate your configuration
+- **New to security?** Start with [SECURITY-CRASHCOURSE.md](SECURITY-CRASHCOURSE.md)
+- **Implementation details:** [SECURITY.md](SECURITY.md)
+- **Setup issues:** [README.md](../README.md)
+- **Validate your setup:** `npm run security:check`
