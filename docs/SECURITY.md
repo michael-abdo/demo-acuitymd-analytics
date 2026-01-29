@@ -444,3 +444,208 @@ This checks:
 - CSRF protection is enabled
 - Auth endpoints are responding
 - Test auth is configured correctly (if enabled)
+
+---
+
+## Soft Error Guide (No Error Message, But Something's Wrong)
+
+Sometimes authentication "fails" without any error message. These are the hardest bugs to debug because the code runs fine but behavior is wrong.
+
+### Quick Decision Tree
+
+```
+App behaves wrong but no error message?
+│
+├── Infinite redirect loop (page keeps loading/flashing)?
+│   └── See: "Debugging Infinite Login Loops" below
+│
+├── API calls fail silently (nothing happens when I click)?
+│   └── See: "Debugging Silent API Failures" below
+│
+├── Works locally but fails in production?
+│   └── See: "Debugging Production-Only Failures" below
+│
+└── Users suddenly logged out after deployment?
+    └── See: "Debugging Mass Logout" below
+```
+
+### Debugging Infinite Login Loops
+
+**Symptom:** Page keeps redirecting, shows spinner forever, or flickers rapidly between pages.
+
+**Step 1: Check your URL matches NEXTAUTH_URL**
+```bash
+# What's in your .env?
+grep NEXTAUTH_URL .env
+
+# Does it EXACTLY match your browser's address bar?
+# Common mismatches:
+# - http vs https
+# - localhost vs 127.0.0.1
+# - Missing port number
+# - Wrong domain in production
+```
+
+**Step 2: Check cookie domain**
+```
+Browser DevTools → Application → Cookies → Your site
+
+Look for cookies:
+- next-auth.session-token
+- next-auth.csrf-token
+
+Check their "Domain" column:
+- If you're on localhost:3000, domain should be "localhost"
+- If you're on 127.0.0.1:3000, domain should be "127.0.0.1"
+
+MISMATCH = cookies won't be sent with requests!
+```
+
+**Step 3: Check Azure AD profile has required fields**
+
+The JWT callback expects one of these fields from Azure AD:
+- `profile.sub` (preferred)
+- `profile.oid` (Azure-specific)
+- `profile.email` (fallback)
+
+If none exist, `user.id` becomes undefined and auth fails silently.
+
+**How to verify:** Add temporary logging in `src/lib/auth/auth-options.ts`:
+```typescript
+async jwt({ token, account, profile }) {
+  console.log('JWT callback profile:', JSON.stringify(profile, null, 2));
+  // ... rest of callback
+}
+```
+
+### Debugging Silent API Failures
+
+**Symptom:** Click a button, nothing happens. No error popup, no loading indicator change.
+
+**Step 1: Check Network tab**
+```
+Browser DevTools → Network → Click the button again
+
+Look for the failed request:
+- Red row = failed request
+- Click it → Response tab
+- Read the actual error message (often has helpful info)
+```
+
+**Step 2: Verify BOTH cookies exist**
+```
+Browser DevTools → Application → Cookies
+
+You need BOTH of these:
+✓ next-auth.session-token (proves you're logged in)
+✓ next-auth.csrf-token (needed for POST/PUT/DELETE)
+
+Missing session-token? → You're not logged in
+Missing csrf-token? → Re-login (cookie may have expired)
+```
+
+**Step 3: Check cookie Path attribute**
+```
+In the cookies list, check the "Path" column:
+- Should be "/" (root path)
+- If it's something else like "/app", API routes won't receive it
+
+Fix: Check BASE_PATH setting in your .env
+```
+
+**Step 4: Check for mismatched cookie expiry**
+```
+Session cookie lasts 7 days, but CSRF cookie may expire sooner.
+If you get 403 "CSRF cookie not found" while appearing logged in:
+→ Sign out and sign back in to refresh all cookies
+```
+
+### Debugging Production-Only Failures
+
+**Symptom:** Everything works on localhost, but fails in production.
+
+**Checklist:**
+```bash
+# 1. CSRF must be enabled in production
+grep DISABLE_CSRF .env.production
+# Should NOT be "true"
+
+# 2. Middleware must be enabled in production
+grep DISABLE_MIDDLEWARE .env.production
+# Should NOT be "true"
+
+# 3. Dev bypass must be disabled in production
+grep FEATURE_DEV_BYPASS .env.production
+# Should NOT be "true"
+
+# 4. NEXTAUTH_SECRET must be a real secret (not placeholder)
+grep NEXTAUTH_SECRET .env.production
+# Should be a 32+ character random string
+
+# 5. NEXTAUTH_URL must match production domain
+grep NEXTAUTH_URL .env.production
+# Must match EXACTLY what users see in browser
+```
+
+**Common production mistake: Debug flags left enabled**
+```bash
+# Run security check to detect this:
+npm run security:check
+```
+
+### Debugging Mass Logout
+
+**Symptom:** All users suddenly logged out after deployment.
+
+**Cause:** `NEXTAUTH_SECRET` changed between deployments.
+
+JWT tokens are signed with this secret. If it changes:
+- All existing session tokens become invalid
+- Users appear to be logged out
+- They can log back in, but lost their session
+
+**How to verify:**
+```bash
+# Compare secrets between deployments
+# Old deployment:
+echo $NEXTAUTH_SECRET
+
+# New deployment:
+echo $NEXTAUTH_SECRET
+
+# If different = that's your problem
+```
+
+**Fix:** Use the same `NEXTAUTH_SECRET` across all deployments and server instances.
+
+### Browser DevTools Quick Reference
+
+| What to Check | Where to Find It |
+|---------------|------------------|
+| Cookie exists? | Application → Cookies → [your domain] |
+| Cookie path correct? | Cookies list → "Path" column |
+| Cookie domain correct? | Cookies list → "Domain" column |
+| API error response? | Network → [red request] → Response |
+| Request headers sent? | Network → [request] → Headers → Request Headers |
+| Redirect loop? | Network → see many 307/308 status codes |
+| Console errors? | Console tab (check all: info, warn, error) |
+
+### Environment Variable Checklist for Production
+
+Before deploying, verify these are set correctly:
+
+```bash
+# REQUIRED - Must be set
+NEXTAUTH_SECRET=<32+ char random string>
+NEXTAUTH_URL=<exact production URL>
+AZURE_AD_CLIENT_ID=<from Azure portal>
+AZURE_AD_CLIENT_SECRET=<from Azure portal>
+AZURE_AD_TENANT_ID=<from Azure portal>
+
+# MUST BE FALSE/UNSET in production
+DISABLE_CSRF=        # empty or false
+DISABLE_MIDDLEWARE=  # empty or false
+FEATURE_DEV_BYPASS=  # empty or false
+ALLOW_TEST_AUTH=     # empty or false
+DISABLE_AUTH=        # empty or false
+```

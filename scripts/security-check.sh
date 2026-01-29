@@ -155,7 +155,51 @@ else
 fi
 
 # ============================================
-section "5. Server Connectivity (if running)"
+section "5. Soft Error Detection"
+# ============================================
+
+# Check NEXTAUTH_URL format
+if [ -n "$NEXTAUTH_URL" ]; then
+  # Check for common mistakes
+  if echo "$NEXTAUTH_URL" | grep -q "127.0.0.1"; then
+    warn "NEXTAUTH_URL uses 127.0.0.1 - cookies won't work if you access via localhost"
+    echo "   Tip: Use http://localhost:3000 instead"
+  elif echo "$NEXTAUTH_URL" | grep -q "localhost" && [ "$NODE_ENV" = "production" ]; then
+    fail "NEXTAUTH_URL contains 'localhost' in production mode!"
+  else
+    pass "NEXTAUTH_URL format looks correct"
+  fi
+
+  # Check URL ends without trailing slash
+  if echo "$NEXTAUTH_URL" | grep -q '/$'; then
+    warn "NEXTAUTH_URL has trailing slash - may cause redirect issues"
+    echo "   Remove the trailing / from: $NEXTAUTH_URL"
+  fi
+else
+  warn "NEXTAUTH_URL is not set (will default to localhost:3000)"
+fi
+
+# Check for placeholder NEXTAUTH_SECRET
+if [ -n "$NEXTAUTH_SECRET" ]; then
+  if echo "$NEXTAUTH_SECRET" | grep -qi "placeholder\|changeme\|secret\|example"; then
+    fail "NEXTAUTH_SECRET looks like a placeholder value!"
+    echo "   Generate a real secret: openssl rand -base64 32"
+  fi
+fi
+
+# Check BASE_PATH configuration
+if [ -n "$BASE_PATH" ] && [ "$BASE_PATH" != "/" ]; then
+  warn "BASE_PATH is set to '$BASE_PATH' - ensure cookies are configured for this path"
+  echo "   API routes must be under this path or cookies won't be sent"
+fi
+
+# Detect potential debug flag combinations that cause confusion
+if [ "$DISABLE_CSRF" = "true" ] && [ "$ALLOW_TEST_AUTH" != "true" ]; then
+  warn "CSRF disabled but test auth not enabled - may need both for testing"
+fi
+
+# ============================================
+section "6. Server Connectivity (if running)"
 # ============================================
 
 BASE_URL="${NEXTAUTH_URL:-http://localhost:3000}"
@@ -178,6 +222,17 @@ if curl -s --max-time 2 "$BASE_URL/api/health" > /dev/null 2>&1; then
     pass "Auth providers endpoint is accessible"
   else
     warn "Auth providers endpoint returned $auth_response"
+  fi
+
+  # SOFT ERROR TEST: Verify protected routes reject unauthenticated requests
+  docs_response=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/documents" 2>/dev/null)
+  if [ "$docs_response" = "401" ]; then
+    pass "Protected route correctly rejects unauthenticated requests"
+  elif [ "$docs_response" = "200" ]; then
+    fail "Protected route /api/documents returned 200 without auth!"
+    echo "   This is a CRITICAL security issue - auth may be disabled"
+  else
+    warn "Protected route returned unexpected status: $docs_response"
   fi
 else
   warn "Server not running (skipping connectivity tests)"

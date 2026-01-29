@@ -277,6 +277,26 @@ This verifies:
 - CSRF protection is enabled
 - Auth endpoints are responding
 
+### Self-Diagnostic Checklist (No Error But Something's Wrong)
+
+If the app behaves wrong but shows no error message, check these:
+
+- [ ] **URL match?** - Browser URL matches `NEXTAUTH_URL` in `.env` exactly?
+- [ ] **Both cookies exist?** - DevTools → Application → Cookies shows both `next-auth.session-token` AND `next-auth.csrf-token`?
+- [ ] **Cookie path is "/"?** - In cookies list, Path column shows `/` (not `/app` or other)?
+- [ ] **Same domain?** - Using `localhost` everywhere (not mixing with `127.0.0.1`)?
+- [ ] **Debug flags off?** - `DISABLE_MIDDLEWARE`, `FEATURE_DEV_BYPASS`, `DISABLE_CSRF` are NOT `true` in production?
+
+**Common soft errors:**
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| Infinite redirect loop | URL mismatch or cookie domain wrong | Check NEXTAUTH_URL matches browser URL |
+| API calls do nothing | Missing CSRF token or cookie path wrong | Check both cookies exist with Path "/" |
+| Works locally, fails in prod | Debug flag left enabled | Run `npm run security:check` |
+| All users logged out after deploy | NEXTAUTH_SECRET changed | Use same secret across deployments |
+
+For detailed debugging steps, see [docs/SECURITY.md](docs/SECURITY.md#soft-error-guide-no-error-message-but-somethings-wrong).
+
 ---
 
 ## Deployment
