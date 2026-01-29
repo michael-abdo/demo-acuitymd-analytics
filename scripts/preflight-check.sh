@@ -27,9 +27,17 @@ echo -e "${BLUE}                    PRE-FLIGHT CHECK                           $
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-# Load .env file if it exists
+# Load .env file if it exists (only for vars not already set)
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs 2>/dev/null) || true
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        # Only set if not already in environment
+        if [ -z "${!key}" ]; then
+            export "$key=$value"
+        fi
+    done < <(grep -v '^#' .env | grep '=')
 fi
 
 # ============================================================================
