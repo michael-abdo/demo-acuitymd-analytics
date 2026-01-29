@@ -38,6 +38,7 @@ npm run dev
 git clone https://github.com/your-org/vvg-template.git
 cd vvg-template
 npm install
+npm audit   # Check for security vulnerabilities
 ```
 
 #### 2. Configure Environment
@@ -79,6 +80,31 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Common Gotchas (Read This First!)
+
+These are the top issues that trip up new developers:
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| **Infinite redirect loop** | Using `127.0.0.1` instead of `localhost` | Use `localhost:3000` in browser AND in `NEXTAUTH_URL` |
+| **"CSRF validation failed"** | Missing token in API request | Add `'x-csrf-token': await getCsrfToken()` header |
+| **Database connection fails** | Special characters in password | URL-encode: `P@ss` → `P%40ss`, `#` → `%23` |
+| **Test auth silently fails** | `TEST_AUTH_SECRET` too short | Must be 32+ characters (use `openssl rand -base64 32`) |
+| **401 on all requests** | `NEXTAUTH_SECRET` changed | Keep the same secret across server restarts |
+| **Cookies not working** | Mismatched domains | Browser URL must match `NEXTAUTH_URL` exactly |
+
+### Pre-flight Check
+
+Run this before starting development to catch common issues:
+
+```bash
+npm run preflight
+```
+
+This validates MySQL connection, environment variables, and security configuration.
 
 ---
 
@@ -142,13 +168,43 @@ https://your-domain.com/api/auth/callback/azure-ad
 | `AZURE_AD_TENANT_ID` | Azure AD tenant ID | `87654321-...` |
 | `DATABASE_URL` | MySQL connection string | `mysql://user:pass@host:3306/db` |
 
+### Development & Testing
+
+| Variable | Description | Notes |
+|----------|-------------|-------|
+| `ALLOW_TEST_AUTH` | Enable test authentication | Set to `true` for local dev without Azure AD |
+| `TEST_AUTH_SECRET` | Secret for test auth header | **Must be 32+ characters** or silently fails |
+| `LOG_LEVEL` | Logging verbosity | `debug`, `info`, `warn`, `error` |
+| `PORT` | Server port | Default: `3000` |
+
+**Test Auth Usage:**
+```bash
+# Enable in .env
+ALLOW_TEST_AUTH=true
+TEST_AUTH_SECRET=your-32-character-or-longer-secret-here
+
+# Make authenticated requests
+curl -H "X-Test-Auth: your-32-character-or-longer-secret-here" \
+     -H "X-Test-User: test@example.com" \
+     http://localhost:3000/api/documents
+```
+
+### Danger Flags (NEVER use in production!)
+
+| Variable | What It Does | Default |
+|----------|--------------|---------|
+| `DISABLE_CSRF` | Disables CSRF protection | `false` |
+| `DISABLE_MIDDLEWARE` | Bypasses all middleware | `false` |
+| `DISABLE_AUTH` | Disables authentication | `false` |
+| `FEATURE_DEV_BYPASS` | Enables development bypass mode | `false` |
+
+> **WARNING:** Setting any of these to `true` in production creates severe security vulnerabilities. The `npm run preflight` and `npm run security:check` commands will warn if these are enabled.
+
 ### Optional
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port | `3000` |
 | `STORAGE_PROVIDER` | `local` or `s3` | `local` |
-| `LOG_LEVEL` | `debug`, `info`, `warn`, `error` | `info` |
 
 ### S3 Storage (if using)
 

@@ -59,6 +59,15 @@ Every entity follows this exact pattern. The only thing that changes is your fie
 
 ## Step 1: Add Database Table
 
+> **CRITICAL SECURITY REQUIREMENT**
+>
+> Every table MUST have a `user_id` column:
+> ```sql
+> user_id VARCHAR(255) NOT NULL,
+> INDEX idx_user_id (user_id)
+> ```
+> Without this column, authorization checks cannot work and **users will be able to access each other's data**. This is the foundation of the ownership-based security model.
+
 **File:** `database/schema.sql`
 
 Add your table definition after the existing tables:
