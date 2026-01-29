@@ -225,9 +225,10 @@ if curl -s --max-time 2 "$BASE_URL/api/health" > /dev/null 2>&1; then
   fi
 
   # SOFT ERROR TEST: Verify protected routes reject unauthenticated requests
+  # Valid responses: 401 (Unauthorized) or 307 (Redirect to login)
   docs_response=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/documents" 2>/dev/null)
-  if [ "$docs_response" = "401" ]; then
-    pass "Protected route correctly rejects unauthenticated requests"
+  if [ "$docs_response" = "401" ] || [ "$docs_response" = "307" ]; then
+    pass "Protected route correctly rejects unauthenticated requests ($docs_response)"
   elif [ "$docs_response" = "200" ]; then
     fail "Protected route /api/documents returned 200 without auth!"
     echo "   This is a CRITICAL security issue - auth may be disabled"
