@@ -715,6 +715,58 @@ npm run security:check
 
 ---
 
+## Production Deployment (Nginx/Reverse Proxy)
+
+When deploying behind nginx or another reverse proxy, you may encounter authentication failures due to large headers.
+
+### Problem: "upstream sent too big header"
+
+**Symptom:** Login fails silently, nginx error log shows:
+```
+upstream sent too big header while reading response header from upstream
+```
+
+**Cause:** NextAuth's JWT session cookies + CSRF tokens exceed nginx's default 4KB buffer.
+
+**Fix:** Add buffer configuration to your nginx site config:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+
+        # FIX: Increase buffer sizes for NextAuth JWT headers
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+    }
+}
+```
+
+**After updating nginx:**
+```bash
+sudo nginx -t          # Test config
+sudo systemctl reload nginx  # Apply changes
+```
+
+### Other Reverse Proxy Gotchas
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Cookies not set | Proxy strips headers | Add `proxy_set_header Cookie $http_cookie;` |
+| HTTPS redirect loop | Missing X-Forwarded-Proto | Add `proxy_set_header X-Forwarded-Proto $scheme;` |
+| Wrong callback URL | NEXTAUTH_URL mismatch | Set `NEXTAUTH_URL` to public URL (with https) |
+
+---
+
 ## Additional Resources
 
 - **New to web security?** Start with [SECURITY-CRASHCOURSE.md](SECURITY-CRASHCOURSE.md) for beginner-friendly explanations of CSRF, SQL injection, and authorization bypass attacks.
