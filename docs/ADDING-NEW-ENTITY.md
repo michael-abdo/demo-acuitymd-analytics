@@ -678,6 +678,241 @@ Run `npm run db:setup` to ensure your table exists.
 
 ---
 
+---
+
+## Advanced Patterns
+
+Once you have basic CRUD working, you may need these advanced patterns.
+
+### File Uploads
+
+**Route:** `src/app/api/documents/upload/route.ts`
+
+File uploads use `multipart/form-data` instead of JSON:
+
+```typescript
+// Frontend: Upload a file
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+
+const response = await fetch('/api/documents/upload', {
+  method: 'POST',
+  headers: {
+    // SECURITY: CSRF token required, but NOT Content-Type
+    // Browser sets Content-Type automatically with boundary
+    'x-csrf-token': await getCsrfToken(),
+  },
+  body: formData,
+});
+```
+
+```typescript
+// Backend: Handle upload (src/app/api/yourEntity/upload/route.ts)
+export const POST = withApiAuth(async (request, { userEmail }) => {
+  const formData = await request.formData();
+  const file = formData.get('file');
+
+  if (!file || !(file instanceof File)) {
+    return ApiResponseUtil.validationError('No file provided', 'file');
+  }
+
+  // SECURITY: Validate file type and size
+  const validation = validateFileUpload({
+    filename: file.name,
+    mimeType: file.type,
+    size: file.size,
+  });
+
+  if (!validation.isValid) {
+    return ApiResponseUtil.validationError(validation.errors[0].message);
+  }
+
+  // Store file
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await storage.upload(`${userEmail}/${file.name}`, buffer);
+
+  return ApiResponseUtil.success({ uploaded: true }, undefined, 201);
+});
+```
+
+---
+
+### Bulk Operations
+
+**Route:** `src/app/api/documents/bulk/route.ts`
+
+For delete/update many at once:
+
+```typescript
+// Frontend: Bulk delete
+const response = await fetch('/api/documents/bulk', {
+  method: 'POST',
+  headers: await getApiHeaders(),
+  body: JSON.stringify({
+    action: 'delete',
+    ids: [1, 2, 3],
+  }),
+});
+
+// Frontend: Bulk update
+const response = await fetch('/api/documents/bulk', {
+  method: 'POST',
+  headers: await getApiHeaders(),
+  body: JSON.stringify({
+    action: 'update',
+    ids: [1, 2, 3],
+    updates: { status: 'completed' },
+  }),
+});
+```
+
+```typescript
+// Backend: Handle bulk operations
+// SECURITY: All-or-nothing authorization - if ANY id doesn't belong to user, fail entirely
+async bulkDeleteDocuments(ids: number[], userId: string) {
+  // 1. Validate input
+  if (ids.length > 100) {
+    throw new ValidationError('Cannot delete more than 100 at once');
+  }
+
+  // 2. SECURITY: Verify ALL documents belong to user
+  const existingDocs = await this.repository.getDocumentsByIds(ids, userId);
+  if (existingDocs.length !== ids.length) {
+    // Some docs not found or not owned - reject entire operation
+    throw new AuthorizationError('Some documents not found or not owned by you');
+  }
+
+  // 3. Perform bulk operation
+  return await this.repository.deleteDocumentsByIds(ids, userId);
+}
+```
+
+---
+
+### Entity Relationships (Many-to-Many)
+
+**Example:** Documents can have Tags
+
+**Database Schema:**
+```sql
+-- Tags table
+CREATE TABLE tags (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  user_id VARCHAR(255) NOT NULL,
+  UNIQUE KEY unique_tag_per_user (user_id, name)
+);
+
+-- Join table (many-to-many)
+CREATE TABLE document_tags (
+  document_id INT NOT NULL,
+  tag_id INT NOT NULL,
+  PRIMARY KEY (document_id, tag_id),
+  FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+```
+
+**Routes:**
+- `GET /api/tags` - List user's tags
+- `POST /api/tags` - Create a tag
+- `GET /api/documents/:id/tags` - Get tags for a document
+- `POST /api/documents/:id/tags` - Add tag to document
+- `DELETE /api/documents/:id/tags` - Remove tag from document
+
+**Service Pattern:**
+```typescript
+async addTagToDocument(documentId: number, tagId: number, userId: string) {
+  // SECURITY: Verify BOTH document AND tag belong to user
+  const document = await documentRepository.getDocumentById(documentId);
+  if (!document || document.user_id !== userId) {
+    throw new AuthorizationError('Access denied to document');
+  }
+
+  const tag = await tagRepository.getTagById(tagId);
+  if (!tag || tag.user_id !== userId) {
+    throw new AuthorizationError('Access denied to tag');
+  }
+
+  // Both verified - create relationship
+  await tagRepository.addTagToDocument(documentId, tagId);
+}
+```
+
+---
+
+### Date Range Filtering
+
+Add date filters to your query options:
+
+```typescript
+// Repository interface
+interface QueryOptions {
+  // ... existing options
+  createdAfter?: string;  // ISO 8601: YYYY-MM-DD
+  createdBefore?: string;
+}
+
+// Repository implementation
+if (createdAfter) {
+  const date = new Date(createdAfter);
+  if (!isNaN(date.getTime())) {
+    conditions.push('created_at >= ?');
+    args.push(date);
+  }
+}
+
+if (createdBefore) {
+  const date = new Date(createdBefore);
+  if (!isNaN(date.getTime())) {
+    conditions.push('created_at <= ?');
+    args.push(date);
+  }
+}
+```
+
+**Usage:**
+```
+GET /api/documents?createdAfter=2024-01-01&createdBefore=2024-12-31
+```
+
+---
+
+### Adding New Services to withApiAuth
+
+When you create a new service, register it in the ServiceContainer:
+
+**File:** `src/lib/api/with-auth.ts`
+
+```typescript
+// 1. Import your service
+import { TaskService, taskService } from '@/lib/services/task.service';
+
+// 2. Add to interface
+export interface ServiceContainer {
+  documentService: IDocumentService;
+  emailService: EmailService;
+  taskService: TaskService;  // NEW
+}
+
+// 3. Add to default services
+const defaultServices: ServiceContainer = {
+  documentService,
+  emailService,
+  taskService,  // NEW
+};
+```
+
+Now your API routes can access it:
+```typescript
+export const GET = withApiAuth(async (request, { userEmail, services }) => {
+  const tasks = await services.taskService.getUserTasks(userEmail);
+  return ApiResponseUtil.success(tasks);
+});
+```
+
+---
+
 ## Architecture Notes
 
 ### Why 3 Layers?

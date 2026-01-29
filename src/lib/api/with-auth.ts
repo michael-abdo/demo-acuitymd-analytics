@@ -6,7 +6,7 @@
  * at the data access level, following 2025 best practices.
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/session-validator';
 import { Session } from 'next-auth';
 import logger from '@/lib/pino-logger';
@@ -15,6 +15,18 @@ import { IDocumentService } from '@/lib/services/interfaces/document.service.int
 import { ApiResponseUtil } from '@/lib/response';
 import { EmailService, emailService } from '@/lib/services/email.service';
 import { validateCsrf, isCsrfEnabled } from './csrf';
+import { RateLimiter } from '@/lib/rate-limiter';
+import { APP_CONSTANTS } from '@/lib/config';
+
+/**
+ * API Rate Limiter
+ * Limits requests per user to prevent abuse.
+ * Default: 100 requests per 15-minute window
+ */
+const apiRateLimiter = new RateLimiter(
+  APP_CONSTANTS.RATE_LIMIT.MAX_REQUESTS,
+  APP_CONSTANTS.RATE_LIMIT.WINDOW_SIZE / 60000 // Convert ms to minutes
+);
 
 /**
  * Services container for dependency injection
@@ -96,12 +108,48 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
         }
       }
 
+      // SECURITY: Check rate limit for this user
+      const userEmail = session.user?.email || '';
+      const isAllowed = apiRateLimiter.checkLimit(userEmail);
+
+      if (!isAllowed) {
+        const resetTime = apiRateLimiter.getResetTime(userEmail);
+        const retryAfter = resetTime ? Math.ceil((resetTime - Date.now()) / 1000) : 60;
+
+        logger.base.warn('Rate limit exceeded', {
+          method: request.method,
+          url: request.url,
+          userEmail,
+        });
+
+        return new NextResponse(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: 'RATE_LIMITED',
+              message: `Too many requests. Please wait ${retryAfter} seconds before trying again.`,
+              retryAfter,
+            },
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-RateLimit-Limit': APP_CONSTANTS.RATE_LIMIT.MAX_REQUESTS.toString(),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': (resetTime || Date.now() + 60000).toString(),
+              'Retry-After': retryAfter.toString(),
+            },
+          }
+        );
+      }
+
       // Log successful authentication (wrapped to prevent pino worker crashes)
       try {
         logger.base.info('API route authenticated', {
           method: request.method,
           url: request.url,
-          userEmail: session.user?.email,
+          userEmail,
         });
       } catch {
         // Ignore logger errors
@@ -122,7 +170,7 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
       // Create auth context with injected services
       const context: AuthContext = {
         session,
-        userEmail: session.user?.email || '',
+        userEmail, // Already defined above during rate limit check
         services,
       };
 

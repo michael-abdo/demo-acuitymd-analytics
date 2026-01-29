@@ -109,6 +109,73 @@ export class DocumentRepository implements IDocumentRepository {
     }, 'deleteDocument');
   }
 
+  /**
+   * BULK OPERATION: Get documents by IDs for authorization check
+   * Returns only documents that exist and belong to the user
+   */
+  async getDocumentsByIds(ids: number[], userId: string): Promise<DocumentRow[]> {
+    return this.withErrorHandling(async () => {
+      if (!ids.length) return [];
+
+      // SECURITY: Use parameterized query with IN clause
+      const placeholders = ids.map(() => '?').join(', ');
+      const results = await executeQuery(
+        `SELECT * FROM documents WHERE id IN (${placeholders}) AND user_id = ?`,
+        [...ids, userId]
+      ) as DocumentRow[];
+
+      return Array.isArray(results) ? results : [];
+    }, 'getDocumentsByIds');
+  }
+
+  /**
+   * BULK OPERATION: Delete multiple documents by IDs
+   * SECURITY: Only deletes documents belonging to the specified user
+   */
+  async deleteDocumentsByIds(ids: number[], userId: string): Promise<{ affectedRows: number }> {
+    return this.withErrorHandling(async () => {
+      if (!ids.length) return { affectedRows: 0 };
+
+      // SECURITY: Include user_id in WHERE clause for authorization
+      const placeholders = ids.map(() => '?').join(', ');
+      const result = await executeQuery(
+        `DELETE FROM documents WHERE id IN (${placeholders}) AND user_id = ?`,
+        [...ids, userId]
+      ) as { affectedRows: number };
+
+      return { affectedRows: result?.affectedRows ?? 0 };
+    }, 'deleteDocumentsByIds');
+  }
+
+  /**
+   * BULK OPERATION: Update multiple documents by IDs
+   * SECURITY: Only updates documents belonging to the specified user
+   */
+  async updateDocumentsByIds(
+    ids: number[],
+    updates: UpdateDocumentData,
+    userId: string
+  ): Promise<{ affectedRows: number }> {
+    return this.withErrorHandling(async () => {
+      if (!ids.length || !Object.keys(updates).length) {
+        return { affectedRows: 0 };
+      }
+
+      // Build SET clause from updates
+      const setClause = Object.keys(updates).map((key) => `${key} = ?`).join(', ');
+      const updateValues = Object.values(updates);
+
+      // SECURITY: Include user_id in WHERE clause for authorization
+      const placeholders = ids.map(() => '?').join(', ');
+      const result = await executeQuery(
+        `UPDATE documents SET ${setClause}, updated_at = NOW() WHERE id IN (${placeholders}) AND user_id = ?`,
+        [...updateValues, ...ids, userId]
+      ) as { affectedRows: number };
+
+      return { affectedRows: result?.affectedRows ?? 0 };
+    }, 'updateDocumentsByIds');
+  }
+
   async getUserDocumentsWithFilters(
     userId: string,
     options: DocumentQueryOptions
@@ -120,7 +187,9 @@ export class DocumentRepository implements IDocumentRepository {
         page = 1,
         pageSize = 25,
         sortBy = 'created_at',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        createdAfter,
+        createdBefore
       } = options;
 
       // SECURITY: Explicit integer sanitization with bounds to prevent SQL injection
@@ -141,6 +210,24 @@ export class DocumentRepository implements IDocumentRepository {
         conditions.push('(filename LIKE ? OR file_path LIKE ?)');
         const likeQuery = `%${search}%`;
         args.push(likeQuery, likeQuery);
+      }
+
+      // SECURITY: Date range filtering with parameterized queries
+      // Dates are validated before being added as parameters
+      if (createdAfter) {
+        const afterDate = this.parseDate(createdAfter);
+        if (afterDate) {
+          conditions.push('created_at >= ?');
+          args.push(afterDate);
+        }
+      }
+
+      if (createdBefore) {
+        const beforeDate = this.parseDate(createdBefore);
+        if (beforeDate) {
+          conditions.push('created_at <= ?');
+          args.push(beforeDate);
+        }
       }
 
       const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -169,6 +256,23 @@ export class DocumentRepository implements IDocumentRepository {
         pageSize: normalizedPageSize
       };
     }, 'getUserDocumentsWithFilters');
+  }
+
+  /**
+   * SECURITY: Safely parse a date string
+   * Returns Date object or null if invalid
+   * Prevents SQL injection by only returning valid dates
+   */
+  private parseDate(dateStr: string): Date | null {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+
+    // Try parsing ISO 8601 format
+    const date = new Date(dateStr);
+
+    // Verify it's a valid date
+    if (isNaN(date.getTime())) return null;
+
+    return date;
   }
 }
 

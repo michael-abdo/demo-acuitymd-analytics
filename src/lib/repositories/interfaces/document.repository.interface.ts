@@ -56,6 +56,9 @@ export interface DocumentQueryOptions {
   pageSize?: number;
   sortBy?: 'created_at' | 'filename';
   sortOrder?: 'asc' | 'desc';
+  // Date range filters (ISO 8601 format: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+  createdAfter?: string;
+  createdBefore?: string;
 }
 
 export interface PaginatedDocumentsResult {

@@ -23,6 +23,11 @@ export const GET = withApiAuth(async (request: NextRequest, { userEmail, service
     const sortByParam = params.get('sortBy') ?? 'created_at';
     const sortOrderParam = params.get('sortOrder') ?? 'desc';
 
+    // Date range filtering (ISO 8601 format: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+    // Example: /api/documents?createdAfter=2024-01-01&createdBefore=2024-12-31
+    const createdAfter = params.get('createdAfter') ?? undefined;
+    const createdBefore = params.get('createdBefore') ?? undefined;
+
     const options = {
       status,
       search: params.get('search') ?? undefined,
@@ -31,7 +36,9 @@ export const GET = withApiAuth(async (request: NextRequest, { userEmail, service
       sortBy: ALLOWED_SORT_BY.has(sortByParam) ? (sortByParam as 'created_at' | 'filename') : 'created_at',
       sortOrder: ALLOWED_SORT_ORDER.has(sortOrderParam?.toLowerCase() ?? '')
         ? (sortOrderParam.toLowerCase() as 'asc' | 'desc')
-        : 'desc'
+        : 'desc',
+      createdAfter,
+      createdBefore
     };
 
     const result = await services.documentService.getUserDocuments(userEmail, options);

@@ -210,6 +210,147 @@ export class SimpleDocumentService implements IDocumentService {
     }
   }
 
+  /**
+   * BULK OPERATION: Delete multiple documents
+   *
+   * SECURITY: All-or-nothing authorization - if ANY document doesn't belong
+   * to the user, the entire operation fails. This prevents partial data leaks.
+   *
+   * @param ids - Array of document IDs to delete (max 100)
+   * @param userId - User performing the operation
+   * @returns Object with deleted count
+   */
+  async bulkDeleteDocuments(
+    ids: number[],
+    userId: string
+  ): Promise<{ deleted: number; requested: number }> {
+    // Input validation
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new ValidationError('At least one document ID is required', 'ids');
+    }
+    if (ids.length > 100) {
+      throw new ValidationError(
+        'Cannot delete more than 100 documents at once. Please delete in smaller batches.',
+        'ids'
+      );
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new ValidationError('Valid userId is required', 'userId');
+    }
+
+    // Validate all IDs are positive integers
+    const validIds = ids.filter((id) => typeof id === 'number' && id > 0 && Number.isInteger(id));
+    if (validIds.length !== ids.length) {
+      throw new ValidationError('All document IDs must be positive integers', 'ids');
+    }
+
+    // SECURITY: Verify ALL documents belong to user before deleting any
+    // @ts-ignore - Method exists on repository but not in interface yet
+    const existingDocs = await this.documentRepository.getDocumentsByIds(validIds, userId);
+    const foundIds = new Set(existingDocs.map((d: DocumentRow) => d.id));
+    const notFoundIds = validIds.filter((id) => !foundIds.has(id));
+
+    if (notFoundIds.length > 0) {
+      // Some IDs either don't exist or don't belong to user
+      // Don't reveal which to prevent information disclosure
+      throw new AuthorizationError(
+        `Cannot delete: ${notFoundIds.length} document(s) not found or not owned by you`,
+        userId,
+        undefined, // Don't expose which IDs failed
+        { failedCount: notFoundIds.length }
+      );
+    }
+
+    // All validation passed - perform bulk delete
+    // @ts-ignore - Method exists on repository but not in interface yet
+    const result = await this.documentRepository.deleteDocumentsByIds(validIds, userId);
+
+    return {
+      deleted: result.affectedRows,
+      requested: validIds.length,
+    };
+  }
+
+  /**
+   * BULK OPERATION: Update multiple documents
+   *
+   * SECURITY: All-or-nothing authorization - if ANY document doesn't belong
+   * to the user, the entire operation fails.
+   *
+   * @param ids - Array of document IDs to update (max 100)
+   * @param updates - Fields to update (same updates applied to all)
+   * @param userId - User performing the operation
+   * @returns Object with updated count
+   */
+  async bulkUpdateDocuments(
+    ids: number[],
+    updates: { status?: string; filename?: string },
+    userId: string
+  ): Promise<{ updated: number; requested: number }> {
+    // Input validation
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new ValidationError('At least one document ID is required', 'ids');
+    }
+    if (ids.length > 100) {
+      throw new ValidationError(
+        'Cannot update more than 100 documents at once. Please update in smaller batches.',
+        'ids'
+      );
+    }
+    if (!updates || Object.keys(updates).length === 0) {
+      throw new ValidationError('At least one field to update is required', 'updates');
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new ValidationError('Valid userId is required', 'userId');
+    }
+
+    // Validate status if provided
+    if (updates.status) {
+      const validStatuses = ['uploaded', 'processing', 'completed', 'failed'];
+      if (!validStatuses.includes(updates.status)) {
+        throw new ValidationError(
+          `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+          'status'
+        );
+      }
+    }
+
+    // Validate all IDs are positive integers
+    const validIds = ids.filter((id) => typeof id === 'number' && id > 0 && Number.isInteger(id));
+    if (validIds.length !== ids.length) {
+      throw new ValidationError('All document IDs must be positive integers', 'ids');
+    }
+
+    // SECURITY: Verify ALL documents belong to user before updating any
+    // @ts-ignore - Method exists on repository but not in interface yet
+    const existingDocs = await this.documentRepository.getDocumentsByIds(validIds, userId);
+    const foundIds = new Set(existingDocs.map((d: DocumentRow) => d.id));
+    const notFoundIds = validIds.filter((id) => !foundIds.has(id));
+
+    if (notFoundIds.length > 0) {
+      throw new AuthorizationError(
+        `Cannot update: ${notFoundIds.length} document(s) not found or not owned by you`,
+        userId,
+        undefined, // Don't expose which IDs failed
+        { failedCount: notFoundIds.length }
+      );
+    }
+
+    // Build clean update object
+    const cleanUpdates: Record<string, string> = {};
+    if (updates.status) cleanUpdates.status = updates.status;
+    if (updates.filename) cleanUpdates.filename = updates.filename.trim();
+
+    // All validation passed - perform bulk update
+    // @ts-ignore - Method exists on repository but not in interface yet
+    const result = await this.documentRepository.updateDocumentsByIds(validIds, cleanUpdates, userId);
+
+    return {
+      updated: result.affectedRows,
+      requested: validIds.length,
+    };
+  }
+
   transformDocumentForAPI(document: DocumentRow): DocumentResponse {
     const formatFileSize = (bytes: number): string => {
       if (bytes === 0) return '0 Bytes';
