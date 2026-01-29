@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/api/with-auth';
+import { withApiAuth } from '@/lib/api/with-auth';
 import { ApiResponseUtil } from '@/lib/response';
 import { DocumentStatus } from '@/lib/repositories/interfaces/document.repository.interface';
 import { ALLOWED_STATUSES, mapServiceError } from '../utils';
@@ -26,7 +26,7 @@ const extractId = async (paramsPromise?: Promise<{ id?: string }>): Promise<numb
   return parseDocumentId(params?.id);
 };
 
-export const GET = withAuth(async (_request: NextRequest, { userEmail, services }, routeParams) => {
+export const GET = withApiAuth(async (_request: NextRequest, { userEmail, services }, routeParams) => {
   try {
     const documentId = await extractId(routeParams?.params);
     if (!documentId) {
@@ -48,7 +48,7 @@ export const GET = withAuth(async (_request: NextRequest, { userEmail, services 
   }
 });
 
-export const PUT = withAuth(async (request: NextRequest, { userEmail, services }, routeParams) => {
+export const PUT = withApiAuth(async (request: NextRequest, { userEmail, services }, routeParams) => {
   try {
     const documentId = await extractId(routeParams?.params);
     if (!documentId) {
@@ -97,7 +97,7 @@ export const PUT = withAuth(async (request: NextRequest, { userEmail, services }
   }
 });
 
-export const DELETE = withAuth(async (_request: NextRequest, { userEmail, services }, routeParams) => {
+export const DELETE = withApiAuth(async (_request: NextRequest, { userEmail, services }, routeParams) => {
   try {
     const documentId = await extractId(routeParams?.params);
     if (!documentId) {

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/api/with-auth';
+import { withApiAuth } from '@/lib/api/with-auth';
 import { ApiResponseUtil } from '@/lib/response';
 import {
   EmailRecipient,
@@ -57,7 +57,7 @@ function toNumber(id: number | string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export const POST = withAuth(async (request: NextRequest, { userEmail, session, services }) => {
+export const POST = withApiAuth(async (request: NextRequest, { userEmail, session, services }) => {
   let body: SendRequestBody;
 
   try {

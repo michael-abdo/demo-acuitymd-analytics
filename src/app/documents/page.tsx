@@ -1,9 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { getCsrfToken } from 'next-auth/react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, PageTitle } from '@/components/ui';
 import { Upload, FileText, RefreshCcw, Trash2 } from 'lucide-react';
 import { PageContainer } from '@/components/page-container';
+
+/**
+ * Helper to get headers for API requests.
+ * SECURITY: Always include CSRF token for POST/PUT/DELETE requests.
+ */
+async function getApiHeaders(): Promise<HeadersInit> {
+  const csrfToken = await getCsrfToken();
+  return {
+    'Content-Type': 'application/json',
+    'x-csrf-token': csrfToken || '',
+  };
+}
 
 type DocumentStatus = 'uploaded' | 'processing' | 'completed' | 'failed';
 
@@ -170,7 +183,7 @@ export default function DocumentsPage() {
 
       const response = await fetch('/api/documents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getApiHeaders(),
         body: JSON.stringify(payload)
       });
 
@@ -216,7 +229,7 @@ export default function DocumentsPage() {
       try {
         const response = await fetch(`/api/documents/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await getApiHeaders(),
           body: JSON.stringify({ status: nextStatus })
         });
 
@@ -251,7 +264,8 @@ export default function DocumentsPage() {
 
       try {
         const response = await fetch(`/api/documents/${id}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: await getApiHeaders()
         });
 
         if (!response.ok) {

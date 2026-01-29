@@ -10,7 +10,7 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth/session-validator';
 import { Session } from 'next-auth';
 import logger from '@/lib/pino-logger';
-import { simpleDocumentService as documentService } from '@/lib/services/document.service.simple';
+import { simpleDocumentService as documentService } from '@/lib/services/document.service';
 import { IDocumentService } from '@/lib/services/interfaces/document.service.interface';
 import { ApiResponseUtil } from '@/lib/response';
 import { EmailService, emailService } from '@/lib/services/email.service';
@@ -51,26 +51,30 @@ export interface WithAuthOptions {
 
 /**
  * Wraps an API route handler with authentication and service dependency injection
- * 
+ *
+ * NOTE: This is named `withApiAuth` to distinguish it from next-auth's `withAuth` middleware.
+ * - Use `withApiAuth` for API route handlers (this file)
+ * - Use `withAuth` from 'next-auth/middleware' for page/middleware protection
+ *
  * @param handler - The route handler function to wrap
  * @param options - Optional configuration including custom services for testing
- * 
+ *
  * @example
  * ```typescript
- * export const GET = withAuth(async (request, { session, userEmail, services }) => {
+ * export const GET = withApiAuth(async (request, { session, userEmail, services }) => {
  *   // Route handler has access to authenticated session and injected services
  *   const result = await services.documentService.getUserDocuments(userEmail);
  *   return ApiResponseUtil.success(result);
  * });
  * ```
- * 
+ *
  * @example Custom services for testing:
  * ```typescript
  * const mockDocumentService = new MockDocumentService();
- * export const GET = withAuth(handler, { services: { documentService: mockDocumentService } });
+ * export const GET = withApiAuth(handler, { services: { documentService: mockDocumentService } });
  * ```
  */
-export function withAuth(handler: AuthenticatedRouteHandler, options?: WithAuthOptions) {
+export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAuthOptions) {
   return async (request: NextRequest, params?: any) => {
     try {
       // Authenticate request using existing requireAuth utility

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/api/with-auth';
+import { withApiAuth } from '@/lib/api/with-auth';
 import { ApiResponseUtil } from '@/lib/response';
 import { emailRoutingService } from '@/lib/email/routing-service';
 import { resolveEmailConfig, isEmailSendingAllowed } from '@/lib/email/config';
@@ -17,7 +17,7 @@ function toNumber(id: number | string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export const POST = withAuth(async (request: NextRequest, { userEmail, services }) => {
+export const POST = withApiAuth(async (request: NextRequest, { userEmail, services }) => {
   let body: RequestBody = {};
   try {
     body = await request.json();

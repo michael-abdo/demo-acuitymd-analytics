@@ -9,5 +9,5 @@ export * from './errors';
 export * from './email.service';
 export * from './job.service';
 
-// Default exports for convenience
-export { documentService as default } from './document.service';
+// Default export - the document service singleton
+export { simpleDocumentService as documentService } from './document.service';

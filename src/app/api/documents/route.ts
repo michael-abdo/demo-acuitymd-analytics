@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/api/with-auth';
+import { withApiAuth } from '@/lib/api/with-auth';
 import { DocumentStatus } from '@/lib/repositories/interfaces/document.repository.interface';
 import { ApiResponseUtil } from '@/lib/response';
 import { 
@@ -12,7 +12,7 @@ import {
   parseNumberParam
 } from './utils';
 
-export const GET = withAuth(async (request: NextRequest, { userEmail, services }) => {
+export const GET = withApiAuth(async (request: NextRequest, { userEmail, services }) => {
   try {
     const params = request.nextUrl.searchParams;
     const statusParam = params.get('status');
@@ -52,7 +52,7 @@ export const GET = withAuth(async (request: NextRequest, { userEmail, services }
   }
 });
 
-export const POST = withAuth(async (request: NextRequest, { userEmail, services }) => {
+export const POST = withApiAuth(async (request: NextRequest, { userEmail, services }) => {
   try {
     const body = await request.json();
 
