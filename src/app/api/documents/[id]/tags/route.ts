@@ -133,12 +133,12 @@ export const POST = withApiAuth(async (request: NextRequest, { userEmail }, rout
       result = await tagService.addTagToDocumentByName(documentId, body.name, userEmail);
     }
 
-    logger.base.info('Tag added to document', {
+    logger.base.info({
       documentId,
       tagId: body.tagId,
       tagName: body.name,
       userEmail,
-    });
+    }, 'Tag added to document');
 
     return ApiResponseUtil.success(result, { requestId: crypto.randomUUID() });
   } catch (error) {
@@ -190,11 +190,11 @@ export const DELETE = withApiAuth(async (request: NextRequest, { userEmail }, ro
   try {
     const result = await tagService.removeTagFromDocument(documentId, body.tagId, userEmail);
 
-    logger.base.info('Tag removed from document', {
+    logger.base.info({
       documentId,
       tagId: body.tagId,
       userEmail,
-    });
+    }, 'Tag removed from document');
 
     return ApiResponseUtil.success(result, { requestId: crypto.randomUUID() });
   } catch (error) {

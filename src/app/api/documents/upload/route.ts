@@ -98,13 +98,13 @@ export const POST = withApiAuth(async (request: NextRequest, { userEmail, servic
       userEmail
     );
 
-    logger.base.info('File uploaded successfully', {
+    logger.base.info({
       documentId: document.id,
       filename: safeFilename,
       size: file.size,
       storageKey,
       userEmail,
-    });
+    }, 'File uploaded successfully');
 
     return ApiResponseUtil.success(
       {

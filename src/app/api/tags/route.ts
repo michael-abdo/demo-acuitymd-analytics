@@ -66,11 +66,11 @@ export const POST = withApiAuth(async (request: NextRequest, { userEmail }) => {
   try {
     const tag = await tagService.createTag(body.name, userEmail);
 
-    logger.base.info('Tag created', {
+    logger.base.info({
       tagId: tag.id,
       tagName: tag.name,
       userEmail,
-    });
+    }, 'Tag created');
 
     return ApiResponseUtil.success(tag, { requestId: crypto.randomUUID() }, 201);
   } catch (error) {

@@ -96,11 +96,11 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
       if (isCsrfEnabled()) {
         const csrfResult = validateCsrf(request);
         if (!csrfResult.valid) {
-          logger.base.warn('CSRF validation failed', {
+          logger.base.warn({
             method: request.method,
             url: request.url,
             error: csrfResult.error,
-          });
+          }, 'CSRF validation failed');
           return ApiResponseUtil.error(
             { code: 'CSRF_INVALID', message: csrfResult.error || 'CSRF validation failed' },
             403
@@ -116,11 +116,11 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
         const resetTime = apiRateLimiter.getResetTime(userEmail);
         const retryAfter = resetTime ? Math.ceil((resetTime - Date.now()) / 1000) : 60;
 
-        logger.base.warn('Rate limit exceeded', {
+        logger.base.warn({
           method: request.method,
           url: request.url,
           userEmail,
-        });
+        }, 'Rate limit exceeded');
 
         return new NextResponse(
           JSON.stringify({
@@ -146,11 +146,11 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
 
       // Log successful authentication (wrapped to prevent pino worker crashes)
       try {
-        logger.base.info('API route authenticated', {
+        logger.base.info({
           method: request.method,
           url: request.url,
           userEmail,
-        });
+        }, 'API route authenticated');
       } catch {
         // Ignore logger errors
       }
@@ -179,11 +179,11 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
       
     } catch (error) {
       // Log authentication failure
-      logger.base.warn('API route authentication failed', {
+      logger.base.warn({
         method: request.method,
         url: request.url,
         error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      }, 'API route authentication failed');
 
       // Return 401 Unauthorized for auth failures using standardized response utility
       return ApiResponseUtil.unauthorized('Authentication required to access this resource');

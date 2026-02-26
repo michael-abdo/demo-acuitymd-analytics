@@ -95,11 +95,11 @@ export const POST = withApiAuth(async (request: NextRequest, { userEmail, servic
       // @ts-ignore - Method exists on service
       const result = await services.documentService.bulkDeleteDocuments(body.ids, userEmail);
 
-      logger.base.info('Bulk delete completed', {
+      logger.base.info({
         userEmail,
         deleted: result.deleted,
         requested: result.requested,
-      });
+      }, 'Bulk delete completed');
 
       return ApiResponseUtil.success(result, { requestId: crypto.randomUUID() });
     }
@@ -122,12 +122,12 @@ export const POST = withApiAuth(async (request: NextRequest, { userEmail, servic
         userEmail
       );
 
-      logger.base.info('Bulk update completed', {
+      logger.base.info({
         userEmail,
         updated: result.updated,
         requested: result.requested,
         updates: updateBody.updates,
-      });
+      }, 'Bulk update completed');
 
       return ApiResponseUtil.success(result, { requestId: crypto.randomUUID() });
     }
