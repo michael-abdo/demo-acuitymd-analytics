@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
-  description: 'View your document processing statistics and recent activity',
+  description: 'MedTech product analytics, market penetration, and FDA approval status overview',
 };
 
 export default function Dashboard() {

@@ -179,7 +179,7 @@ export default function MedtechProductsPage() {
               <Input
                 placeholder="Units Sold"
                 value={units_sold}
-                onChange={(e) => setUnitsSold(e.target.value)}
+                onChange={(e) => setUnitsSold(Number(e.target.value) || 0)}
               />
               <Input
                 placeholder="Fda Status"

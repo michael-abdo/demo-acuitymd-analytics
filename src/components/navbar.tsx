@@ -1,123 +1,55 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { useState, useRef, useEffect } from 'react';
-import { useBasePath } from '@/lib/hooks';
-import { signOut } from '@/lib/auth-client-utils';
+import { Activity, BarChart3, ClipboardCheck, Home } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const user = session?.user;
-  const userName = user?.name || 'Sign In';
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const { pagePath, assetPath } = useBasePath();
 
-  const handleProfileClick = (e: React.MouseEvent) => {
-    if (!session) {
-      e.preventDefault();
-      // Instead of using signIn, redirect to our sign-in page directly
-      // This ensures basePath is maintained
-      // pathname already includes basePath, so use it directly
-      const currentPath = pathname || pagePath('/dashboard');
-      window.location.href = `${pagePath('/sign-in')}?callbackUrl=${encodeURIComponent(currentPath)}`;
-    } else {
-      e.preventDefault();
-      setShowDropdown(!showDropdown);
-    }
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  const navLinks = [
+    { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { href: '/approval-process', label: 'Approval Timeline', icon: ClipboardCheck },
+    { href: '/medtech_products', label: 'Products', icon: Activity },
+  ];
 
   return (
-    <nav className="fixed top-0 z-50 w-full bg-[#152C5B] h-14">
+    <nav className="fixed top-0 z-50 w-full bg-[#0A3161] h-14">
       <div className="container mx-auto flex h-full max-w-screen-2xl items-center justify-between px-4">
-        {/* Left side navigation */}
-        <div className="flex items-center gap-3">
-          <Link href={pagePath('/dashboard')} className="bg-white rounded-full py-1 px-4 flex items-center space-x-2">
-            {/* Document icon */}
-            <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
+        {/* Left side - Brand */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-lg bg-[#2dd4bf] flex items-center justify-center">
+              <Home className="w-4 h-4 text-[#0A3161]" />
             </div>
-            <span className="text-[#152C5B] font-medium">{process.env.NEXT_PUBLIC_APP_NAME || 'Template App'}</span>
+            <span className="text-white font-bold text-lg tracking-tight">AcuityMD</span>
           </Link>
 
-          <Link
-            href={pagePath('/email/send')}
-            className={`rounded-full py-1 px-4 text-sm font-medium transition-colors ${
-              pathname?.includes('/email')
-                ? 'bg-white text-[#152C5B]'
-                : 'bg-transparent text-white hover:bg-white/10'
-            }`}
-          >
-            Email Notifications
-          </Link>
-        </div>
-
-        {/* Center - Logo */}
-        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <Image src={assetPath('/logo.svg')} alt="Logo" className="w-6 h-6" width={24} height={24} />
-        </div>
-
-        {/* Right side - User Profile button with dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button 
-            onClick={handleProfileClick}
-            className="bg-white rounded-full py-1 px-4 flex items-center space-x-2"
-          >
-            <span className="text-[#152C5B] font-medium">{userName}</span>
-            <div className="w-6 h-6 rounded-full border border-[#152C5B] flex items-center justify-center">
-              <Image src={assetPath('/user.svg')} alt="User" className="w-4 h-4" width={16} height={16} />
-            </div>
-          </button>
-
-          {/* Dropdown menu */}
-          {session && showDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-              <div className="px-4 py-2 border-b border-gray-100">
-                <p className="text-sm font-medium text-gray-900">{userName}</p>
-              </div>
-              <Link 
-                href="/profile" 
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                onClick={() => setShowDropdown(false)}
+          {/* Navigation links */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`rounded-full py-1.5 px-4 text-sm font-medium transition-colors flex items-center gap-2 ${
+                  pathname === href
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <Image src={assetPath('/settings.svg')} alt="Settings" className="h-4 w-4 mr-2 text-gray-500" width={16} height={16} />
-                Profile settings
+                <Icon className="w-4 h-4" />
+                {label}
               </Link>
-              <button
-                onClick={() => {
-                  signOut();
-                  setShowDropdown(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-              >
-                <Image src={assetPath('/logout.svg')} alt="Logout" className="h-4 w-4 mr-2 text-gray-500" width={16} height={16} />
-                Log out
-              </button>
-            </div>
-          )}
+            ))}
+          </div>
+        </div>
+
+        {/* Right side - Guest badge */}
+        <div className="flex items-center gap-3">
+          <span className="text-white/60 text-sm">Guest Mode</span>
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <span className="text-white text-sm font-medium">G</span>
+          </div>
         </div>
       </div>
     </nav>

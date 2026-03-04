@@ -16,7 +16,8 @@
     "setup": "bash scripts/setup.sh",
     "db:setup": "mysql < database/schema.sql",
     "db:reset": "mysql -e 'DROP DATABASE IF EXISTS vvg_template;' && npm run db:setup",
-    "queue:worker": "node -r ts-node/register scripts/queue-worker.js"
+    "queue:worker": "node -r ts-node/register scripts/queue-worker.js",
+    "seed": "npx tsx scripts/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
@@ -47,6 +48,7 @@
     "postcss": "^8.4.48",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "recharts": "^3.7.0",
     "tailwind-merge": "^2.0.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",

@@ -138,14 +138,14 @@ export default isDisabled
       }
     );
 
-// Export config - protect ALL routes except specific public ones
+// Export config - protect only write operations; dashboard and viz pages are public (guest mode)
 // Note: Next.js requires static config at build time
-// Protect all routes (root-level deployment)
 export const config = {
   matcher: [
-    '/',
-    '/((?!api/auth|api/health|api/db-health|api/storage-health|sign-in|sign-up|auth/error|auth/signout|_next/static|_next/image|favicon.ico|public).+)',
-    // Also match root-level auth routes that NextAuth might use
+    // Only protect auth API routes and write-operation endpoints
     '/api/auth/:path*',
+    // Protect email and document write endpoints
+    '/api/email/:path*',
+    '/api/documents/:path*',
   ],
 };

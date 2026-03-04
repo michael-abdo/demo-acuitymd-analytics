@@ -1,72 +1,61 @@
-# AcuityMD Demo — Infrastructure platform for MedTech data and software applications
+# AcuityMD — Infrastructure Platform For Medtech Data And Software Applications
 
-## Demo: MedTech Insights Platform for AcuityMD
+![Dashboard Screenshot](docs/dashboard-screenshot.png)
 
-### Context
-AcuityMD is a software and data platform that accelerates access to medical technologies. The Platform Team focuses on building infrastructure for MedTech data and software applications. This demo highlights how their platform can effectively visualize and manage MedTech product data, approval timelines, and market penetration, aligning with the company's mission to streamline access to medical technologies.
+> A working demo showcasing infrastructure platform for MedTech data and software applications,
+> built with Next.js, TypeScript, Recharts, and Tailwind CSS.
 
-### What to Build
-1. **MedTech Approval Visualization** - A timeline view of product approvals.
-2. **Market Penetration Dashboard** - Dashboard showing sales data across regions.
-3. **FDA Process Tracker** - Track and alert on the status of FDA approvals.
+**[Live Demo](https://demo-acuitymd-analytics.vercel.app)** ·
+**[Source Code](https://github.com/vvgtruck/demo-acuitymd-analytics)**
 
-### Entities
-For each entity, list the data model:
+## Why I Built This
 
-#### MedTechProduct (`medtech_product`)
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| product_name | string | yes | Name of the MedTech product |
-| approval_date | date | yes | Date of FDA approval |
+AcuityMD is building the infrastructure platform for MedTech data and software applications. I wanted to demonstrate
+that I understand the domain by building a working prototype
+that showcases medtech product approval timeline visualization, market penetration analytics, and FDA process tracking with delay alerts.
 
-#### ApprovalProcess (`approval_process`)
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| stage_name | string | yes | Stage of the FDA approval process |
-| start_date | date | yes | Start date of the process stage |
+## What It Does
 
-### Seed Data
-Represents MedTech products and their approval processes across different regions, ensuring the demo feels realistic and alive.
+- **MedTech Product Approval Timeline Visualization** — Interactive stacked bar charts showing FDA approval stages (Pre-Submission through Clearance) with duration tracking and delay alerts for overdue reviews
+- **Market Penetration Dashboard for MedTech Devices** — KPI cards and region-filtered bar charts showing unit sales across North America, Europe, Asia Pacific, and Latin America with click-to-filter interactivity
+- **FDA Approval Process Tracking with Alerts** — Real-time status cards per product with color-coded stage indicators (Completed, In Progress, Delayed, Pending) and automatic flagging when stages exceed 6-month targets
 
-Patterns:
-- Approval timelines: 6-18 months with checkpoints
-- Regional sales variations: higher in North America and Europe
-- FDA status progression: 'Submitted' -> 'Under Review' -> 'Approved'
+## Technical Decisions
 
-### Visualizations
+| Choice | Why |
+|--------|-----|
+| Next.js 15 | Matches the team's stack — App Router with server components |
+| TypeScript | Type safety for MedTech data models and FDA status enums |
+| Recharts | Composable React chart library for interactive visualizations |
+| Tailwind CSS | Rapid styling with AcuityMD brand color theming via CSS variables |
+| Vercel | One-click deploy, free tier, instant preview URLs |
 
-#### /dashboard — Market Penetration Overview
-- **Chart type**: KPI cards + bar chart
-- **Library**: recharts
-- **Data**: Sales and approval data across regions
-- **Interactions**: Hover tooltips, click-to-filter by region
+## Quick Start
 
-#### /approval-process — Approval Timeline
-- **Chart type**: Timeline view
-- **Library**: recharts
-- **Data**: Approval process stages with dates
-- **Interactions**: Drill-down into specific product timelines, alert on delays
+```bash
+git clone https://github.com/vvgtruck/demo-acuitymd-analytics
+cd demo-acuitymd-analytics
+npm install
+cp .env.example .env  # fill in DATABASE_URL
+npm run dev
+```
 
-### Stack
-- Next.js 16 + TypeScript — full-stack framework with App Router
-- Recharts — interactive chart library (already in template)
-- Tailwind CSS — styling with company-branded color theme
+Visit `http://localhost:3000` — click **Try Demo** to explore the dashboard.
 
-### Deployment
-- Platform: Vercel (one-click deploy)
-- Database: PlanetScale (free tier)
-- Seed: Auto-seeds on first run via /api/seed endpoint
-- Env vars: DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
+## Pages
 
-### Branding
-- Header: "AcuityMD MedTech Platform" with company's brand colors
-- Color theme: Blue and green shades matching AcuityMD's branding
-- Favicon: company logo
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page with AcuityMD branding and Try Demo CTA |
+| `/dashboard` | KPI cards + bar chart (units by region) + FDA status pie chart + top products table |
+| `/approval-process` | Stacked timeline chart + per-product approval stage cards with delay alerts |
+| `/api/seed` | Auto-seed endpoint (returns data summary) |
+| `/api/health` | Health check |
 
-### Acceptance Criteria
-- [ ] Dashboard loads with realistic seed data (not empty)
-- [ ] All charts are interactive (hover tooltips, click-to-filter)
-- [ ] Approval timeline reflects real FDA processes
-- [ ] Market penetration data is regionally accurate
-- [ ] Deploys to Vercel in one click from README
-- [ ] Branded with company name and colors
+## Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vvgtruck/demo-acuitymd-analytics)
+
+## Author
+
+**Michael Abdo** — [GitHub](https://github.com/michael-abdo) · [LinkedIn](https://linkedin.com/in/michael-abdo)

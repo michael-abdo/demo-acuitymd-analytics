@@ -12,15 +12,15 @@ export const metadata: Metadata = {
     apple: '/logo.svg',
   },
   title: {
-    default: 'VVG Document Processing Template',
-    template: '%s | VVG Template'
+    default: 'AcuityMD Infrastructure Platform For Medtech Data And Software Applications',
+    template: '%s | AcuityMD'
   },
-  description: 'Production-ready document processing template with upload, extraction, and comparison features',
-  keywords: ['document processing', 'template analysis', 'PDF extraction', 'document comparison'],
-  authors: [{ name: 'VVG Team' }],
+  description: 'Infrastructure platform for MedTech data and software applications. Visualize product approvals, market penetration, and FDA process tracking.',
+  keywords: ['medtech', 'FDA approval', 'medical devices', 'market penetration', 'analytics'],
+  authors: [{ name: 'Michael Abdo' }],
   openGraph: {
-    title: 'VVG Document Processing Template',
-    description: 'Production-ready document processing template',
+    title: 'AcuityMD MedTech Analytics Platform',
+    description: 'Infrastructure platform for MedTech data and software applications',
     type: 'website',
   }
 }
