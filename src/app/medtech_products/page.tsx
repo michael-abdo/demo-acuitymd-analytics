@@ -34,7 +34,6 @@ interface ApiResponse<T> {
 export default function MedtechProductsPage() {
   const [items, setItems] = useState<MedtechProductItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -46,7 +45,6 @@ export default function MedtechProductsPage() {
 
   const fetchItems = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    setError(null);
 
     const query = new URLSearchParams();
     if (searchTerm.trim()) query.set('search', searchTerm.trim());
@@ -67,7 +65,6 @@ export default function MedtechProductsPage() {
       setItems(json.data.medtech_products ?? []);
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
-      setError((err as Error).message);
       setItems([]);
     } finally {
       setLoading(false);
@@ -103,7 +100,7 @@ export default function MedtechProductsPage() {
       setUnitsSold(0);
       setFdaStatus('');
     } catch (err) {
-      setError((err as Error).message);
+      setStatusMessage((err as Error).message);
     }
   }, [product_name, approval_date, market_region, units_sold, fda_status, fetchItems]);
 
@@ -120,16 +117,15 @@ export default function MedtechProductsPage() {
       await fetchItems();
       setStatusMessage('MedtechProduct deleted successfully.');
     } catch (err) {
-      setError((err as Error).message);
+      setStatusMessage((err as Error).message);
     }
   }, [fetchItems]);
 
   const emptyMessage = useMemo(() => {
     if (loading) return 'Loading...';
-    if (error) return error;
-    if (!items.length) return searchTerm.trim() ? 'No results.' : 'No medtech_products yet.';
+    if (!items.length) return searchTerm.trim() ? 'No results.' : 'No medtech_products yet. Connect a database and run seed to populate.';
     return null;
-  }, [items.length, error, loading, searchTerm]);
+  }, [items.length, loading, searchTerm]);
 
   return (
     <PageContainer>
@@ -155,7 +151,6 @@ export default function MedtechProductsPage() {
         </div>
 
         {statusMessage && <p className="text-sm text-green-600">{statusMessage}</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
 
         {showCreateForm && (
           <Card>

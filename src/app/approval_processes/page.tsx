@@ -34,7 +34,6 @@ interface ApiResponse<T> {
 export default function ApprovalProcesssPage() {
   const [items, setItems] = useState<ApprovalProcessItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -46,7 +45,6 @@ export default function ApprovalProcesssPage() {
 
   const fetchItems = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    setError(null);
 
     const query = new URLSearchParams();
     if (searchTerm.trim()) query.set('search', searchTerm.trim());
@@ -67,7 +65,6 @@ export default function ApprovalProcesssPage() {
       setItems(json.data.approval_processes ?? []);
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
-      setError((err as Error).message);
       setItems([]);
     } finally {
       setLoading(false);
@@ -103,7 +100,7 @@ export default function ApprovalProcesssPage() {
       setStatus('');
       setResponsiblePerson('');
     } catch (err) {
-      setError((err as Error).message);
+      setStatusMessage((err as Error).message);
     }
   }, [stage_name, start_date, end_date, status, responsible_person, fetchItems]);
 
@@ -120,16 +117,15 @@ export default function ApprovalProcesssPage() {
       await fetchItems();
       setStatusMessage('ApprovalProcess deleted successfully.');
     } catch (err) {
-      setError((err as Error).message);
+      setStatusMessage((err as Error).message);
     }
   }, [fetchItems]);
 
   const emptyMessage = useMemo(() => {
     if (loading) return 'Loading...';
-    if (error) return error;
-    if (!items.length) return searchTerm.trim() ? 'No results.' : 'No approval_processes yet.';
+    if (!items.length) return searchTerm.trim() ? 'No results.' : 'No approval_processes yet. Connect a database and run seed to populate.';
     return null;
-  }, [items.length, error, loading, searchTerm]);
+  }, [items.length, loading, searchTerm]);
 
   return (
     <PageContainer>
@@ -155,7 +151,6 @@ export default function ApprovalProcesssPage() {
         </div>
 
         {statusMessage && <p className="text-sm text-green-600">{statusMessage}</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
 
         {showCreateForm && (
           <Card>
