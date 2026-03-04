@@ -17,6 +17,8 @@ import { EmailService, emailService } from '@/lib/services/email.service';
 import { validateCsrf, isCsrfEnabled } from './csrf';
 import { RateLimiter } from '@/lib/rate-limiter';
 import { APP_CONSTANTS } from '@/lib/config';
+import { MedtechProductService, medtechProductService } from '@/lib/services/medtech_product.service';
+import { ApprovalProcessService, approvalProcessService } from '@/lib/services/approval_process.service';
 
 /**
  * API Rate Limiter
@@ -32,6 +34,8 @@ const apiRateLimiter = new RateLimiter(
  * Services container for dependency injection
  */
 export interface ServiceContainer {
+  approvalProcessService: ApprovalProcessService;
+  medtechProductService: MedtechProductService;
   documentService: IDocumentService;
   emailService: EmailService;
 }
@@ -157,6 +161,8 @@ export function withApiAuth(handler: AuthenticatedRouteHandler, options?: WithAu
 
       // Create default services container
       const defaultServices: ServiceContainer = {
+  approvalProcessService,
+  medtechProductService,
         documentService,
         emailService,
       };
